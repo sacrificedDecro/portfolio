@@ -29,7 +29,7 @@
   --font-mono:    'DM Mono', 'Courier New', monospace;
 
   /* Layout */
-  --section-pad:    clamp(5rem, 10vw, 9rem);
+  --section-pad:    clamp(2rem, 4vw, 3.6rem);
   --container-max:  1200px;
   --container-pad:  clamp(1.5rem, 6vw, 4rem);
   --card-radius:    3px;
@@ -291,7 +291,7 @@ button {
   min-height: 100svh;
   display: flex;
   align-items: center;
-  padding-top: 8rem;
+  padding-top: 3.2rem;
 }
 
 .hero__content {
@@ -628,7 +628,7 @@ button {
    ============================================================ */
 @media (max-width: 480px) {
   :root {
-    --section-pad: 4rem;
+    --section-pad: 1.6rem;
   }
 
   /* Collapse nav links to save space — can add a hamburger menu later */
@@ -647,7 +647,7 @@ button {
 @media (max-width: 320px) {
   :root {
     --container-pad: 1rem;
-    --section-pad: 3rem;
+    --section-pad: 1.2rem;
   }
 }
 
