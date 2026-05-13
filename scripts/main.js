@@ -1,4 +1,4 @@
-function () {
+(function () {
   'use strict';
 
   const nav = document.getElementById('nav');
@@ -8,7 +8,7 @@ function () {
   }
 
   window.addEventListener('scroll', handleNavScroll, { passive: true });
-  handleNavScroll(); 
+  handleNavScroll();
 
   const sections  = Array.from(document.querySelectorAll('section[id]'));
   const navLinks  = document.querySelectorAll('.nav__link');
@@ -58,7 +58,7 @@ function () {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
           entry.target.classList.add('visible');
-          revealObserver.unobserve(entry.target); 
+          revealObserver.unobserve(entry.target);
         }
       });
     },
