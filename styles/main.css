@@ -1,27 +1,23 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap');
 
 :root {
-  --black:        #000000;
-  --off-white:    #f5f5f0;
-  --gray-light:   #888888;
-  --gray-mid:     #333333;
-  --gray-dark:    #1a1a1a;
-  --accent:       #e8e8e8;
-
+  --black:            #000000;
+  --off-white:        #f5f5f0;
+  --gray-light:       #888888;
+  --gray-mid:         #333333;
+  --gray-dark:        #1a1a1a;
+  --accent:           #e8e8e8;
   --glass-bg:         rgba(255, 255, 255, 0.03);
   --glass-bg-hover:   rgba(255, 255, 255, 0.07);
   --glass-border:     rgba(255, 255, 255, 0.08);
   --glass-border-mid: rgba(255, 255, 255, 0.14);
   --glass-blur:       blur(16px);
-
-  --font-display: 'DM Serif Display', Georgia, serif;
-  --font-mono:    'DM Mono', 'Courier New', monospace;
-
-  --section-pad:    clamp(2rem, 4vw, 3.6rem);
-  --container-max:  1200px;
-  --container-pad:  clamp(1.5rem, 6vw, 4rem);
-  --card-radius:    3px;
-
+  --font-display:     'DM Serif Display', Georgia, serif;
+  --font-mono:        'DM Mono', 'Courier New', monospace;
+  --section-pad:      clamp(2rem, 4vw, 3.6rem);
+  --container-max:    1200px;
+  --container-pad:    clamp(1.5rem, 6vw, 4rem);
+  --card-radius:      3px;
   --transition-base:  0.25s ease;
   --transition-slow:  0.5s ease;
 }
@@ -204,6 +200,16 @@ button {
   margin-bottom: 3rem;
 }
 
+.section-divider {
+  width: 60%;
+  height: 1px;
+  margin: 0 auto;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 20%, rgba(255,255,255,0.4) 50%, rgba(255,255,255,0.15) 80%, transparent 100%);
+  backdrop-filter: blur(4px);
+  border: none;
+  display: block;
+}
+
 .reveal {
   opacity: 0;
   transform: translateY(28px);
@@ -248,7 +254,6 @@ button {
   font-size: 0.9rem;
   padding: 1.15rem 3rem;
   border-color: rgba(255, 255, 255, 0.35);
-  margin-bottom: 2rem;
 }
 
 .hero {
@@ -357,8 +362,8 @@ button {
 .skill-card {
   padding: 2rem 1.75rem;
   transition:
-    background  var(--transition-base),
-    transform   var(--transition-base),
+    background   var(--transition-base),
+    transform    var(--transition-base),
     border-color var(--transition-base);
 }
 
@@ -433,16 +438,20 @@ button {
   flex-shrink: 0;
 }
 
-.live-badge {
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  padding: 0.25rem 0.7rem;
-  border: 1px solid rgba(232, 232, 232, 0.45);
-  color: var(--accent);
-  border-radius: var(--card-radius);
-  flex-shrink: 0;
+.role-badge a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 2px;
+  transition:
+    text-decoration-color var(--transition-base),
+    text-shadow           var(--transition-base);
+}
+
+.role-badge a:hover {
+  text-decoration-color: var(--gray-light);
+  text-shadow: 0 0 10px rgba(136, 136, 136, 0.35);
+  cursor: pointer;
 }
 
 .project-card__title {
@@ -459,8 +468,15 @@ button {
   color: var(--gray-light);
 }
 
-.released .project-card {
-  border-color: rgba(232, 232, 232, 0.07);
+#about .section__container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+#about p {
+  font-size: 1.15em;
 }
 
 .contact__inner {
@@ -483,6 +499,39 @@ button {
   margin-right: auto;
 }
 
+.contact-buttons {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 2rem;
+}
+
+.btn-secondary {
+  display: inline-block;
+  padding: 0.75rem 1.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.7);
+  text-decoration: none;
+  font-family: inherit;
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border-radius: var(--card-radius);
+}
+
+.btn-secondary:hover {
+  border-color: rgba(255, 255, 255, 0.7);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .contact__tags {
   display: flex;
   gap: 0.5rem;
@@ -499,22 +548,6 @@ button {
   border: 1px solid var(--gray-mid);
   color: var(--gray-light);
   border-radius: var(--card-radius);
-}
-
-.role-badge a {
-  color: inherit;
-  text-decoration: underline;
-  text-decoration-color: transparent;
-  text-underline-offset: 2px;
-  transition:
-    text-decoration-color var(--transition-base),
-    text-shadow           var(--transition-base);
-}
-
-.role-badge a:hover {
-  text-decoration-color: var(--gray-light);
-  text-shadow: 0 0 10px rgba(136, 136, 136, 0.35);
-  cursor: pointer;
 }
 
 .footer {
