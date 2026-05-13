@@ -1,6 +1,76 @@
 (function () {
   'use strict';
 
+  let ytPlayer      = null;
+  let musicReady    = false;
+  let musicStarted  = false;
+
+  window.onYouTubeIframeAPIReady = function () {
+    ytPlayer = new YT.Player('yt-player', {
+      height: '150',
+      width:  '200',
+      videoId: '4ITXBijY1N8',
+      playerVars: {
+        autoplay:       0,
+        controls:       0,
+        disablekb:      1,
+        enablejsapi:    1,
+        fs:             0,
+        iv_load_policy: 3,
+        modestbranding: 1,
+        playsinline:    1,
+        rel:            0,
+      },
+      events: {
+        onReady: function () {
+          musicReady = true;
+          ytPlayer.setVolume(55);
+        },
+        onStateChange: function (e) {
+          if (e.data === YT.PlayerState.ENDED) {
+            ytPlayer.seekTo(0);
+            ytPlayer.playVideo();
+          }
+          syncMusicUI();
+        },
+      },
+    });
+  };
+
+  function syncMusicUI() {
+    const bars = document.getElementById('musicBars');
+    const btn  = document.getElementById('musicToggle');
+    if (!ytPlayer || typeof ytPlayer.getPlayerState !== 'function') return;
+    const playing = ytPlayer.getPlayerState() === YT.PlayerState.PLAYING;
+    if (bars) bars.classList.toggle('paused', !playing);
+    if (btn) {
+      btn.textContent = playing ? '⏸' : '▶';
+      btn.setAttribute('aria-label', playing ? 'Pause music' : 'Play music');
+    }
+  }
+
+  document.addEventListener('click', function startOnInteraction(e) {
+    if (e.target.id === 'musicToggle') return;
+    if (!musicReady || musicStarted) return;
+    musicStarted = true;
+    ytPlayer.playVideo();
+    document.removeEventListener('click', startOnInteraction);
+  });
+
+  const toggleBtn = document.getElementById('musicToggle');
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', function () {
+      if (!ytPlayer || typeof ytPlayer.getPlayerState !== 'function') return;
+      const state = ytPlayer.getPlayerState();
+      if (state === YT.PlayerState.PLAYING) {
+        ytPlayer.pauseVideo();
+      } else {
+        if (!musicStarted) musicStarted = true;
+        ytPlayer.playVideo();
+      }
+    });
+  }
+
   const nav = document.getElementById('nav');
 
   function handleNavScroll() {
