@@ -47,10 +47,13 @@
         <div class="music-player">
           <div class="music-player__icon">♪</div>
           <div class="music-player__info">
-            <span class="music-player__label">NOW PLAYING</span>
+            <div class="music-player__label-row">
+              <span class="music-player__label">NOW PLAYING</span>
+              <button class="music-player__toggle" id="musicToggle" aria-label="Play music">▶</button>
+            </div>
             <span class="music-player__title">Swing Lynn — Slowed to Perfection</span>
           </div>
-          <div class="music-player__bars">
+          <div class="music-player__bars paused" id="musicBars">
             <span></span>
             <span></span>
             <span></span>
@@ -217,6 +220,8 @@
     <p>Made by <span class="footer__name">Decro</span> · 2026</p>
   </footer>
 
+  <div id="yt-player"></div>
   <script src="scripts/main.js"></script>
+  <script src="https://www.youtube.com/iframe_api"></script>
 </body>
 </html>
