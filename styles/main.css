@@ -192,11 +192,11 @@ button {
 }
 
 .section__title {
-  font-family: var(--font-display);
-  font-size: clamp(2.2rem, 5vw, 3.75rem);
+  font-family: 'Press Start 2P', monospace;
+  font-size: clamp(0.9rem, 2.5vw, 1.6rem);
   color: var(--off-white);
-  letter-spacing: -0.015em;
-  line-height: 1.1;
+  letter-spacing: 0.04em;
+  line-height: 1.7;
   margin-bottom: 3rem;
 }
 
@@ -312,7 +312,7 @@ button {
 
 .hero__name {
   color: var(--accent);
-  font-style: italic;
+  font-style: normal;
 }
 
 .hero__subline {
