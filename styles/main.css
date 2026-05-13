@@ -302,10 +302,10 @@ button {
 }
 
 .hero__heading {
-  font-family: var(--font-display);
-  font-size: clamp(3.8rem, 9.5vw, 7.5rem);
-  line-height: 1.03;
-  letter-spacing: -0.025em;
+  font-family: 'Press Start 2P', monospace;
+  font-size: clamp(1.1rem, 3.2vw, 2.2rem);
+  line-height: 1.9;
+  letter-spacing: 0.02em;
   color: var(--off-white);
   margin-bottom: 1.75rem;
 }
@@ -439,11 +439,20 @@ button {
   pointer-events: none;
 }
 
+#skills .section__title {
+  text-align: center;
+}
+
+#projects .section__title {
+  text-align: center;
+}
+
 .filter-tags {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
   margin-bottom: 2.75rem;
+  justify-content: center;
 }
 
 .filter-tag {
