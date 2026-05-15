@@ -137,6 +137,7 @@
               <span class="role-badge">
                 <a href="https://gist.github.com/sacrificedDecro/7eb59ec4697bad413cd20cc461dd9d01" target="_blank" rel="noopener noreferrer">EXPLORE THE STRUCTURE</a>
               </span>
+              <button class="preview-btn" data-project="round" aria-label="Preview code">PREVIEW</button>
             </div>
             <h3 class="project-card__title">Simple Round System</h3>
             <p class="project-card__desc">A server-authoritative round-based PvP system for Roblox in --!strict Luau. RoundManager drives a four-state machine (Lobby → Intermission → InGame → Cleanup), without memory leaks and backdoors, fully scripted by me.</p>
@@ -147,6 +148,7 @@
               <span class="role-badge">
                 <a href="https://gist.github.com/sacrificedDecro/3f80a350e6a4511e2817621df8eac588" target="_blank" rel="noopener noreferrer">EXPLORE THE STRUCTURE</a>
               </span>
+              <button class="preview-btn" data-project="plot" aria-label="Preview code">PREVIEW</button>
             </div>
             <h3 class="project-card__title">Basicly Plot System</h3>
             <p class="project-card__desc">Server-side Luau tycoon plot system featuring strict type safety, per-player debounce protection, automatic plot release on disconnect, and real-time visual feedback through dynamic sign text and pad color updates.</p>
@@ -157,6 +159,7 @@
               <span class="role-badge">
                 <a href="https://gist.github.com/sacrificedDecro/ac9bc9d842d4a33aef86f86a40dcf044" target="_blank" rel="noopener noreferrer">EXPLORE THE STRUCTURE</a>
               </span>
+              <button class="preview-btn" data-project="notify" aria-label="Preview code">PREVIEW</button>
             </div>
             <h3 class="project-card__title">Simple Notification System</h3>
             <p class="project-card__desc">Notification queue controller with tween-based animations, destroyed-instance protection, per-coroutine cancellation flags, safe yield checkpoints, and correct text propagation to nested GUI descendants. Handles Gamepass and shop purchase events — reads what was bought and fires a contextual in-game notification.</p>
@@ -243,6 +246,19 @@
   <footer class="footer" role="contentinfo">
     <p>Made by <span class="footer__name">Decro</span> · 2026</p>
   </footer>
+
+  <div class="code-modal-overlay" id="codeModalOverlay" aria-hidden="true">
+    <div class="code-modal">
+      <div class="code-modal__topbar">
+        <span class="code-modal__title" id="codeModalTitle"></span>
+        <button class="code-modal__close" id="codeModalClose" aria-label="Close preview">×</button>
+      </div>
+      <div class="code-modal__body">
+        <div class="code-modal__sidebar" id="codeModalSidebar"></div>
+        <div class="code-modal__code-panel" id="codeModalCodePanel"></div>
+      </div>
+    </div>
+  </div>
 
   <div id="yt-player"></div>
   <script src="scripts/main.js"></script>
