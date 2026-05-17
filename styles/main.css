@@ -567,8 +567,9 @@ button {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   padding: 0;
-  border: 1px solid rgba(255,255,255,0.13);
+  border: 1px solid rgba(255,255,255,0.22);
   border-radius: var(--card-radius);
+  background: rgba(255,255,255,0.04);
   transition:
     border-color 200ms ease,
     background 200ms ease;
@@ -593,7 +594,7 @@ button {
   align-items: center;
   gap: 0.28em;
   padding: 0.35rem 0.78rem;
-  color: rgba(255,255,255,0.5);
+  color: rgba(255,255,255,0.72);
   text-decoration: none;
   cursor: pointer;
   border-radius: var(--card-radius);
@@ -606,7 +607,6 @@ button {
   display: inline-block;
   font-style: normal;
   opacity: 0.45;
-  transition: transform 200ms ease, opacity 200ms ease;
   line-height: 1;
 }
 
@@ -615,7 +615,6 @@ button {
 }
 
 .role-badge a:hover::after {
-  transform: translate(2px, -2px);
   opacity: 1;
 }
 
@@ -894,9 +893,9 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 0.3em;
-  background: transparent;
-  border: 1px solid rgba(255,255,255,0.18);
-  color: rgba(255,255,255,0.52);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.22);
+  color: rgba(255,255,255,0.72);
   font-family: var(--font-mono);
   font-size: 0.6rem;
   letter-spacing: 0.12em;
@@ -917,7 +916,6 @@ button {
   content: '▸';
   font-size: 0.5rem;
   opacity: 0.6;
-  transition: transform 200ms ease, opacity 200ms ease;
   line-height: 1;
 }
 
@@ -929,7 +927,6 @@ button {
 }
 
 .preview-btn:hover::before {
-  transform: translateX(2px);
   opacity: 1;
 }
 
