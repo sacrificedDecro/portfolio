@@ -165,6 +165,39 @@
             <p class="project-card__desc">Notification queue controller with tween-based animations, destroyed-instance protection, per-coroutine cancellation flags, safe yield checkpoints, and correct text propagation to nested GUI descendants. Handles Gamepass and shop purchase events — reads what was bought and fires a contextual in-game notification.</p>
           </div>
 
+          <div class="project-card glass-panel reveal">
+            <div class="project-card__header">
+              <span class="role-badge">
+                <a href="https://gist.github.com/sacrificedDecro/194cb535b2b50f94a428aa321dbb3aa4" target="_blank" rel="noopener noreferrer">EXPLORE THE STRUCTURE</a>
+              </span>
+              <button class="preview-btn" data-project="drag-solo" aria-label="Preview code">PREVIEW</button>
+            </div>
+            <h3 class="project-card__title">Simple Dead Rails Drag System ( no multiplayer )</h3>
+            <p class="project-card__desc">A physics-based first-person drag system built in Luau with full --!strict type enforcement. Parts are tagged at runtime via CollectionService and detected through camera-forward raycasting. On grab, the server transfers NetworkOwnership to the local player and attaches AlignPosition and AlignOrientation constraints — keeping physics simulation on the client for zero-latency response. A shared Terrain Attachment acts as the drag anchor, updated each RenderStepped directly from the LocalScript with no per-frame RemoteEvent traffic. Hover highlighting is handled via a SelectionBox that responds to camera look direction. All server callbacks validate type, instance class, and tag membership before execution.</p>
+          </div>
+
+          <div class="project-card glass-panel reveal">
+            <div class="project-card__header">
+              <span class="role-badge">
+                <a href="https://gist.github.com/sacrificedDecro/a2cb863d2d181e0ae3f258a0ea18c107" target="_blank" rel="noopener noreferrer">EXPLORE THE STRUCTURE</a>
+              </span>
+              <button class="preview-btn" data-project="drag-multi" aria-label="Preview code">PREVIEW</button>
+            </div>
+            <h3 class="project-card__title">Dead Rails Drag System ( multiplayer )</h3>
+            <p class="project-card__desc">A multiplayer-ready, physics-based first-person drag system written in full --!strict Luau. Each player receives a dedicated per-session Attachment in Terrain, keyed by UserId, so multiple players can simultaneously drag separate objects without state collision. Parts are locked via a DragOwner attribute checked on both client and server, preventing concurrent grabs. NetworkOwnership is transferred to the dragging player on grab and continuously re-enforced on Heartbeat via pcall-guarded calls to prevent Roblox's proximity-based auto-override. Player death mid-drag is handled through CharacterRemoving, and the client updates its raycast filter and drag state on CharacterAdded to support respawn.</p>
+          </div>
+
+          <div class="project-card glass-panel reveal">
+            <div class="project-card__header">
+              <span class="role-badge">
+                <a href="https://gist.github.com/sacrificedDecro/20b67d9f3e166fccc1449c2b63b5a0cd" target="_blank" rel="noopener noreferrer">EXPLORE THE STRUCTURE</a>
+              </span>
+              <button class="preview-btn" data-project="drag-throw" aria-label="Preview code">PREVIEW</button>
+            </div>
+            <h3 class="project-card__title">Dead Rails Drag System + Throw and Weight ( multiplayer )</h3>
+            <p class="project-card__desc">A multiplayer first-person drag, weight, and throw system written in full --!strict Luau with a centralised GameConfig ModuleScript as the single source of truth for all constants and shared utilities. Parts carry a Weight attribute initialised per-object by the server; heavier parts reduce AlignPosition responsiveness and max velocity proportionally, creating authentic physical resistance during drag. The SelectionBox outline interpolates between configurable light and heavy colours, giving instant visual weight feedback before the player even grabs an object. On release, the client computes throw velocity from a sliding time-window sample of DragAttachment.WorldPosition deltas, sends it to the server, which scales and caps it by weight before applying AssemblyLinearVelocity.</p>
+          </div>
+
         </div>
       </div>
     </section>
