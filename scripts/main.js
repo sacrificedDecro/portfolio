@@ -1762,6 +1762,900 @@ player.CharacterAdded:Connect(function(_character: Model): ()
 	clearOverlay()
 end)`
       }
+    },
+
+    'drag-solo': {
+      name: 'Simple Dead Rails Drag System ( no multiplayer )',
+      files: {
+        'DragClient.lua': `--!strict
+
+local CollectionService = game:GetService("CollectionService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+
+local DRAG_TAG: string = "Draggable"
+local HOLD_DISTANCE: number = 8
+local MAX_GRAB_DISTANCE: number = 20
+local HIGHLIGHT_COLOR: Color3 = Color3.fromRGB(255, 255, 255)
+local HIGHLIGHT_SURFACE_COLOR: Color3 = Color3.fromRGB(180, 210, 255)
+local HIGHLIGHT_THICKNESS: number = 0.07
+
+local camera: Camera = workspace.CurrentCamera
+local localPlayer: Player = Players.LocalPlayer
+local character: Model = (localPlayer.Character or localPlayer.CharacterAdded:Wait()) :: Model
+
+local dragAttachment = workspace.Terrain:WaitForChild("DragAttachment") :: Attachment
+
+local remotes = ReplicatedStorage:WaitForChild("Remotes") :: Folder
+local eDragStart = remotes:WaitForChild("DragStart") :: RemoteEvent
+local eDragEnd = remotes:WaitForChild("DragEnd") :: RemoteEvent
+
+local selectionBox: SelectionBox = Instance.new("SelectionBox")
+selectionBox.Color3 = HIGHLIGHT_COLOR
+selectionBox.LineThickness = HIGHLIGHT_THICKNESS
+selectionBox.SurfaceTransparency = 0.85
+selectionBox.SurfaceColor3 = HIGHLIGHT_SURFACE_COLOR
+selectionBox.Adornee = nil
+selectionBox.Parent = workspace
+
+local rayParams: RaycastParams = RaycastParams.new()
+rayParams.FilterType = Enum.RaycastFilterType.Exclude
+rayParams.FilterDescendantsInstances = { character :: Instance }
+
+local isDragging: boolean = false
+local hoveredPart: BasePart? = nil
+
+local function computeTargetCFrame(): CFrame
+	return camera.CFrame * CFrame.new(0, 0, -HOLD_DISTANCE)
+end
+
+local function getHoveredPart(): BasePart?
+	local origin: Vector3 = camera.CFrame.Position
+	local direction: Vector3 = camera.CFrame.LookVector * MAX_GRAB_DISTANCE
+	local result: RaycastResult? = workspace:Raycast(origin, direction, rayParams)
+	if result == nil then return nil end
+	local hit: Instance = result.Instance
+	if not hit:IsA("BasePart") then return nil end
+	if not CollectionService:HasTag(hit, DRAG_TAG) then return nil end
+	return hit :: BasePart
+end
+
+local function setHighlight(part: BasePart?): ()
+	selectionBox.Adornee = part
+end
+
+UserInputService.InputBegan:Connect(function(input: InputObject, gameProcessed: boolean)
+	if gameProcessed then return end
+	if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+	if isDragging then return end
+	local target: BasePart? = hoveredPart
+	if target == nil then return end
+	isDragging = true
+	rayParams.FilterDescendantsInstances = { character :: Instance, target :: Instance }
+	eDragStart:FireServer(target)
+end)
+
+UserInputService.InputEnded:Connect(function(input: InputObject, _gameProcessed: boolean)
+	if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+	if not isDragging then return end
+	isDragging = false
+	hoveredPart = nil
+	setHighlight(nil)
+	rayParams.FilterDescendantsInstances = { character :: Instance }
+	eDragEnd:FireServer()
+end)
+
+RunService.RenderStepped:Connect(function(_dt: number)
+	if isDragging then
+		dragAttachment.CFrame = computeTargetCFrame()
+		return
+	end
+	local newHover: BasePart? = getHoveredPart()
+	if newHover ~= hoveredPart then
+		hoveredPart = newHover
+		setHighlight(hoveredPart)
+	end
+end)`,
+
+        'DragServer.lua': `--!strict
+
+local CollectionService = game:GetService("CollectionService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+type DragState = {
+	part: BasePart,
+	partAttachment: Attachment,
+	alignPosition: AlignPosition,
+	alignOrientation: AlignOrientation,
+}
+
+local DRAG_TAG: string = "Draggable"
+local MAX_FORCE: number = 100000
+local MAX_TORQUE: number = 100000
+local RESPONSIVENESS: number = 25
+local DRAGGABLE_NAMES: { string } = { "Part1", "Part2", "Part3" }
+
+local dragAttachment: Attachment = Instance.new("Attachment")
+dragAttachment.Name = "DragAttachment"
+dragAttachment.CFrame = CFrame.identity
+dragAttachment.Parent = workspace.Terrain
+
+local remotes = ReplicatedStorage:WaitForChild("Remotes") :: Folder
+local eDragStart = remotes:WaitForChild("DragStart") :: RemoteEvent
+local eDragEnd = remotes:WaitForChild("DragEnd") :: RemoteEvent
+
+local activeDrags: { [Player]: DragState } = {}
+
+for _, partName in DRAGGABLE_NAMES do
+	local found = workspace:FindFirstChild(partName)
+	if found ~= nil and found:IsA("BasePart") then
+		local part = found :: BasePart
+		part.Anchored = false
+		CollectionService:AddTag(part, DRAG_TAG)
+	end
+end
+
+local function buildDragState(part: BasePart): DragState
+	local partAtt = Instance.new("Attachment")
+	partAtt.Name = "DragPartAttachment"
+	partAtt.Position = Vector3.zero
+	partAtt.Parent = part
+
+	local ap = Instance.new("AlignPosition")
+	ap.Mode = Enum.PositionAlignmentMode.TwoAttachment
+	ap.Attachment0 = partAtt
+	ap.Attachment1 = dragAttachment
+	ap.MaxForce = MAX_FORCE
+	ap.MaxVelocity = 200
+	ap.Responsiveness = RESPONSIVENESS
+	ap.Enabled = true
+	ap.Parent = part
+
+	local ao = Instance.new("AlignOrientation")
+	ao.Mode = Enum.OrientationAlignmentMode.OneAttachment
+	ao.Attachment0 = partAtt
+	ao.MaxTorque = MAX_TORQUE
+	ao.MaxAngularVelocity = 200
+	ao.Responsiveness = RESPONSIVENESS
+	ao.CFrame = part.CFrame
+	ao.Enabled = true
+	ao.Parent = part
+
+	return {
+		part = part,
+		partAttachment = partAtt,
+		alignPosition = ap,
+		alignOrientation = ao,
+	}
+end
+
+local function teardown(state: DragState): ()
+	state.alignOrientation:Destroy()
+	state.alignPosition:Destroy()
+	state.partAttachment:Destroy()
+end
+
+eDragStart.OnServerEvent:Connect(function(player: Player, rawPart: any)
+	if activeDrags[player] ~= nil then return end
+	if typeof(rawPart) ~= "Instance" then return end
+	if not rawPart:IsA("BasePart") then return end
+	if not CollectionService:HasTag(rawPart, DRAG_TAG) then return end
+	local part = rawPart :: BasePart
+	part:SetNetworkOwner(player)
+	activeDrags[player] = buildDragState(part)
+end)
+
+eDragEnd.OnServerEvent:Connect(function(player: Player)
+	local state = activeDrags[player]
+	if state == nil then return end
+	activeDrags[player] = nil
+	local part = state.part
+	teardown(state)
+	part:SetNetworkOwnershipAuto()
+end)`,
+
+        'FirstPersonLock.lua': `--!strict
+
+local Players = game:GetService("Players")
+
+local LOCKED_CAMERA_MODE: Enum.CameraMode = Enum.CameraMode.LockFirstPerson
+
+local localPlayer: Player = Players.LocalPlayer
+
+local function enforce(): ()
+	if localPlayer.CameraMode ~= LOCKED_CAMERA_MODE then
+		localPlayer.CameraMode = LOCKED_CAMERA_MODE
+	end
+end
+
+enforce()
+
+localPlayer:GetPropertyChangedSignal("CameraMode"):Connect(enforce)`
+      }
+    },
+
+    'drag-multi': {
+      name: 'Dead Rails Drag System ( multiplayer )',
+      files: {
+        'DragClient.lua': `--!strict
+
+local CollectionService = game:GetService("CollectionService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local DRAG_TAG: string = "Draggable"
+local DRAG_OWNER_ATTR: string = "DragOwner"
+local DRAG_ATT_PREFIX: string = "DragAtt_"
+local HOLD_DISTANCE: number = 8
+local MAX_GRAB_DISTANCE: number = 20
+local HIGHLIGHT_COLOR: Color3 = Color3.fromRGB(255, 255, 255)
+local HIGHLIGHT_SURFACE_COLOR: Color3 = Color3.fromRGB(180, 210, 255)
+local HIGHLIGHT_THICKNESS: number = 0.07
+local HIGHLIGHT_SURFACE_TRANSPARENCY: number = 0.85
+
+local camera: Camera = workspace.CurrentCamera
+local localPlayer: Player = Players.LocalPlayer
+local character: Model = (localPlayer.Character or localPlayer.CharacterAdded:Wait()) :: Model
+
+local dragAttName: string = DRAG_ATT_PREFIX .. tostring(localPlayer.UserId)
+local dragAttachment = workspace.Terrain:WaitForChild(dragAttName) :: Attachment
+
+local remotes = ReplicatedStorage:WaitForChild("Remotes") :: Folder
+local eDragStart = remotes:WaitForChild("DragStart") :: RemoteEvent
+local eDragEnd = remotes:WaitForChild("DragEnd") :: RemoteEvent
+
+local selectionBox: SelectionBox = Instance.new("SelectionBox")
+selectionBox.Color3 = HIGHLIGHT_COLOR
+selectionBox.LineThickness = HIGHLIGHT_THICKNESS
+selectionBox.SurfaceTransparency = HIGHLIGHT_SURFACE_TRANSPARENCY
+selectionBox.SurfaceColor3 = HIGHLIGHT_SURFACE_COLOR
+selectionBox.Adornee = nil
+selectionBox.Parent = workspace
+
+local rayParams: RaycastParams = RaycastParams.new()
+rayParams.FilterType = Enum.RaycastFilterType.Exclude
+rayParams.FilterDescendantsInstances = { character :: Instance }
+
+local isDragging: boolean = false
+local hoveredPart: BasePart? = nil
+
+local function computeTargetCFrame(): CFrame
+	return camera.CFrame * CFrame.new(0, 0, -HOLD_DISTANCE)
+end
+
+local function getHoveredPart(): BasePart?
+	local origin: Vector3 = camera.CFrame.Position
+	local direction: Vector3 = camera.CFrame.LookVector * MAX_GRAB_DISTANCE
+	local result: RaycastResult? = workspace:Raycast(origin, direction, rayParams)
+	if result == nil then return nil end
+	local hit: Instance = result.Instance
+	if not hit:IsA("BasePart") then return nil end
+	if not CollectionService:HasTag(hit, DRAG_TAG) then return nil end
+	if hit:GetAttribute(DRAG_OWNER_ATTR) ~= nil then return nil end
+	return hit :: BasePart
+end
+
+local function setHighlight(part: BasePart?): ()
+	selectionBox.Adornee = part
+end
+
+localPlayer.CharacterAdded:Connect(function(newCharacter: Model)
+	character = newCharacter
+	rayParams.FilterDescendantsInstances = { newCharacter :: Instance }
+	if isDragging then
+		isDragging = false
+		hoveredPart = nil
+		setHighlight(nil)
+		eDragEnd:FireServer()
+	end
+end)
+
+UserInputService.InputBegan:Connect(function(input: InputObject, gameProcessed: boolean)
+	if gameProcessed then return end
+	if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+	if isDragging then return end
+	local target: BasePart? = hoveredPart
+	if target == nil then return end
+	if target:GetAttribute(DRAG_OWNER_ATTR) ~= nil then return end
+	isDragging = true
+	rayParams.FilterDescendantsInstances = { character :: Instance, target :: Instance }
+	eDragStart:FireServer(target)
+end)
+
+UserInputService.InputEnded:Connect(function(input: InputObject, _gameProcessed: boolean)
+	if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+	if not isDragging then return end
+	isDragging = false
+	hoveredPart = nil
+	setHighlight(nil)
+	rayParams.FilterDescendantsInstances = { character :: Instance }
+	eDragEnd:FireServer()
+end)
+
+RunService.RenderStepped:Connect(function(_dt: number)
+	if isDragging then
+		dragAttachment.CFrame = computeTargetCFrame()
+		return
+	end
+	local newHover: BasePart? = getHoveredPart()
+	if newHover ~= hoveredPart then
+		hoveredPart = newHover
+		setHighlight(hoveredPart)
+	end
+end)`,
+
+        'DragServer.lua': `--!strict
+
+local CollectionService = game:GetService("CollectionService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+type DragState = {
+	owner: Player,
+	part: BasePart,
+	partAttachment: Attachment,
+	alignPosition: AlignPosition,
+	alignOrientation: AlignOrientation,
+}
+
+local DRAG_TAG: string = "Draggable"
+local DRAG_OWNER_ATTR: string = "DragOwner"
+local DRAG_ATT_PREFIX: string = "DragAtt_"
+local MAX_FORCE: number = 100000
+local MAX_TORQUE: number = 100000
+local RESPONSIVENESS: number = 25
+local MAX_VELOCITY: number = 200
+local MAX_ANGULAR_VELOCITY: number = 200
+local DRAGGABLE_NAMES: { string } = { "Part1", "Part2", "Part3" }
+
+local remotes = ReplicatedStorage:WaitForChild("Remotes") :: Folder
+local eDragStart = remotes:WaitForChild("DragStart") :: RemoteEvent
+local eDragEnd = remotes:WaitForChild("DragEnd") :: RemoteEvent
+
+local activeDrags: { [Player]: DragState? } = {}
+local playerAttachments: { [Player]: Attachment? } = {}
+
+for _, partName in DRAGGABLE_NAMES do
+	local found = workspace:FindFirstChild(partName)
+	if found ~= nil and found:IsA("BasePart") then
+		local part = found :: BasePart
+		part.Anchored = false
+		CollectionService:AddTag(part, DRAG_TAG)
+	end
+end
+
+local function createPlayerAttachment(player: Player): Attachment
+	local att = Instance.new("Attachment")
+	att.Name = DRAG_ATT_PREFIX .. tostring(player.UserId)
+	att.CFrame = CFrame.identity
+	att.Parent = workspace.Terrain
+	return att
+end
+
+local function buildDragState(owner: Player, part: BasePart, dragAtt: Attachment): DragState
+	local partAtt = Instance.new("Attachment")
+	partAtt.Name = "DragPartAttachment"
+	partAtt.Position = Vector3.zero
+	partAtt.Parent = part
+
+	local ap = Instance.new("AlignPosition")
+	ap.Mode = Enum.PositionAlignmentMode.TwoAttachment
+	ap.Attachment0 = partAtt
+	ap.Attachment1 = dragAtt
+	ap.MaxForce = MAX_FORCE
+	ap.MaxVelocity = MAX_VELOCITY
+	ap.Responsiveness = RESPONSIVENESS
+	ap.Enabled = true
+	ap.Parent = part
+
+	local ao = Instance.new("AlignOrientation")
+	ao.Mode = Enum.OrientationAlignmentMode.OneAttachment
+	ao.Attachment0 = partAtt
+	ao.MaxTorque = MAX_TORQUE
+	ao.MaxAngularVelocity = MAX_ANGULAR_VELOCITY
+	ao.Responsiveness = RESPONSIVENESS
+	ao.CFrame = part.CFrame
+	ao.Enabled = true
+	ao.Parent = part
+
+	return {
+		owner = owner,
+		part = part,
+		partAttachment = partAtt,
+		alignPosition = ap,
+		alignOrientation = ao,
+	}
+end
+
+local function teardownDragState(state: DragState): ()
+	state.alignOrientation:Destroy()
+	state.alignPosition:Destroy()
+	state.partAttachment:Destroy()
+	state.part:SetAttribute(DRAG_OWNER_ATTR, nil)
+	state.part:SetNetworkOwnershipAuto()
+end
+
+local function dropPlayerDrag(player: Player): ()
+	local state: DragState? = activeDrags[player]
+	if state == nil then return end
+	activeDrags[player] = nil
+	teardownDragState(state)
+end
+
+local function onPlayerAdded(player: Player): ()
+	playerAttachments[player] = createPlayerAttachment(player)
+	player.CharacterRemoving:Connect(function()
+		dropPlayerDrag(player)
+	end)
+end
+
+local function onPlayerRemoving(player: Player): ()
+	dropPlayerDrag(player)
+	local att: Attachment? = playerAttachments[player]
+	if att ~= nil then
+		att:Destroy()
+		playerAttachments[player] = nil
+	end
+end
+
+for _, player in pairs(Players:GetPlayers()) do
+	onPlayerAdded(player)
+end
+
+Players.PlayerAdded:Connect(onPlayerAdded)
+Players.PlayerRemoving:Connect(onPlayerRemoving)
+
+eDragStart.OnServerEvent:Connect(function(player: Player, rawPart: any)
+	if activeDrags[player] ~= nil then return end
+	if typeof(rawPart) ~= "Instance" then return end
+	if not rawPart:IsA("BasePart") then return end
+	if not CollectionService:HasTag(rawPart, DRAG_TAG) then return end
+	if rawPart:GetAttribute(DRAG_OWNER_ATTR) ~= nil then return end
+
+	local dragAtt: Attachment? = playerAttachments[player]
+	if dragAtt == nil then return end
+
+	local part = rawPart :: BasePart
+	part:SetAttribute(DRAG_OWNER_ATTR, player.UserId)
+	part:SetNetworkOwner(player)
+	activeDrags[player] = buildDragState(player, part, dragAtt)
+end)
+
+eDragEnd.OnServerEvent:Connect(function(player: Player)
+	dropPlayerDrag(player)
+end)
+
+RunService.Heartbeat:Connect(function(_dt: number)
+	local toRemove: { Player } = {}
+	for player, state in pairs(activeDrags) do
+		if state == nil then continue end
+		local ok: boolean = pcall(function()
+			state.part:SetNetworkOwner(player)
+		end)
+		if not ok then
+			pcall(teardownDragState, state)
+			table.insert(toRemove, player)
+		end
+	end
+	for _, player in toRemove do
+		activeDrags[player] = nil
+	end
+end)`,
+
+        'FirstPersonLock.lua': `--!strict
+
+local Players = game:GetService("Players")
+
+local LOCKED_CAMERA_MODE: Enum.CameraMode = Enum.CameraMode.LockFirstPerson
+
+local localPlayer: Player = Players.LocalPlayer
+
+local function enforce(): ()
+	if localPlayer.CameraMode ~= LOCKED_CAMERA_MODE then
+		localPlayer.CameraMode = LOCKED_CAMERA_MODE
+	end
+end
+
+enforce()
+
+localPlayer:GetPropertyChangedSignal("CameraMode"):Connect(enforce)`
+      }
+    },
+
+    'drag-throw': {
+      name: 'Dead Rails Drag System + Throw and Weight ( multiplayer )',
+      files: {
+        'DragClient.lua': `--!strict
+
+local CollectionService = game:GetService("CollectionService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local Config = require(ReplicatedStorage.GameConfig)
+
+type ThrowSample = {
+	time: number,
+	position: Vector3,
+}
+
+local camera: Camera = workspace.CurrentCamera
+local localPlayer: Player = Players.LocalPlayer
+local character: Model = (localPlayer.Character or localPlayer.CharacterAdded:Wait()) :: Model
+
+local dragAttName: string = Config.AttachmentPrefix .. tostring(localPlayer.UserId)
+local dragAttachment = workspace.Terrain:WaitForChild(dragAttName) :: Attachment
+
+local remotes = ReplicatedStorage:WaitForChild("Remotes") :: Folder
+local eDragStart = remotes:WaitForChild("DragStart") :: RemoteEvent
+local eDragEnd = remotes:WaitForChild("DragEnd") :: RemoteEvent
+
+local selectionBox: SelectionBox = Instance.new("SelectionBox")
+selectionBox.Color3 = Config.LightWeightColor
+selectionBox.LineThickness = Config.HighlightThickness
+selectionBox.SurfaceTransparency = Config.HighlightSurfaceTransparency
+selectionBox.SurfaceColor3 = Config.HighlightSurfaceColor
+selectionBox.Adornee = nil
+selectionBox.Parent = workspace
+
+local rayParams: RaycastParams = RaycastParams.new()
+rayParams.FilterType = Enum.RaycastFilterType.Exclude
+rayParams.FilterDescendantsInstances = { character :: Instance }
+
+local isDragging: boolean = false
+local hoveredPart: BasePart? = nil
+local throwSamples: { ThrowSample } = {}
+
+local function computeTargetCFrame(): CFrame
+	return camera.CFrame * CFrame.new(0, 0, -Config.HoldDistance)
+end
+
+local function getHoveredPart(): BasePart?
+	local origin: Vector3 = camera.CFrame.Position
+	local direction: Vector3 = camera.CFrame.LookVector * Config.MaxGrabDistance
+	local result: RaycastResult? = workspace:Raycast(origin, direction, rayParams)
+	if result == nil then return nil end
+	local hit: Instance = result.Instance
+	if not hit:IsA("BasePart") then return nil end
+	if not CollectionService:HasTag(hit, Config.Tag) then return nil end
+	if hit:GetAttribute(Config.OwnerAttribute) ~= nil then return nil end
+	return hit :: BasePart
+end
+
+local function setHighlight(part: BasePart?): ()
+	selectionBox.Adornee = part
+	if part ~= nil then
+		selectionBox.Color3 = Config.ColorForWeight(Config.GetWeight(part))
+	end
+end
+
+local function sampleThrow(now: number): ()
+	local sample: ThrowSample = { time = now, position = dragAttachment.WorldPosition }
+	table.insert(throwSamples, sample)
+	while #throwSamples > 0 do
+		local first: ThrowSample? = throwSamples[1]
+		if first == nil or (now - first.time) <= Config.ThrowSampleTime then break end
+		table.remove(throwSamples, 1)
+	end
+end
+
+local function consumeThrowVelocity(): Vector3?
+	if #throwSamples < 2 then
+		throwSamples = {}
+		return nil
+	end
+	local oldest: ThrowSample? = throwSamples[1]
+	local newest: ThrowSample? = throwSamples[#throwSamples]
+	throwSamples = {}
+	if oldest == nil or newest == nil then return nil end
+	local dt: number = newest.time - oldest.time
+	if dt <= 0 then return nil end
+	return (newest.position - oldest.position) / dt
+end
+
+localPlayer.CharacterAdded:Connect(function(newCharacter: Model)
+	character = newCharacter
+	rayParams.FilterDescendantsInstances = { newCharacter :: Instance }
+	if isDragging then
+		isDragging = false
+		hoveredPart = nil
+		setHighlight(nil)
+		throwSamples = {}
+		eDragEnd:FireServer(nil)
+	end
+end)
+
+UserInputService.InputBegan:Connect(function(input: InputObject, gameProcessed: boolean)
+	if gameProcessed then return end
+	if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+	if isDragging then return end
+	local target: BasePart? = hoveredPart
+	if target == nil then return end
+	if target:GetAttribute(Config.OwnerAttribute) ~= nil then return end
+	isDragging = true
+	throwSamples = {}
+	rayParams.FilterDescendantsInstances = { character :: Instance, target :: Instance }
+	eDragStart:FireServer(target)
+end)
+
+UserInputService.InputEnded:Connect(function(input: InputObject, _gameProcessed: boolean)
+	if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+	if not isDragging then return end
+	isDragging = false
+	hoveredPart = nil
+	setHighlight(nil)
+	rayParams.FilterDescendantsInstances = { character :: Instance }
+	local velocity: Vector3? = consumeThrowVelocity()
+	eDragEnd:FireServer(velocity)
+end)
+
+RunService.RenderStepped:Connect(function(_dt: number)
+	if isDragging then
+		dragAttachment.CFrame = computeTargetCFrame()
+		sampleThrow(tick())
+		return
+	end
+	local newHover: BasePart? = getHoveredPart()
+	if newHover ~= hoveredPart then
+		hoveredPart = newHover
+		setHighlight(hoveredPart)
+	end
+end)`,
+
+        'DragServer.lua': `--!strict
+
+local CollectionService = game:GetService("CollectionService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+local Config = require(ReplicatedStorage.GameConfig)
+
+type DragState = {
+	owner: Player,
+	part: BasePart,
+	partAttachment: Attachment,
+	alignPosition: AlignPosition,
+	alignOrientation: AlignOrientation,
+}
+
+local remotes = ReplicatedStorage:WaitForChild("Remotes") :: Folder
+local eDragStart = remotes:WaitForChild("DragStart") :: RemoteEvent
+local eDragEnd = remotes:WaitForChild("DragEnd") :: RemoteEvent
+
+local activeDrags: { [Player]: DragState? } = {}
+local playerAttachments: { [Player]: Attachment? } = {}
+
+for _, partName in Config.DraggableNames do
+	local found = workspace:FindFirstChild(partName)
+	if found ~= nil and found:IsA("BasePart") then
+		local part = found :: BasePart
+		part.Anchored = false
+		CollectionService:AddTag(part, Config.Tag)
+		local initialWeight: number? = Config.InitialWeights[partName]
+		if initialWeight ~= nil then
+			part:SetAttribute(Config.WeightAttribute, initialWeight)
+		end
+	end
+end
+
+local function createPlayerAttachment(player: Player): Attachment
+	local att = Instance.new("Attachment")
+	att.Name = Config.AttachmentPrefix .. tostring(player.UserId)
+	att.CFrame = CFrame.identity
+	att.Parent = workspace.Terrain
+	return att
+end
+
+local function buildDragState(owner: Player, part: BasePart, dragAtt: Attachment): DragState
+	local weight: number = Config.GetWeight(part)
+	local effResponsiveness: number = Config.BaseResponsiveness / weight
+	local effMaxVelocity: number = Config.BaseMaxVelocity / weight
+	local effMaxAngularVelocity: number = Config.BaseMaxAngularVelocity / weight
+
+	local partAtt = Instance.new("Attachment")
+	partAtt.Name = Config.PartAttachmentName
+	partAtt.Position = Vector3.zero
+	partAtt.Parent = part
+
+	local ap = Instance.new("AlignPosition")
+	ap.Mode = Enum.PositionAlignmentMode.TwoAttachment
+	ap.Attachment0 = partAtt
+	ap.Attachment1 = dragAtt
+	ap.MaxForce = Config.BaseMaxForce
+	ap.MaxVelocity = effMaxVelocity
+	ap.Responsiveness = effResponsiveness
+	ap.Enabled = true
+	ap.Parent = part
+
+	local ao = Instance.new("AlignOrientation")
+	ao.Mode = Enum.OrientationAlignmentMode.OneAttachment
+	ao.Attachment0 = partAtt
+	ao.MaxTorque = Config.BaseMaxTorque
+	ao.MaxAngularVelocity = effMaxAngularVelocity
+	ao.Responsiveness = effResponsiveness
+	ao.CFrame = part.CFrame
+	ao.Enabled = true
+	ao.Parent = part
+
+	return {
+		owner = owner,
+		part = part,
+		partAttachment = partAtt,
+		alignPosition = ap,
+		alignOrientation = ao,
+	}
+end
+
+local function teardownConstraints(state: DragState): ()
+	state.alignOrientation:Destroy()
+	state.alignPosition:Destroy()
+	state.partAttachment:Destroy()
+	state.part:SetAttribute(Config.OwnerAttribute, nil)
+end
+
+local function applyThrow(part: BasePart, velocity: Vector3): ()
+	local weight: number = Config.GetWeight(part)
+	local scaled: Vector3 = velocity * Config.ThrowMultiplier / math.sqrt(weight)
+	if scaled.Magnitude > Config.MaxThrowSpeed then
+		scaled = scaled.Unit * Config.MaxThrowSpeed
+	end
+	part.AssemblyLinearVelocity = scaled
+end
+
+local function dropPlayerDrag(player: Player, throwVelocity: Vector3?): ()
+	local state: DragState? = activeDrags[player]
+	if state == nil then return end
+	activeDrags[player] = nil
+	local part: BasePart = state.part
+	teardownConstraints(state)
+	if throwVelocity ~= nil then
+		applyThrow(part, throwVelocity)
+	end
+	part:SetNetworkOwnershipAuto()
+end
+
+local function onPlayerAdded(player: Player): ()
+	playerAttachments[player] = createPlayerAttachment(player)
+	player.CharacterRemoving:Connect(function()
+		dropPlayerDrag(player, nil)
+	end)
+end
+
+local function onPlayerRemoving(player: Player): ()
+	dropPlayerDrag(player, nil)
+	local att: Attachment? = playerAttachments[player]
+	if att ~= nil then
+		att:Destroy()
+		playerAttachments[player] = nil
+	end
+end
+
+for _, player in pairs(Players:GetPlayers()) do
+	onPlayerAdded(player)
+end
+
+Players.PlayerAdded:Connect(onPlayerAdded)
+Players.PlayerRemoving:Connect(onPlayerRemoving)
+
+eDragStart.OnServerEvent:Connect(function(player: Player, rawPart: any)
+	if activeDrags[player] ~= nil then return end
+	if typeof(rawPart) ~= "Instance" then return end
+	if not rawPart:IsA("BasePart") then return end
+	if not CollectionService:HasTag(rawPart, Config.Tag) then return end
+	if rawPart:GetAttribute(Config.OwnerAttribute) ~= nil then return end
+
+	local dragAtt: Attachment? = playerAttachments[player]
+	if dragAtt == nil then return end
+
+	local part = rawPart :: BasePart
+	part:SetAttribute(Config.OwnerAttribute, player.UserId)
+	part:SetNetworkOwner(player)
+	activeDrags[player] = buildDragState(player, part, dragAtt)
+end)
+
+eDragEnd.OnServerEvent:Connect(function(player: Player, rawVelocity: any)
+	local velocity: Vector3? = nil
+	if typeof(rawVelocity) == "Vector3" then
+		velocity = rawVelocity :: Vector3
+	end
+	dropPlayerDrag(player, velocity)
+end)
+
+RunService.Heartbeat:Connect(function(_dt: number)
+	local toRemove: { Player } = {}
+	for player, state in pairs(activeDrags) do
+		if state == nil then continue end
+		local ok: boolean = pcall(function()
+			state.part:SetNetworkOwner(player)
+		end)
+		if not ok then
+			pcall(teardownConstraints, state)
+			table.insert(toRemove, player)
+		end
+	end
+	for _, player in toRemove do
+		activeDrags[player] = nil
+	end
+end)`,
+
+        'FirstPersonLock.lua': `--!strict
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage.GameConfig)
+
+local localPlayer: Player = Players.LocalPlayer
+
+local function enforce(): ()
+	if localPlayer.CameraMode ~= Config.CameraMode then
+		localPlayer.CameraMode = Config.CameraMode
+	end
+end
+
+enforce()
+
+localPlayer:GetPropertyChangedSignal("CameraMode"):Connect(enforce)`,
+
+        'GameConfig.lua': `--!strict
+
+local Config = {}
+
+Config.Tag = "Draggable"
+Config.OwnerAttribute = "DragOwner"
+Config.AttachmentPrefix = "DragAtt_"
+Config.PartAttachmentName = "DragPartAttachment"
+
+Config.HoldDistance = 8
+Config.MaxGrabDistance = 20
+
+Config.BaseMaxForce = 100000
+Config.BaseMaxTorque = 100000
+Config.BaseResponsiveness = 25
+Config.BaseMaxVelocity = 200
+Config.BaseMaxAngularVelocity = 200
+
+Config.WeightAttribute = "Weight"
+Config.DefaultWeight = 1
+Config.MinWeight = 0.5
+Config.MaxWeight = 10
+
+Config.ThrowMultiplier = 2.5
+Config.ThrowSampleTime = 0.15
+Config.MaxThrowSpeed = 300
+
+Config.HighlightThickness = 0.07
+Config.HighlightSurfaceTransparency = 0.85
+Config.HighlightSurfaceColor = Color3.fromRGB(180, 210, 255)
+Config.LightWeightColor = Color3.fromRGB(150, 255, 150)
+Config.HeavyWeightColor = Color3.fromRGB(255, 130, 130)
+
+Config.CameraMode = Enum.CameraMode.LockFirstPerson
+
+Config.DraggableNames = { "Part1", "Part2", "Part3" } :: { string }
+Config.InitialWeights = { Part1 = 1, Part2 = 3, Part3 = 8 } :: { [string]: number }
+
+function Config.GetWeight(part: BasePart): number
+	local raw = part:GetAttribute(Config.WeightAttribute)
+	local value: number = tonumber(raw) or Config.DefaultWeight
+	return math.clamp(value, Config.MinWeight, Config.MaxWeight)
+end
+
+function Config.ColorForWeight(weight: number): Color3
+	local range: number = Config.MaxWeight - Config.MinWeight
+	local t: number = if range > 0 then math.clamp((weight - Config.MinWeight) / range, 0, 1) else 0
+	return Config.LightWeightColor:Lerp(Config.HeavyWeightColor, t)
+end
+
+return Config`
+      }
     }
   };
 
