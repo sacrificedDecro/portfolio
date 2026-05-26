@@ -5231,7 +5231,7 @@ return Spark`
 
   function initScrollReveal() {
     const items  = $$('.reveal');
-    const groups = $$('.skills__grid, .cards-grid, .hero__content, .contact__inner, .about__panels');
+    const groups = $$('.skills__grid, .cards-grid, .demos-grid, .hero__content, .contact__inner, .about__panels');
 
     groups.forEach(grid => {
       const kids = $$('.reveal', grid);
