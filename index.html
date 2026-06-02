@@ -147,6 +147,17 @@
             <p class="project-card__desc">Notification queue controller with tween-based animations, destroyed-instance protection, per-coroutine cancellation flags, safe yield checkpoints, and correct text propagation to nested GUI descendants. Handles Gamepass and shop purchase events — reads what was bought and fires a contextual in-game notification.</p>
           </div>
 
+          <div class="project-card glass-panel reveal">
+            <div class="project-card__header">
+              <span class="role-badge">
+                <a href="https://gist.github.com/sacrificedDecro/42ada689bc15c418644a2b7e1ce0173a" target="_blank" rel="noopener noreferrer">EXPLORE THE STRUCTURE</a>
+              </span>
+              <button class="preview-btn" data-project="cooking" aria-label="Preview Cooking System code">PREVIEW</button>
+            </div>
+            <h3 class="project-card__title">Cooking System</h3>
+            <p class="project-card__desc">Server-side crafting chain built in --!strict Luau. Players collect world props — MixingPot, TabBinder, EnergyExtract — via ProximityPrompt interactions, place the pot on a table slot, then add both ingredients sequentially. Per-player CraftState tracks every step. Tween-based fade animations handle prop spawning and removal. Tool inventory persists across character death via a pendingTools queue restored on CharacterAdded. All constants centralised in a typed GameConfig module.</p>
+          </div>
+
           <div class="project-card project-card--wide glass-panel reveal">
             <div class="project-card__header">
               <span class="role-badge">
