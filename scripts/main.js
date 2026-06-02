@@ -1763,11 +1763,11 @@ end)`
     cooking: {
       name: 'Cooking System',
       files: {
-        'CraftingHandler.lua': `--!strict
+        'CraftingHandler.luau': `--!strict
 
-local Players           = game:GetService("Players")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TweenService      = game:GetService("TweenService")
+local TweenService = game:GetService("TweenService")
 
 type ConfigType = {
 	DEBOUNCE_DURATION: number,
@@ -1821,7 +1821,7 @@ type PropEntry = {
 }
 
 local craftStates: { [number]: CraftState } = {}
-local debounce: { [number]: boolean }       = {}
+local debounce: { [number]: boolean } = {}
 local propRegistry: { [string]: PropEntry } = {}
 
 local function requireFolder(parent: Instance, name: string): Folder
@@ -1872,13 +1872,14 @@ end
 local function anchorDescendants(inst: Instance): ()
 	if inst:IsA("BasePart") then
 		local bp: BasePart = inst :: BasePart
-		bp.Anchored   = true
+		bp.Anchored = true
 		bp.CanCollide = true
 	end
 	for _, desc in inst:GetDescendants() do
 		if desc:IsA("BasePart") then
-			desc.Anchored   = true
-			desc.CanCollide = true
+			local bp: BasePart = desc :: BasePart
+			bp.Anchored = true
+			bp.CanCollide = true
 		end
 	end
 end
@@ -1909,7 +1910,7 @@ end
 local function setAllTransparency(inst: Instance, t: number): ()
 	if inst:IsA("BasePart") then (inst :: BasePart).Transparency = t end
 	for _, desc in inst:GetDescendants() do
-		if desc:IsA("BasePart") then desc.Transparency = t end
+		if desc:IsA("BasePart") then (desc :: BasePart).Transparency = t end
 	end
 end
 
@@ -1958,33 +1959,33 @@ local function fadeOutAndDestroy(inst: Instance): ()
 	end)
 end
 
-local toolsFolder: Folder           = requireFolder(ReplicatedStorage, Config.TOOLS_FOLDER_NAME)
-local tableModel: Model             = requireModel(workspace, Config.WORLD_TABLE)
-local potSlot: BasePart             = requirePart(tableModel, Config.WORLD_POT_SLOT)
-local potSlotPrompt: ProximityPrompt     = getDirectPrompt(potSlot)
-local pillsPressModel: Model        = requireModel(workspace, Config.WORLD_PILLS_PRESS)
-local pillsPressPrompt: ProximityPrompt  = getDeepPrompt(pillsPressModel)
-local worldMixingPot: Model         = requireModel(workspace, Config.WORLD_MIXING_POT)
-local worldTabBinder: Model         = requireModel(workspace, Config.WORLD_TAB_BINDER)
-local worldEnergyExtract: BasePart  = requirePart(workspace, Config.WORLD_ENERGY_EXTRACT)
+local toolsFolder: Folder = requireFolder(ReplicatedStorage, Config.TOOLS_FOLDER_NAME)
+local tableModel: Model = requireModel(workspace, Config.WORLD_TABLE)
+local potSlot: BasePart = requirePart(tableModel, Config.WORLD_POT_SLOT)
+local potSlotPrompt: ProximityPrompt = getDirectPrompt(potSlot)
+local pillsPressModel: Model = requireModel(workspace, Config.WORLD_PILLS_PRESS)
+local pillsPressPrompt: ProximityPrompt = getDeepPrompt(pillsPressModel)
+local worldMixingPot: Model = requireModel(workspace, Config.WORLD_MIXING_POT)
+local worldTabBinder: Model = requireModel(workspace, Config.WORLD_TAB_BINDER)
+local worldEnergyExtract: BasePart = requirePart(workspace, Config.WORLD_ENERGY_EXTRACT)
 
 ensurePrimaryPart(worldMixingPot)
 ensurePrimaryPart(worldTabBinder)
 
 local giveTool: (player: Player, name: string) -> () = nil :: any
-local spawnProp: (toolName: string) -> ()             = nil :: any
+local spawnProp: (toolName: string) -> () = nil :: any
 
 local function getState(userId: number): CraftState
 	local existing: CraftState? = craftStates[userId]
 	if existing then return existing end
 	local fresh: CraftState = {
-		potOnTable      = false,
-		placedModel     = nil,
-		placedPrompt    = nil,
-		ingredients     = { TabBinder = false, EnergyExtract = false },
-		readyToCollect  = false,
+		potOnTable = false,
+		placedModel = nil,
+		placedPrompt = nil,
+		ingredients = { TabBinder = false, EnergyExtract = false },
+		readyToCollect = false,
 		charConnections = {},
-		pendingTools    = {},
+		pendingTools = {},
 	}
 	craftStates[userId] = fresh
 	return fresh
@@ -2013,7 +2014,7 @@ giveTool = function(player: Player, name: string): ()
 		if desc:IsA("BasePart") then
 			local bp2: BasePart = desc :: BasePart
 			bp2.CanCollide = false
-			bp2.Massless   = true
+			bp2.Massless = true
 			if desc.Name == "Handle" then
 				bp2.Anchored = false
 			else
@@ -2044,6 +2045,23 @@ local function equippedToolName(player: Player): string?
 	return if t then t.Name else nil
 end
 
+local function recheckPotSlot(): ()
+	for _, player in Players:GetPlayers() do
+		local st: CraftState? = craftStates[player.UserId]
+		if st ~= nil and (st :: CraftState).potOnTable then
+			potSlotPrompt.Enabled = false
+			return
+		end
+	end
+	for _, player in Players:GetPlayers() do
+		if equippedToolName(player) == Config.TOOL_MIXING_POT then
+			potSlotPrompt.Enabled = true
+			return
+		end
+	end
+	potSlotPrompt.Enabled = false
+end
+
 local function recheckPillsPress(): ()
 	for _, player in Players:GetPlayers() do
 		if equippedToolName(player) == Config.TOOL_INGREDIENTS then
@@ -2058,13 +2076,13 @@ local function resetCraftState(player: Player): ()
 	local state: CraftState = getState(player.UserId)
 	if not state.potOnTable then return end
 	local placed = state.placedModel
-	state.potOnTable     = false
-	state.placedModel    = nil
-	state.placedPrompt   = nil
-	state.ingredients    = { TabBinder = false, EnergyExtract = false }
+	state.potOnTable = false
+	state.placedModel = nil
+	state.placedPrompt = nil
+	state.ingredients = { TabBinder = false, EnergyExtract = false }
 	state.readyToCollect = false
 	if placed then fadeOutAndDestroy(placed) end
-	potSlotPrompt.Enabled = false
+	recheckPotSlot()
 	recheckPillsPress()
 end
 
@@ -2105,7 +2123,7 @@ spawnProp = function(toolName: string): ()
 	anchorDescendants(newInst)
 	newInst.Parent = workspace
 	placeInstance(newInst, entry.spawnCFrame)
-	entry.live      = newInst
+	entry.live = newInst
 	entry.available = true
 	connectPropTrigger(entry)
 	fadeIn(newInst)
@@ -2113,15 +2131,15 @@ end
 
 local function registerProp(inst: Instance, toolName: string): ()
 	if inst:IsA("Model") then ensurePrimaryPart(inst :: Model) end
-	local cf: CFrame         = getInstanceCFrame(inst)
+	local cf: CFrame = getInstanceCFrame(inst)
 	local template: Instance = inst:Clone()
-	local entry: PropEntry   = {
-		toolName    = toolName,
+	local entry: PropEntry = {
+		toolName = toolName,
 		spawnCFrame = cf,
-		template    = template,
-		available   = true,
-		live        = inst,
-		conn        = nil,
+		template = template,
+		available = true,
+		live = inst,
+		conn = nil,
 	}
 	propRegistry[toolName] = entry
 	connectPropTrigger(entry)
@@ -2129,7 +2147,7 @@ end
 
 local function buildPlacedPot(player: Player): ()
 	local userId = player.UserId
-	local state  = getState(userId)
+	local state = getState(userId)
 	if state.potOnTable then return end
 
 	local propEntry: PropEntry? = propRegistry[Config.TOOL_MIXING_POT]
@@ -2150,11 +2168,11 @@ local function buildPlacedPot(player: Player): ()
 	local anchorPart: BasePart? = container.PrimaryPart
 
 	local prompt = Instance.new("ProximityPrompt")
-	prompt.ActionText            = Config.PROMPT_ADD_TEXT
-	prompt.ObjectText            = Config.PROMPT_POT_OBJECT_TEXT
+	prompt.ActionText = Config.PROMPT_ADD_TEXT
+	prompt.ObjectText = Config.PROMPT_POT_OBJECT_TEXT
 	prompt.MaxActivationDistance = Config.PROMPT_MAX_DISTANCE
-	prompt.RequiresLineOfSight   = false
-	prompt.Enabled               = false
+	prompt.RequiresLineOfSight = false
+	prompt.Enabled = false
 
 	if anchorPart ~= nil then
 		prompt.Parent = anchorPart
@@ -2168,13 +2186,14 @@ local function buildPlacedPot(player: Player): ()
 			local st = getState(userId)
 			if st.readyToCollect then
 				local placed = st.placedModel
-				st.potOnTable     = false
-				st.placedModel    = nil
-				st.placedPrompt   = nil
-				st.ingredients    = { TabBinder = false, EnergyExtract = false }
+				st.potOnTable = false
+				st.placedModel = nil
+				st.placedPrompt = nil
+				st.ingredients = { TabBinder = false, EnergyExtract = false }
 				st.readyToCollect = false
 				if placed then fadeOutAndDestroy(placed) end
 				recheckPillsPress()
+				recheckPotSlot()
 				giveTool(trigPlayer, Config.TOOL_INGREDIENTS)
 				return
 			end
@@ -2193,27 +2212,27 @@ local function buildPlacedPot(player: Player): ()
 				local pp = st.placedPrompt
 				if pp then
 					pp.ActionText = Config.PROMPT_COLLECT_TEXT
-					pp.Enabled    = true
+					pp.Enabled = true
 				end
 			end
 		end)
 	end)
 
-	state.potOnTable   = true
-	state.placedModel  = container
+	state.potOnTable = true
+	state.placedModel = container
 	state.placedPrompt = prompt
 
 	container.Parent = workspace
 
 	if anchorPart ~= nil then
 		local bbCF: CFrame, bbSz: Vector3 = container:GetBoundingBox()
-		local bbBottomY: number    = bbCF.Position.Y - bbSz.Y * 0.5
+		local bbBottomY: number = bbCF.Position.Y - bbSz.Y * 0.5
 		local ppToBBBottom: number = anchorPart.Position.Y - bbBottomY
-		local targetY: number      = potSlot.Position.Y + potSlot.Size.Y * 0.5 + ppToBBBottom
-		local ppToBBCX: number     = anchorPart.Position.X - bbCF.Position.X
-		local ppToBBCZ: number     = anchorPart.Position.Z - bbCF.Position.Z
-		local targetX: number      = potSlot.Position.X + ppToBBCX
-		local targetZ: number      = potSlot.Position.Z + ppToBBCZ
+		local targetY: number = potSlot.Position.Y + potSlot.Size.Y * 0.5 + ppToBBBottom
+		local ppToBBCX: number = anchorPart.Position.X - bbCF.Position.X
+		local ppToBBCZ: number = anchorPart.Position.Z - bbCF.Position.Z
+		local targetX: number = potSlot.Position.X + ppToBBCX
+		local targetZ: number = potSlot.Position.Z + ppToBBCZ
 		container:PivotTo(CFrame.new(targetX, targetY, targetZ))
 	end
 
@@ -2247,7 +2266,7 @@ end)
 
 local function setupCharacter(player: Player, character: Model): ()
 	local userId = player.UserId
-	local state  = getState(userId)
+	local state = getState(userId)
 	for _, c in state.charConnections do c:Disconnect() end
 	table.clear(state.charConnections)
 
@@ -2256,7 +2275,7 @@ local function setupCharacter(player: Player, character: Model): ()
 		local name: string = child.Name
 		local st = getState(userId)
 		if name == Config.TOOL_MIXING_POT and not st.potOnTable then
-			potSlotPrompt.Enabled = true
+			recheckPotSlot()
 		elseif (name == Config.TOOL_TAB_BINDER or name == Config.TOOL_ENERGY_EXTRACT)
 			and st.potOnTable and not st.readyToCollect then
 			local pr = st.placedPrompt
@@ -2271,7 +2290,7 @@ local function setupCharacter(player: Player, character: Model): ()
 		local name: string = child.Name
 		local st = getState(userId)
 		if name == Config.TOOL_MIXING_POT and not st.potOnTable then
-			potSlotPrompt.Enabled = false
+			recheckPotSlot()
 		elseif (name == Config.TOOL_TAB_BINDER or name == Config.TOOL_ENERGY_EXTRACT)
 			and st.potOnTable and not st.readyToCollect then
 			local other: string = if name == Config.TOOL_TAB_BINDER
@@ -2343,20 +2362,20 @@ Players.PlayerRemoving:Connect(function(player: Player)
 		if state.placedModel then state.placedModel:Destroy() end
 	end
 	craftStates[player.UserId] = nil
-	debounce[player.UserId]    = nil
+	debounce[player.UserId] = nil
+	recheckPotSlot()
 end)
 
 registerProp(worldMixingPot, Config.TOOL_MIXING_POT)
 registerProp(worldTabBinder, Config.TOOL_TAB_BINDER)
 registerProp(worldEnergyExtract, Config.TOOL_ENERGY_EXTRACT)`,
 
-        'GameConfig.lua': `--!strict
+        'GameConfig.luau': `--!strict
 
 export type ConfigType = {
 	DEBOUNCE_DURATION: number,
 	WAIT_TIMEOUT: number,
 	PROMPT_MAX_DISTANCE: number,
-	WELD_MATCH_TOLERANCE: number,
 	PROP_RESPAWN_DELAY: number,
 	FADE_IN_TIME: number,
 	FADE_OUT_TIME: number,
@@ -2380,39 +2399,38 @@ export type ConfigType = {
 }
 
 local Config: ConfigType = {
-	DEBOUNCE_DURATION    = 0.4,
-	WAIT_TIMEOUT         = 10,
-	PROMPT_MAX_DISTANCE  = 8,
-	WELD_MATCH_TOLERANCE = 0.5,
-	PROP_RESPAWN_DELAY   = 30,
-	FADE_IN_TIME         = 0.25,
-	FADE_OUT_TIME        = 0.2,
-	FADE_BUFFER          = 0.05,
+	DEBOUNCE_DURATION = 0.4,
+	WAIT_TIMEOUT = 10,
+	PROMPT_MAX_DISTANCE = 8,
+	PROP_RESPAWN_DELAY = 30,
+	FADE_IN_TIME = 0.25,
+	FADE_OUT_TIME = 0.2,
+	FADE_BUFFER = 0.05,
 
-	TOOLS_FOLDER_NAME    = "Tools",
-	PLACED_POT_PREFIX    = "PlacedMixingPot_",
+	TOOLS_FOLDER_NAME = "Tools",
+	PLACED_POT_PREFIX = "PlacedMixingPot_",
 
-	TOOL_MIXING_POT      = "MixingPot",
-	TOOL_TAB_BINDER      = "TabBinder",
-	TOOL_ENERGY_EXTRACT  = "EnergyExtract",
-	TOOL_INGREDIENTS     = "Ingredients",
-	TOOL_PILLS           = "Pills",
+	TOOL_MIXING_POT = "MixingPot",
+	TOOL_TAB_BINDER = "TabBinder",
+	TOOL_ENERGY_EXTRACT = "EnergyExtract",
+	TOOL_INGREDIENTS = "Ingredients",
+	TOOL_PILLS = "Pills",
 
-	WORLD_MIXING_POT     = "MixingPot",
-	WORLD_TAB_BINDER     = "TabBinder",
+	WORLD_MIXING_POT = "MixingPot",
+	WORLD_TAB_BINDER = "TabBinder",
 	WORLD_ENERGY_EXTRACT = "EnergyExtract",
-	WORLD_TABLE          = "Table",
-	WORLD_POT_SLOT       = "PotSlot",
-	WORLD_PILLS_PRESS    = "PillsPress",
+	WORLD_TABLE = "Table",
+	WORLD_POT_SLOT = "PotSlot",
+	WORLD_PILLS_PRESS = "PillsPress",
 
-	PROMPT_ADD_TEXT        = "Add Ingredient",
-	PROMPT_COLLECT_TEXT    = "Collect",
+	PROMPT_ADD_TEXT = "Add Ingredient",
+	PROMPT_COLLECT_TEXT = "Collect",
 	PROMPT_POT_OBJECT_TEXT = "Mixing Pot",
 }
 
 return Config`,
 
-        'MixingPotPromptController.lua': `--!strict
+        'MixingPotWeldScript.luau': `--!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -2432,7 +2450,7 @@ assert(handleInst ~= nil, tool.Name .. "/Handle not found")
 assert(handleInst:IsA("BasePart"), tool.Name .. "/Handle must be BasePart")
 local handle: BasePart = handleInst :: BasePart
 
-local tmplHandle: BasePart?   = nil
+local tmplHandle: BasePart? = nil
 local tmplParts: { BasePart } = {}
 
 local _fi: Instance? = ReplicatedStorage:WaitForChild(Config.TOOLS_FOLDER_NAME, Config.WAIT_TIMEOUT)
@@ -2446,7 +2464,7 @@ if _fi ~= nil and _fi:IsA("Folder") then
 			tmplHandle = th :: BasePart
 			for _, child in tmpl:GetChildren() do
 				if child:IsA("BasePart") and child.Name ~= "Handle" then
-					table.insert(tmplParts, child)
+					table.insert(tmplParts, child :: BasePart)
 				end
 			end
 		end
@@ -2467,93 +2485,7 @@ local function createWelds(): ()
 	local liveParts: { BasePart } = {}
 	for _, child in tool:GetChildren() do
 		if child:IsA("BasePart") and child.Name ~= "Handle" then
-			table.insert(liveParts, child)
-		end
-	end
-
-	for i, livePart in ipairs(liveParts) do
-		local matched: BasePart? = tmplParts[i]
-		if matched == nil then continue end
-
-		local relOffset: CFrame = th.CFrame:Inverse() * matched.CFrame
-		livePart.CFrame = handle.CFrame * relOffset
-
-		local weld: WeldConstraint = Instance.new("WeldConstraint")
-		weld.Part0  = handle
-		weld.Part1  = livePart
-		weld.Parent = handle
-	end
-
-	for _, livePart in liveParts do
-		livePart.Anchored = false
-	end
-
-	handle.CanCollide = false
-	handle.Massless   = true
-	weldsCreated = true
-end
-
-tool.Equipped:Connect(function()
-	task.wait()
-	createWelds()
-end)`,
-
-        'MixingPotWeldScript.lua': `--!strict
-
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
-type ConfigType = {
-	WAIT_TIMEOUT: number,
-	TOOLS_FOLDER_NAME: string,
-}
-
-local _cfgInst: Instance = ReplicatedStorage:WaitForChild("GameConfig")
-assert(_cfgInst:IsA("ModuleScript"), "GameConfig must be ModuleScript")
-local Config: ConfigType = require(_cfgInst :: ModuleScript) :: ConfigType
-
-local tool: Tool = script.Parent :: Tool
-
-local handleInst: Instance? = tool:WaitForChild("Handle", Config.WAIT_TIMEOUT)
-assert(handleInst ~= nil, tool.Name .. "/Handle not found")
-assert(handleInst:IsA("BasePart"), tool.Name .. "/Handle must be BasePart")
-local handle: BasePart = handleInst :: BasePart
-
-local tmplHandle: BasePart?   = nil
-local tmplParts: { BasePart } = {}
-
-local _fi: Instance? = ReplicatedStorage:WaitForChild(Config.TOOLS_FOLDER_NAME, Config.WAIT_TIMEOUT)
-if _fi ~= nil and _fi:IsA("Folder") then
-	local folder: Folder = _fi :: Folder
-	local ti = folder:FindFirstChild(tool.Name)
-	if ti and ti:IsA("Tool") then
-		local tmpl: Tool = ti :: Tool
-		local th = tmpl:FindFirstChild("Handle")
-		if th and th:IsA("BasePart") then
-			tmplHandle = th :: BasePart
-			for _, child in tmpl:GetChildren() do
-				if child:IsA("BasePart") and child.Name ~= "Handle" then
-					table.insert(tmplParts, child)
-				end
-			end
-		end
-	end
-end
-
-if tmplHandle == nil then
-	warn("WeldScript[" .. tool.Name .. "]: template missing, welds skipped")
-end
-
-local weldsCreated: boolean = false
-
-local function createWelds(): ()
-	if weldsCreated then return end
-	local th: BasePart? = tmplHandle
-	if th == nil then return end
-
-	local liveParts: { BasePart } = {}
-	for _, child in tool:GetChildren() do
-		if child:IsA("BasePart") and child.Name ~= "Handle" then
-			table.insert(liveParts, child)
+			table.insert(liveParts, child :: BasePart)
 		end
 	end
 
@@ -2562,10 +2494,10 @@ local function createWelds(): ()
 		if matched == nil then continue end
 
 		local weld: Weld = Instance.new("Weld")
-		weld.Part0  = handle
-		weld.Part1  = livePart
-		weld.C0     = th.CFrame:Inverse() * matched.CFrame
-		weld.C1     = CFrame.new()
+		weld.Part0 = handle
+		weld.Part1 = livePart
+		weld.C0 = th.CFrame:Inverse() * matched.CFrame
+		weld.C1 = CFrame.new()
 		weld.Parent = handle
 	end
 
@@ -2574,7 +2506,7 @@ local function createWelds(): ()
 	end
 
 	handle.CanCollide = false
-	handle.Massless   = true
+	handle.Massless = true
 	weldsCreated = true
 end
 
@@ -2585,7 +2517,7 @@ end
 
 tool.Equipped:Connect(createWelds)`,
 
-        'TabBinderPromptController.lua': `--!strict
+        'TabBinderWeldScript.luau': `--!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -2605,7 +2537,7 @@ assert(handleInst ~= nil, tool.Name .. "/Handle not found")
 assert(handleInst:IsA("BasePart"), tool.Name .. "/Handle must be BasePart")
 local handle: BasePart = handleInst :: BasePart
 
-local tmplHandle: BasePart?   = nil
+local tmplHandle: BasePart? = nil
 local tmplParts: { BasePart } = {}
 
 local _fi: Instance? = ReplicatedStorage:WaitForChild(Config.TOOLS_FOLDER_NAME, Config.WAIT_TIMEOUT)
@@ -2619,7 +2551,7 @@ if _fi ~= nil and _fi:IsA("Folder") then
 			tmplHandle = th :: BasePart
 			for _, child in tmpl:GetChildren() do
 				if child:IsA("BasePart") and child.Name ~= "Handle" then
-					table.insert(tmplParts, child)
+					table.insert(tmplParts, child :: BasePart)
 				end
 			end
 		end
@@ -2640,93 +2572,7 @@ local function createWelds(): ()
 	local liveParts: { BasePart } = {}
 	for _, child in tool:GetChildren() do
 		if child:IsA("BasePart") and child.Name ~= "Handle" then
-			table.insert(liveParts, child)
-		end
-	end
-
-	for i, livePart in ipairs(liveParts) do
-		local matched: BasePart? = tmplParts[i]
-		if matched == nil then continue end
-
-		local relOffset: CFrame = th.CFrame:Inverse() * matched.CFrame
-		livePart.CFrame = handle.CFrame * relOffset
-
-		local weld: WeldConstraint = Instance.new("WeldConstraint")
-		weld.Part0  = handle
-		weld.Part1  = livePart
-		weld.Parent = handle
-	end
-
-	for _, livePart in liveParts do
-		livePart.Anchored = false
-	end
-
-	handle.CanCollide = false
-	handle.Massless   = true
-	weldsCreated = true
-end
-
-tool.Equipped:Connect(function()
-	task.wait()
-	createWelds()
-end)`,
-
-        'TabBinderWeldScript.lua': `--!strict
-
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
-type ConfigType = {
-	WAIT_TIMEOUT: number,
-	TOOLS_FOLDER_NAME: string,
-}
-
-local _cfgInst: Instance = ReplicatedStorage:WaitForChild("GameConfig")
-assert(_cfgInst:IsA("ModuleScript"), "GameConfig must be ModuleScript")
-local Config: ConfigType = require(_cfgInst :: ModuleScript) :: ConfigType
-
-local tool: Tool = script.Parent :: Tool
-
-local handleInst: Instance? = tool:WaitForChild("Handle", Config.WAIT_TIMEOUT)
-assert(handleInst ~= nil, tool.Name .. "/Handle not found")
-assert(handleInst:IsA("BasePart"), tool.Name .. "/Handle must be BasePart")
-local handle: BasePart = handleInst :: BasePart
-
-local tmplHandle: BasePart?   = nil
-local tmplParts: { BasePart } = {}
-
-local _fi: Instance? = ReplicatedStorage:WaitForChild(Config.TOOLS_FOLDER_NAME, Config.WAIT_TIMEOUT)
-if _fi ~= nil and _fi:IsA("Folder") then
-	local folder: Folder = _fi :: Folder
-	local ti = folder:FindFirstChild(tool.Name)
-	if ti and ti:IsA("Tool") then
-		local tmpl: Tool = ti :: Tool
-		local th = tmpl:FindFirstChild("Handle")
-		if th and th:IsA("BasePart") then
-			tmplHandle = th :: BasePart
-			for _, child in tmpl:GetChildren() do
-				if child:IsA("BasePart") and child.Name ~= "Handle" then
-					table.insert(tmplParts, child)
-				end
-			end
-		end
-	end
-end
-
-if tmplHandle == nil then
-	warn("WeldScript[" .. tool.Name .. "]: template missing, welds skipped")
-end
-
-local weldsCreated: boolean = false
-
-local function createWelds(): ()
-	if weldsCreated then return end
-	local th: BasePart? = tmplHandle
-	if th == nil then return end
-
-	local liveParts: { BasePart } = {}
-	for _, child in tool:GetChildren() do
-		if child:IsA("BasePart") and child.Name ~= "Handle" then
-			table.insert(liveParts, child)
+			table.insert(liveParts, child :: BasePart)
 		end
 	end
 
@@ -2735,10 +2581,10 @@ local function createWelds(): ()
 		if matched == nil then continue end
 
 		local weld: Weld = Instance.new("Weld")
-		weld.Part0  = handle
-		weld.Part1  = livePart
-		weld.C0     = th.CFrame:Inverse() * matched.CFrame
-		weld.C1     = CFrame.new()
+		weld.Part0 = handle
+		weld.Part1 = livePart
+		weld.C0 = th.CFrame:Inverse() * matched.CFrame
+		weld.C1 = CFrame.new()
 		weld.Parent = handle
 	end
 
@@ -2747,7 +2593,7 @@ local function createWelds(): ()
 	end
 
 	handle.CanCollide = false
-	handle.Massless   = true
+	handle.Massless = true
 	weldsCreated = true
 end
 
@@ -2756,7 +2602,31 @@ if parentInst ~= nil and parentInst:FindFirstChildOfClass("Humanoid") ~= nil the
 	createWelds()
 end
 
-tool.Equipped:Connect(createWelds)`
+tool.Equipped:Connect(createWelds)`,
+
+        'readme.md': `## 📁 Project Structure
+
+\`\`\`
+ReplicatedStorage/
+├── RemoteEvents/
+│   ├── AddIngredientToPot
+│   ├── PlacePotOnTable
+│   ├── PressPills
+│   └── TakeIngredients
+│
+├── Tools/
+│   ├── EnergyExtract/
+│   ├── Ingredients/
+│   ├── MixingPot/
+│   │   └── WeldScript          ← Script
+│   ├── Pills/
+│   └── abBinder/
+│       └── WeldScript          ← Script
+│
+└── GameConfig                  ← ModuleScript
+
+ServerScriptService/
+└── CraftingHandler             ← Script`
       }
     },
     'drag-throw': {
