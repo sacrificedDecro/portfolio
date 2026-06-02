@@ -444,6 +444,10 @@ button {
   grid-column: 1 / -1;
 }
 
+.project-card--span2 {
+  grid-column: span 2;
+}
+
 .project-card__header {
   display: flex;
   flex-wrap: wrap;
@@ -724,6 +728,10 @@ button {
   .cards-grid,
   .demos-grid {
     grid-template-columns: 1fr;
+  }
+
+  .project-card--span2 {
+    grid-column: auto;
   }
 
   .hero__buttons {
