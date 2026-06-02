@@ -1760,6 +1760,1005 @@ end)`
       }
     },
 
+    cooking: {
+      name: 'Cooking System',
+      files: {
+        'CraftingHandler.lua': `--!strict
+
+local Players           = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService      = game:GetService("TweenService")
+
+type ConfigType = {
+	DEBOUNCE_DURATION: number,
+	WAIT_TIMEOUT: number,
+	PROMPT_MAX_DISTANCE: number,
+	PROP_RESPAWN_DELAY: number,
+	FADE_IN_TIME: number,
+	FADE_OUT_TIME: number,
+	FADE_BUFFER: number,
+	TOOLS_FOLDER_NAME: string,
+	PLACED_POT_PREFIX: string,
+	TOOL_MIXING_POT: string,
+	TOOL_TAB_BINDER: string,
+	TOOL_ENERGY_EXTRACT: string,
+	TOOL_INGREDIENTS: string,
+	TOOL_PILLS: string,
+	WORLD_MIXING_POT: string,
+	WORLD_TAB_BINDER: string,
+	WORLD_ENERGY_EXTRACT: string,
+	WORLD_TABLE: string,
+	WORLD_POT_SLOT: string,
+	WORLD_PILLS_PRESS: string,
+	PROMPT_ADD_TEXT: string,
+	PROMPT_COLLECT_TEXT: string,
+	PROMPT_POT_OBJECT_TEXT: string,
+}
+
+local _cfgInst: Instance = ReplicatedStorage:WaitForChild("GameConfig")
+assert(_cfgInst:IsA("ModuleScript"), "GameConfig must be ModuleScript")
+local Config: ConfigType = require(_cfgInst :: ModuleScript) :: ConfigType
+
+type IngredientFlags = { TabBinder: boolean, EnergyExtract: boolean }
+
+type CraftState = {
+	potOnTable: boolean,
+	placedModel: Model?,
+	placedPrompt: ProximityPrompt?,
+	ingredients: IngredientFlags,
+	readyToCollect: boolean,
+	charConnections: { RBXScriptConnection },
+	pendingTools: { string },
+}
+
+type PropEntry = {
+	toolName: string,
+	spawnCFrame: CFrame,
+	template: Instance,
+	available: boolean,
+	live: Instance?,
+	conn: RBXScriptConnection?,
+}
+
+local craftStates: { [number]: CraftState } = {}
+local debounce: { [number]: boolean }       = {}
+local propRegistry: { [string]: PropEntry } = {}
+
+local function requireFolder(parent: Instance, name: string): Folder
+	local inst: Instance? = parent:WaitForChild(name, Config.WAIT_TIMEOUT)
+	assert(inst ~= nil, name .. " not found (timeout)")
+	assert(inst:IsA("Folder"), name .. " must be Folder")
+	return inst :: Folder
+end
+
+local function requireModel(parent: Instance, name: string): Model
+	local inst: Instance? = parent:WaitForChild(name, Config.WAIT_TIMEOUT)
+	assert(inst ~= nil, name .. " not found (timeout)")
+	assert(inst:IsA("Model"), name .. " must be Model")
+	return inst :: Model
+end
+
+local function requirePart(parent: Instance, name: string): BasePart
+	local inst: Instance? = parent:WaitForChild(name, Config.WAIT_TIMEOUT)
+	assert(inst ~= nil, name .. " not found (timeout)")
+	assert(inst:IsA("BasePart"), name .. " must be BasePart")
+	return inst :: BasePart
+end
+
+local function getDirectPrompt(parent: Instance): ProximityPrompt
+	local p = parent:FindFirstChildOfClass("ProximityPrompt")
+	assert(p ~= nil, parent.Name .. " missing direct ProximityPrompt")
+	return p :: ProximityPrompt
+end
+
+local function getDeepPrompt(parent: Instance): ProximityPrompt
+	local p = parent:FindFirstChildWhichIsA("ProximityPrompt", true)
+	assert(p ~= nil, parent.Name .. " missing ProximityPrompt")
+	return p :: ProximityPrompt
+end
+
+local function getDeepPromptOpt(inst: Instance): ProximityPrompt?
+	local p = inst:FindFirstChildWhichIsA("ProximityPrompt", true)
+	if p == nil then return nil end
+	return p :: ProximityPrompt
+end
+
+local function ensurePrimaryPart(model: Model): ()
+	if model.PrimaryPart ~= nil then return end
+	local part = model:FindFirstChildWhichIsA("BasePart")
+	if part ~= nil then model.PrimaryPart = part end
+end
+
+local function anchorDescendants(inst: Instance): ()
+	if inst:IsA("BasePart") then
+		local bp: BasePart = inst :: BasePart
+		bp.Anchored   = true
+		bp.CanCollide = true
+	end
+	for _, desc in inst:GetDescendants() do
+		if desc:IsA("BasePart") then
+			desc.Anchored   = true
+			desc.CanCollide = true
+		end
+	end
+end
+
+local function getInstanceCFrame(inst: Instance): CFrame
+	if inst:IsA("BasePart") then
+		return (inst :: BasePart).CFrame
+	elseif inst:IsA("Model") then
+		local m: Model = inst :: Model
+		local pp = m.PrimaryPart
+		if pp ~= nil then return pp.CFrame end
+		local firstPart = m:FindFirstChildWhichIsA("BasePart")
+		if firstPart ~= nil then return firstPart.CFrame end
+	end
+	return CFrame.new()
+end
+
+local function placeInstance(inst: Instance, cf: CFrame): ()
+	if inst:IsA("BasePart") then
+		(inst :: BasePart).CFrame = cf
+	elseif inst:IsA("Model") then
+		local m: Model = inst :: Model
+		ensurePrimaryPart(m)
+		if m.PrimaryPart ~= nil then m:PivotTo(cf) end
+	end
+end
+
+local function setAllTransparency(inst: Instance, t: number): ()
+	if inst:IsA("BasePart") then (inst :: BasePart).Transparency = t end
+	for _, desc in inst:GetDescendants() do
+		if desc:IsA("BasePart") then desc.Transparency = t end
+	end
+end
+
+local function fadeIn(inst: Instance): ()
+	local info: TweenInfo = TweenInfo.new(
+		Config.FADE_IN_TIME, Enum.EasingStyle.Quad, Enum.EasingDirection.Out
+	)
+	setAllTransparency(inst, 1)
+	local tweens: { Tween } = {}
+	local function tween(part: BasePart): ()
+		local tw: Tween = TweenService:Create(part, info, { Transparency = 0 })
+		table.insert(tweens, tw)
+		tw:Play()
+	end
+	if inst:IsA("BasePart") then tween(inst :: BasePart) end
+	for _, desc in inst:GetDescendants() do
+		if desc:IsA("BasePart") then tween(desc :: BasePart) end
+	end
+	task.delay(Config.FADE_IN_TIME + Config.FADE_BUFFER, function()
+		for _, tw in tweens do tw:Destroy() end
+	end)
+end
+
+local function fadeOutAndDestroy(inst: Instance): ()
+	local info: TweenInfo = TweenInfo.new(
+		Config.FADE_OUT_TIME, Enum.EasingStyle.Quad, Enum.EasingDirection.In
+	)
+	for _, desc in inst:GetDescendants() do
+		if desc:IsA("ProximityPrompt") then
+			(desc :: ProximityPrompt).Enabled = false
+		end
+	end
+	local tweens: { Tween } = {}
+	local function tween(part: BasePart): ()
+		local tw: Tween = TweenService:Create(part, info, { Transparency = 1 })
+		table.insert(tweens, tw)
+		tw:Play()
+	end
+	if inst:IsA("BasePart") then tween(inst :: BasePart) end
+	for _, desc in inst:GetDescendants() do
+		if desc:IsA("BasePart") then tween(desc :: BasePart) end
+	end
+	task.delay(Config.FADE_OUT_TIME + Config.FADE_BUFFER, function()
+		for _, tw in tweens do tw:Destroy() end
+		if inst.Parent ~= nil then inst:Destroy() end
+	end)
+end
+
+local toolsFolder: Folder           = requireFolder(ReplicatedStorage, Config.TOOLS_FOLDER_NAME)
+local tableModel: Model             = requireModel(workspace, Config.WORLD_TABLE)
+local potSlot: BasePart             = requirePart(tableModel, Config.WORLD_POT_SLOT)
+local potSlotPrompt: ProximityPrompt     = getDirectPrompt(potSlot)
+local pillsPressModel: Model        = requireModel(workspace, Config.WORLD_PILLS_PRESS)
+local pillsPressPrompt: ProximityPrompt  = getDeepPrompt(pillsPressModel)
+local worldMixingPot: Model         = requireModel(workspace, Config.WORLD_MIXING_POT)
+local worldTabBinder: Model         = requireModel(workspace, Config.WORLD_TAB_BINDER)
+local worldEnergyExtract: BasePart  = requirePart(workspace, Config.WORLD_ENERGY_EXTRACT)
+
+ensurePrimaryPart(worldMixingPot)
+ensurePrimaryPart(worldTabBinder)
+
+local giveTool: (player: Player, name: string) -> () = nil :: any
+local spawnProp: (toolName: string) -> ()             = nil :: any
+
+local function getState(userId: number): CraftState
+	local existing: CraftState? = craftStates[userId]
+	if existing then return existing end
+	local fresh: CraftState = {
+		potOnTable      = false,
+		placedModel     = nil,
+		placedPrompt    = nil,
+		ingredients     = { TabBinder = false, EnergyExtract = false },
+		readyToCollect  = false,
+		charConnections = {},
+		pendingTools    = {},
+	}
+	craftStates[userId] = fresh
+	return fresh
+end
+
+local function debounced(userId: number, fn: () -> ()): ()
+	if debounce[userId] then return end
+	debounce[userId] = true
+	local ok, errVal = pcall(fn)
+	task.delay(Config.DEBOUNCE_DURATION, function()
+		debounce[userId] = nil
+	end)
+	if not ok then
+		warn("CraftingHandler [" .. userId .. "]: " .. tostring(errVal))
+	end
+end
+
+giveTool = function(player: Player, name: string): ()
+	local tmpl = toolsFolder:FindFirstChild(name)
+	if not tmpl or not tmpl:IsA("Tool") then return end
+	local bp = player:FindFirstChildOfClass("Backpack")
+	if not bp then return end
+	local clone: Tool = (tmpl :: Tool):Clone()
+	clone.CanBeDropped = false
+	for _, desc in clone:GetDescendants() do
+		if desc:IsA("BasePart") then
+			local bp2: BasePart = desc :: BasePart
+			bp2.CanCollide = false
+			bp2.Massless   = true
+			if desc.Name == "Handle" then
+				bp2.Anchored = false
+			else
+				bp2.Anchored = true
+			end
+		end
+	end
+	clone.Parent = bp
+end
+
+local function removeTool(player: Player, name: string): ()
+	local char: Model? = player.Character
+	local bp = player:FindFirstChildOfClass("Backpack")
+	if char ~= nil then
+		local t = char:FindFirstChild(name)
+		if t and t:IsA("Tool") then t:Destroy() return end
+	end
+	if bp then
+		local t = bp:FindFirstChild(name)
+		if t and t:IsA("Tool") then t:Destroy() end
+	end
+end
+
+local function equippedToolName(player: Player): string?
+	local char: Model? = player.Character
+	if char == nil then return nil end
+	local t = char:FindFirstChildWhichIsA("Tool")
+	return if t then t.Name else nil
+end
+
+local function recheckPillsPress(): ()
+	for _, player in Players:GetPlayers() do
+		if equippedToolName(player) == Config.TOOL_INGREDIENTS then
+			pillsPressPrompt.Enabled = true
+			return
+		end
+	end
+	pillsPressPrompt.Enabled = false
+end
+
+local function resetCraftState(player: Player): ()
+	local state: CraftState = getState(player.UserId)
+	if not state.potOnTable then return end
+	local placed = state.placedModel
+	state.potOnTable     = false
+	state.placedModel    = nil
+	state.placedPrompt   = nil
+	state.ingredients    = { TabBinder = false, EnergyExtract = false }
+	state.readyToCollect = false
+	if placed then fadeOutAndDestroy(placed) end
+	potSlotPrompt.Enabled = false
+	recheckPillsPress()
+end
+
+local function connectPropTrigger(entry: PropEntry): ()
+	local inst = entry.live
+	if inst == nil then return end
+	local prompt = getDeepPromptOpt(inst)
+	if prompt == nil then
+		warn("PropSystem: No ProximityPrompt for " .. entry.toolName)
+		return
+	end
+	entry.conn = prompt.Triggered:Connect(function(player: Player)
+		if not entry.available then return end
+		debounced(player.UserId, function()
+			if not entry.available then return end
+			entry.available = false
+			if entry.conn then
+				entry.conn:Disconnect()
+				entry.conn = nil
+			end
+			local live = entry.live
+			if live ~= nil then
+				entry.live = nil
+				fadeOutAndDestroy(live)
+			end
+			giveTool(player, entry.toolName)
+			task.delay(Config.PROP_RESPAWN_DELAY, function()
+				spawnProp(entry.toolName)
+			end)
+		end)
+	end)
+end
+
+spawnProp = function(toolName: string): ()
+	local entry: PropEntry? = propRegistry[toolName]
+	if entry == nil then return end
+	local newInst: Instance = entry.template:Clone()
+	anchorDescendants(newInst)
+	newInst.Parent = workspace
+	placeInstance(newInst, entry.spawnCFrame)
+	entry.live      = newInst
+	entry.available = true
+	connectPropTrigger(entry)
+	fadeIn(newInst)
+end
+
+local function registerProp(inst: Instance, toolName: string): ()
+	if inst:IsA("Model") then ensurePrimaryPart(inst :: Model) end
+	local cf: CFrame         = getInstanceCFrame(inst)
+	local template: Instance = inst:Clone()
+	local entry: PropEntry   = {
+		toolName    = toolName,
+		spawnCFrame = cf,
+		template    = template,
+		available   = true,
+		live        = inst,
+		conn        = nil,
+	}
+	propRegistry[toolName] = entry
+	connectPropTrigger(entry)
+end
+
+local function buildPlacedPot(player: Player): ()
+	local userId = player.UserId
+	local state  = getState(userId)
+	if state.potOnTable then return end
+
+	local propEntry: PropEntry? = propRegistry[Config.TOOL_MIXING_POT]
+	if propEntry == nil then return end
+
+	local rawClone: Instance = propEntry.template:Clone()
+	if not rawClone:IsA("Model") then rawClone:Destroy() return end
+	local container: Model = rawClone :: Model
+	container.Name = Config.PLACED_POT_PREFIX .. userId
+
+	anchorDescendants(container)
+
+	for _, desc in container:GetDescendants() do
+		if desc:IsA("ProximityPrompt") then desc:Destroy() end
+	end
+
+	ensurePrimaryPart(container)
+	local anchorPart: BasePart? = container.PrimaryPart
+
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.ActionText            = Config.PROMPT_ADD_TEXT
+	prompt.ObjectText            = Config.PROMPT_POT_OBJECT_TEXT
+	prompt.MaxActivationDistance = Config.PROMPT_MAX_DISTANCE
+	prompt.RequiresLineOfSight   = false
+	prompt.Enabled               = false
+
+	if anchorPart ~= nil then
+		prompt.Parent = anchorPart
+	else
+		prompt.Parent = container
+	end
+
+	prompt.Triggered:Connect(function(trigPlayer: Player)
+		if trigPlayer.UserId ~= userId then return end
+		debounced(userId, function()
+			local st = getState(userId)
+			if st.readyToCollect then
+				local placed = st.placedModel
+				st.potOnTable     = false
+				st.placedModel    = nil
+				st.placedPrompt   = nil
+				st.ingredients    = { TabBinder = false, EnergyExtract = false }
+				st.readyToCollect = false
+				if placed then fadeOutAndDestroy(placed) end
+				recheckPillsPress()
+				giveTool(trigPlayer, Config.TOOL_INGREDIENTS)
+				return
+			end
+			local toolName = equippedToolName(trigPlayer)
+			if toolName == Config.TOOL_TAB_BINDER and not st.ingredients.TabBinder then
+				removeTool(trigPlayer, Config.TOOL_TAB_BINDER)
+				st.ingredients.TabBinder = true
+			elseif toolName == Config.TOOL_ENERGY_EXTRACT and not st.ingredients.EnergyExtract then
+				removeTool(trigPlayer, Config.TOOL_ENERGY_EXTRACT)
+				st.ingredients.EnergyExtract = true
+			else
+				return
+			end
+			if st.ingredients.TabBinder and st.ingredients.EnergyExtract then
+				st.readyToCollect = true
+				local pp = st.placedPrompt
+				if pp then
+					pp.ActionText = Config.PROMPT_COLLECT_TEXT
+					pp.Enabled    = true
+				end
+			end
+		end)
+	end)
+
+	state.potOnTable   = true
+	state.placedModel  = container
+	state.placedPrompt = prompt
+
+	container.Parent = workspace
+
+	if anchorPart ~= nil then
+		local bbCF: CFrame, bbSz: Vector3 = container:GetBoundingBox()
+		local bbBottomY: number    = bbCF.Position.Y - bbSz.Y * 0.5
+		local ppToBBBottom: number = anchorPart.Position.Y - bbBottomY
+		local targetY: number      = potSlot.Position.Y + potSlot.Size.Y * 0.5 + ppToBBBottom
+		local ppToBBCX: number     = anchorPart.Position.X - bbCF.Position.X
+		local ppToBBCZ: number     = anchorPart.Position.Z - bbCF.Position.Z
+		local targetX: number      = potSlot.Position.X + ppToBBCX
+		local targetZ: number      = potSlot.Position.Z + ppToBBCZ
+		container:PivotTo(CFrame.new(targetX, targetY, targetZ))
+	end
+
+	fadeIn(container)
+
+	local currentTool = equippedToolName(player)
+	if currentTool == Config.TOOL_TAB_BINDER or currentTool == Config.TOOL_ENERGY_EXTRACT then
+		prompt.Enabled = true
+	end
+end
+
+potSlotPrompt.Triggered:Connect(function(player: Player)
+	debounced(player.UserId, function()
+		if equippedToolName(player) ~= Config.TOOL_MIXING_POT then return end
+		local state = getState(player.UserId)
+		if state.potOnTable then return end
+		removeTool(player, Config.TOOL_MIXING_POT)
+		potSlotPrompt.Enabled = false
+		buildPlacedPot(player)
+	end)
+end)
+
+pillsPressPrompt.Triggered:Connect(function(player: Player)
+	debounced(player.UserId, function()
+		if equippedToolName(player) ~= Config.TOOL_INGREDIENTS then return end
+		removeTool(player, Config.TOOL_INGREDIENTS)
+		giveTool(player, Config.TOOL_PILLS)
+		recheckPillsPress()
+	end)
+end)
+
+local function setupCharacter(player: Player, character: Model): ()
+	local userId = player.UserId
+	local state  = getState(userId)
+	for _, c in state.charConnections do c:Disconnect() end
+	table.clear(state.charConnections)
+
+	local addedConn: RBXScriptConnection = character.ChildAdded:Connect(function(child: Instance)
+		if not child:IsA("Tool") then return end
+		local name: string = child.Name
+		local st = getState(userId)
+		if name == Config.TOOL_MIXING_POT and not st.potOnTable then
+			potSlotPrompt.Enabled = true
+		elseif (name == Config.TOOL_TAB_BINDER or name == Config.TOOL_ENERGY_EXTRACT)
+			and st.potOnTable and not st.readyToCollect then
+			local pr = st.placedPrompt
+			if pr then pr.Enabled = true end
+		elseif name == Config.TOOL_INGREDIENTS then
+			pillsPressPrompt.Enabled = true
+		end
+	end)
+
+	local removedConn: RBXScriptConnection = character.ChildRemoved:Connect(function(child: Instance)
+		if not child:IsA("Tool") then return end
+		local name: string = child.Name
+		local st = getState(userId)
+		if name == Config.TOOL_MIXING_POT and not st.potOnTable then
+			potSlotPrompt.Enabled = false
+		elseif (name == Config.TOOL_TAB_BINDER or name == Config.TOOL_ENERGY_EXTRACT)
+			and st.potOnTable and not st.readyToCollect then
+			local other: string = if name == Config.TOOL_TAB_BINDER
+				then Config.TOOL_ENERGY_EXTRACT
+				else Config.TOOL_TAB_BINDER
+			if not character:FindFirstChild(other) then
+				local pr = st.placedPrompt
+				if pr then pr.Enabled = false end
+			end
+		elseif name == Config.TOOL_INGREDIENTS then
+			recheckPillsPress()
+		end
+	end)
+
+	table.insert(state.charConnections, addedConn)
+	table.insert(state.charConnections, removedConn)
+end
+
+local function setupPlayer(player: Player): ()
+	player.CharacterRemoving:Connect(function()
+		local state = getState(player.UserId)
+		local saved: { string } = {}
+		local bp = player:FindFirstChildOfClass("Backpack")
+		if bp then
+			for _, child in bp:GetChildren() do
+				if child:IsA("Tool") then
+					table.insert(saved, child.Name)
+				end
+			end
+		end
+		local char: Model? = player.Character
+		if char ~= nil then
+			local equipped = char:FindFirstChildWhichIsA("Tool")
+			if equipped ~= nil then
+				table.insert(saved, equipped.Name)
+			end
+		end
+		state.pendingTools = saved
+	end)
+
+	player.CharacterAdded:Connect(function(character: Model)
+		resetCraftState(player)
+		setupCharacter(player, character)
+		local state = getState(player.UserId)
+		local tools: { string } = state.pendingTools
+		state.pendingTools = {}
+		task.defer(function()
+			for _, toolName in tools do
+				giveTool(player, toolName)
+			end
+		end)
+	end)
+
+	local existingChar: Model? = player.Character
+	if existingChar ~= nil then
+		setupCharacter(player, existingChar)
+	end
+end
+
+for _, player in Players:GetPlayers() do
+	setupPlayer(player)
+end
+Players.PlayerAdded:Connect(setupPlayer)
+
+Players.PlayerRemoving:Connect(function(player: Player)
+	local state: CraftState? = craftStates[player.UserId]
+	if state then
+		for _, c in state.charConnections do c:Disconnect() end
+		if state.placedModel then state.placedModel:Destroy() end
+	end
+	craftStates[player.UserId] = nil
+	debounce[player.UserId]    = nil
+end)
+
+registerProp(worldMixingPot, Config.TOOL_MIXING_POT)
+registerProp(worldTabBinder, Config.TOOL_TAB_BINDER)
+registerProp(worldEnergyExtract, Config.TOOL_ENERGY_EXTRACT)`,
+
+        'GameConfig.lua': `--!strict
+
+export type ConfigType = {
+	DEBOUNCE_DURATION: number,
+	WAIT_TIMEOUT: number,
+	PROMPT_MAX_DISTANCE: number,
+	WELD_MATCH_TOLERANCE: number,
+	PROP_RESPAWN_DELAY: number,
+	FADE_IN_TIME: number,
+	FADE_OUT_TIME: number,
+	FADE_BUFFER: number,
+	TOOLS_FOLDER_NAME: string,
+	PLACED_POT_PREFIX: string,
+	TOOL_MIXING_POT: string,
+	TOOL_TAB_BINDER: string,
+	TOOL_ENERGY_EXTRACT: string,
+	TOOL_INGREDIENTS: string,
+	TOOL_PILLS: string,
+	WORLD_MIXING_POT: string,
+	WORLD_TAB_BINDER: string,
+	WORLD_ENERGY_EXTRACT: string,
+	WORLD_TABLE: string,
+	WORLD_POT_SLOT: string,
+	WORLD_PILLS_PRESS: string,
+	PROMPT_ADD_TEXT: string,
+	PROMPT_COLLECT_TEXT: string,
+	PROMPT_POT_OBJECT_TEXT: string,
+}
+
+local Config: ConfigType = {
+	DEBOUNCE_DURATION    = 0.4,
+	WAIT_TIMEOUT         = 10,
+	PROMPT_MAX_DISTANCE  = 8,
+	WELD_MATCH_TOLERANCE = 0.5,
+	PROP_RESPAWN_DELAY   = 30,
+	FADE_IN_TIME         = 0.25,
+	FADE_OUT_TIME        = 0.2,
+	FADE_BUFFER          = 0.05,
+
+	TOOLS_FOLDER_NAME    = "Tools",
+	PLACED_POT_PREFIX    = "PlacedMixingPot_",
+
+	TOOL_MIXING_POT      = "MixingPot",
+	TOOL_TAB_BINDER      = "TabBinder",
+	TOOL_ENERGY_EXTRACT  = "EnergyExtract",
+	TOOL_INGREDIENTS     = "Ingredients",
+	TOOL_PILLS           = "Pills",
+
+	WORLD_MIXING_POT     = "MixingPot",
+	WORLD_TAB_BINDER     = "TabBinder",
+	WORLD_ENERGY_EXTRACT = "EnergyExtract",
+	WORLD_TABLE          = "Table",
+	WORLD_POT_SLOT       = "PotSlot",
+	WORLD_PILLS_PRESS    = "PillsPress",
+
+	PROMPT_ADD_TEXT        = "Add Ingredient",
+	PROMPT_COLLECT_TEXT    = "Collect",
+	PROMPT_POT_OBJECT_TEXT = "Mixing Pot",
+}
+
+return Config`,
+
+        'MixingPotPromptController.lua': `--!strict
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+type ConfigType = {
+	WAIT_TIMEOUT: number,
+	TOOLS_FOLDER_NAME: string,
+}
+
+local _cfgInst: Instance = ReplicatedStorage:WaitForChild("GameConfig")
+assert(_cfgInst:IsA("ModuleScript"), "GameConfig must be ModuleScript")
+local Config: ConfigType = require(_cfgInst :: ModuleScript) :: ConfigType
+
+local tool: Tool = script.Parent :: Tool
+
+local handleInst: Instance? = tool:WaitForChild("Handle", Config.WAIT_TIMEOUT)
+assert(handleInst ~= nil, tool.Name .. "/Handle not found")
+assert(handleInst:IsA("BasePart"), tool.Name .. "/Handle must be BasePart")
+local handle: BasePart = handleInst :: BasePart
+
+local tmplHandle: BasePart?   = nil
+local tmplParts: { BasePart } = {}
+
+local _fi: Instance? = ReplicatedStorage:WaitForChild(Config.TOOLS_FOLDER_NAME, Config.WAIT_TIMEOUT)
+if _fi ~= nil and _fi:IsA("Folder") then
+	local folder: Folder = _fi :: Folder
+	local ti = folder:FindFirstChild(tool.Name)
+	if ti and ti:IsA("Tool") then
+		local tmpl: Tool = ti :: Tool
+		local th = tmpl:FindFirstChild("Handle")
+		if th and th:IsA("BasePart") then
+			tmplHandle = th :: BasePart
+			for _, child in tmpl:GetChildren() do
+				if child:IsA("BasePart") and child.Name ~= "Handle" then
+					table.insert(tmplParts, child)
+				end
+			end
+		end
+	end
+end
+
+if tmplHandle == nil then
+	warn("WeldScript[" .. tool.Name .. "]: template missing, welds skipped")
+end
+
+local weldsCreated: boolean = false
+
+local function createWelds(): ()
+	if weldsCreated then return end
+	local th: BasePart? = tmplHandle
+	if th == nil then return end
+
+	local liveParts: { BasePart } = {}
+	for _, child in tool:GetChildren() do
+		if child:IsA("BasePart") and child.Name ~= "Handle" then
+			table.insert(liveParts, child)
+		end
+	end
+
+	for i, livePart in ipairs(liveParts) do
+		local matched: BasePart? = tmplParts[i]
+		if matched == nil then continue end
+
+		local relOffset: CFrame = th.CFrame:Inverse() * matched.CFrame
+		livePart.CFrame = handle.CFrame * relOffset
+
+		local weld: WeldConstraint = Instance.new("WeldConstraint")
+		weld.Part0  = handle
+		weld.Part1  = livePart
+		weld.Parent = handle
+	end
+
+	for _, livePart in liveParts do
+		livePart.Anchored = false
+	end
+
+	handle.CanCollide = false
+	handle.Massless   = true
+	weldsCreated = true
+end
+
+tool.Equipped:Connect(function()
+	task.wait()
+	createWelds()
+end)`,
+
+        'MixingPotWeldScript.lua': `--!strict
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+type ConfigType = {
+	WAIT_TIMEOUT: number,
+	TOOLS_FOLDER_NAME: string,
+}
+
+local _cfgInst: Instance = ReplicatedStorage:WaitForChild("GameConfig")
+assert(_cfgInst:IsA("ModuleScript"), "GameConfig must be ModuleScript")
+local Config: ConfigType = require(_cfgInst :: ModuleScript) :: ConfigType
+
+local tool: Tool = script.Parent :: Tool
+
+local handleInst: Instance? = tool:WaitForChild("Handle", Config.WAIT_TIMEOUT)
+assert(handleInst ~= nil, tool.Name .. "/Handle not found")
+assert(handleInst:IsA("BasePart"), tool.Name .. "/Handle must be BasePart")
+local handle: BasePart = handleInst :: BasePart
+
+local tmplHandle: BasePart?   = nil
+local tmplParts: { BasePart } = {}
+
+local _fi: Instance? = ReplicatedStorage:WaitForChild(Config.TOOLS_FOLDER_NAME, Config.WAIT_TIMEOUT)
+if _fi ~= nil and _fi:IsA("Folder") then
+	local folder: Folder = _fi :: Folder
+	local ti = folder:FindFirstChild(tool.Name)
+	if ti and ti:IsA("Tool") then
+		local tmpl: Tool = ti :: Tool
+		local th = tmpl:FindFirstChild("Handle")
+		if th and th:IsA("BasePart") then
+			tmplHandle = th :: BasePart
+			for _, child in tmpl:GetChildren() do
+				if child:IsA("BasePart") and child.Name ~= "Handle" then
+					table.insert(tmplParts, child)
+				end
+			end
+		end
+	end
+end
+
+if tmplHandle == nil then
+	warn("WeldScript[" .. tool.Name .. "]: template missing, welds skipped")
+end
+
+local weldsCreated: boolean = false
+
+local function createWelds(): ()
+	if weldsCreated then return end
+	local th: BasePart? = tmplHandle
+	if th == nil then return end
+
+	local liveParts: { BasePart } = {}
+	for _, child in tool:GetChildren() do
+		if child:IsA("BasePart") and child.Name ~= "Handle" then
+			table.insert(liveParts, child)
+		end
+	end
+
+	for i, livePart in ipairs(liveParts) do
+		local matched: BasePart? = tmplParts[i]
+		if matched == nil then continue end
+
+		local weld: Weld = Instance.new("Weld")
+		weld.Part0  = handle
+		weld.Part1  = livePart
+		weld.C0     = th.CFrame:Inverse() * matched.CFrame
+		weld.C1     = CFrame.new()
+		weld.Parent = handle
+	end
+
+	for _, livePart in liveParts do
+		livePart.Anchored = false
+	end
+
+	handle.CanCollide = false
+	handle.Massless   = true
+	weldsCreated = true
+end
+
+local parentInst: Instance? = tool.Parent
+if parentInst ~= nil and parentInst:FindFirstChildOfClass("Humanoid") ~= nil then
+	createWelds()
+end
+
+tool.Equipped:Connect(createWelds)`,
+
+        'TabBinderPromptController.lua': `--!strict
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+type ConfigType = {
+	WAIT_TIMEOUT: number,
+	TOOLS_FOLDER_NAME: string,
+}
+
+local _cfgInst: Instance = ReplicatedStorage:WaitForChild("GameConfig")
+assert(_cfgInst:IsA("ModuleScript"), "GameConfig must be ModuleScript")
+local Config: ConfigType = require(_cfgInst :: ModuleScript) :: ConfigType
+
+local tool: Tool = script.Parent :: Tool
+
+local handleInst: Instance? = tool:WaitForChild("Handle", Config.WAIT_TIMEOUT)
+assert(handleInst ~= nil, tool.Name .. "/Handle not found")
+assert(handleInst:IsA("BasePart"), tool.Name .. "/Handle must be BasePart")
+local handle: BasePart = handleInst :: BasePart
+
+local tmplHandle: BasePart?   = nil
+local tmplParts: { BasePart } = {}
+
+local _fi: Instance? = ReplicatedStorage:WaitForChild(Config.TOOLS_FOLDER_NAME, Config.WAIT_TIMEOUT)
+if _fi ~= nil and _fi:IsA("Folder") then
+	local folder: Folder = _fi :: Folder
+	local ti = folder:FindFirstChild(tool.Name)
+	if ti and ti:IsA("Tool") then
+		local tmpl: Tool = ti :: Tool
+		local th = tmpl:FindFirstChild("Handle")
+		if th and th:IsA("BasePart") then
+			tmplHandle = th :: BasePart
+			for _, child in tmpl:GetChildren() do
+				if child:IsA("BasePart") and child.Name ~= "Handle" then
+					table.insert(tmplParts, child)
+				end
+			end
+		end
+	end
+end
+
+if tmplHandle == nil then
+	warn("WeldScript[" .. tool.Name .. "]: template missing, welds skipped")
+end
+
+local weldsCreated: boolean = false
+
+local function createWelds(): ()
+	if weldsCreated then return end
+	local th: BasePart? = tmplHandle
+	if th == nil then return end
+
+	local liveParts: { BasePart } = {}
+	for _, child in tool:GetChildren() do
+		if child:IsA("BasePart") and child.Name ~= "Handle" then
+			table.insert(liveParts, child)
+		end
+	end
+
+	for i, livePart in ipairs(liveParts) do
+		local matched: BasePart? = tmplParts[i]
+		if matched == nil then continue end
+
+		local relOffset: CFrame = th.CFrame:Inverse() * matched.CFrame
+		livePart.CFrame = handle.CFrame * relOffset
+
+		local weld: WeldConstraint = Instance.new("WeldConstraint")
+		weld.Part0  = handle
+		weld.Part1  = livePart
+		weld.Parent = handle
+	end
+
+	for _, livePart in liveParts do
+		livePart.Anchored = false
+	end
+
+	handle.CanCollide = false
+	handle.Massless   = true
+	weldsCreated = true
+end
+
+tool.Equipped:Connect(function()
+	task.wait()
+	createWelds()
+end)`,
+
+        'TabBinderWeldScript.lua': `--!strict
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+type ConfigType = {
+	WAIT_TIMEOUT: number,
+	TOOLS_FOLDER_NAME: string,
+}
+
+local _cfgInst: Instance = ReplicatedStorage:WaitForChild("GameConfig")
+assert(_cfgInst:IsA("ModuleScript"), "GameConfig must be ModuleScript")
+local Config: ConfigType = require(_cfgInst :: ModuleScript) :: ConfigType
+
+local tool: Tool = script.Parent :: Tool
+
+local handleInst: Instance? = tool:WaitForChild("Handle", Config.WAIT_TIMEOUT)
+assert(handleInst ~= nil, tool.Name .. "/Handle not found")
+assert(handleInst:IsA("BasePart"), tool.Name .. "/Handle must be BasePart")
+local handle: BasePart = handleInst :: BasePart
+
+local tmplHandle: BasePart?   = nil
+local tmplParts: { BasePart } = {}
+
+local _fi: Instance? = ReplicatedStorage:WaitForChild(Config.TOOLS_FOLDER_NAME, Config.WAIT_TIMEOUT)
+if _fi ~= nil and _fi:IsA("Folder") then
+	local folder: Folder = _fi :: Folder
+	local ti = folder:FindFirstChild(tool.Name)
+	if ti and ti:IsA("Tool") then
+		local tmpl: Tool = ti :: Tool
+		local th = tmpl:FindFirstChild("Handle")
+		if th and th:IsA("BasePart") then
+			tmplHandle = th :: BasePart
+			for _, child in tmpl:GetChildren() do
+				if child:IsA("BasePart") and child.Name ~= "Handle" then
+					table.insert(tmplParts, child)
+				end
+			end
+		end
+	end
+end
+
+if tmplHandle == nil then
+	warn("WeldScript[" .. tool.Name .. "]: template missing, welds skipped")
+end
+
+local weldsCreated: boolean = false
+
+local function createWelds(): ()
+	if weldsCreated then return end
+	local th: BasePart? = tmplHandle
+	if th == nil then return end
+
+	local liveParts: { BasePart } = {}
+	for _, child in tool:GetChildren() do
+		if child:IsA("BasePart") and child.Name ~= "Handle" then
+			table.insert(liveParts, child)
+		end
+	end
+
+	for i, livePart in ipairs(liveParts) do
+		local matched: BasePart? = tmplParts[i]
+		if matched == nil then continue end
+
+		local weld: Weld = Instance.new("Weld")
+		weld.Part0  = handle
+		weld.Part1  = livePart
+		weld.C0     = th.CFrame:Inverse() * matched.CFrame
+		weld.C1     = CFrame.new()
+		weld.Parent = handle
+	end
+
+	for _, livePart in liveParts do
+		livePart.Anchored = false
+	end
+
+	handle.CanCollide = false
+	handle.Massless   = true
+	weldsCreated = true
+end
+
+local parentInst: Instance? = tool.Parent
+if parentInst ~= nil and parentInst:FindFirstChildOfClass("Humanoid") ~= nil then
+	createWelds()
+end
+
+tool.Equipped:Connect(createWelds)`
+      }
+    },
     'drag-throw': {
       name: 'Dead Rails Drag System + Throw and Weight ( multiplayer )',
       files: {
