@@ -1877,9 +1877,8 @@ local function anchorDescendants(inst: Instance): ()
 	end
 	for _, desc in inst:GetDescendants() do
 		if desc:IsA("BasePart") then
-			local bp: BasePart = desc :: BasePart
-			bp.Anchored = true
-			bp.CanCollide = true
+			desc.Anchored = true
+			desc.CanCollide = true
 		end
 	end
 end
@@ -1910,7 +1909,7 @@ end
 local function setAllTransparency(inst: Instance, t: number): ()
 	if inst:IsA("BasePart") then (inst :: BasePart).Transparency = t end
 	for _, desc in inst:GetDescendants() do
-		if desc:IsA("BasePart") then (desc :: BasePart).Transparency = t end
+		if desc:IsA("BasePart") then desc.Transparency = t end
 	end
 end
 
@@ -2045,31 +2044,34 @@ local function equippedToolName(player: Player): string?
 	return if t then t.Name else nil
 end
 
-local function recheckPotSlot(): ()
+local function recheckPillsPress(skipUserId: number?): ()
 	for _, player in Players:GetPlayers() do
-		local st: CraftState? = craftStates[player.UserId]
-		if st ~= nil and (st :: CraftState).potOnTable then
-			potSlotPrompt.Enabled = false
-			return
-		end
-	end
-	for _, player in Players:GetPlayers() do
-		if equippedToolName(player) == Config.TOOL_MIXING_POT then
-			potSlotPrompt.Enabled = true
-			return
-		end
-	end
-	potSlotPrompt.Enabled = false
-end
-
-local function recheckPillsPress(): ()
-	for _, player in Players:GetPlayers() do
+		if player.UserId == skipUserId then continue end
 		if equippedToolName(player) == Config.TOOL_INGREDIENTS then
 			pillsPressPrompt.Enabled = true
 			return
 		end
 	end
 	pillsPressPrompt.Enabled = false
+end
+
+local function recheckPotSlot(skipUserId: number?): ()
+	for _, p in Players:GetPlayers() do
+		if p.UserId == skipUserId then continue end
+		local st: CraftState? = craftStates[p.UserId]
+		if st ~= nil and st.potOnTable then
+			potSlotPrompt.Enabled = false
+			return
+		end
+	end
+	for _, p in Players:GetPlayers() do
+		if p.UserId == skipUserId then continue end
+		if equippedToolName(p) == Config.TOOL_MIXING_POT then
+			potSlotPrompt.Enabled = true
+			return
+		end
+	end
+	potSlotPrompt.Enabled = false
 end
 
 local function resetCraftState(player: Player): ()
@@ -2192,8 +2194,8 @@ local function buildPlacedPot(player: Player): ()
 				st.ingredients = { TabBinder = false, EnergyExtract = false }
 				st.readyToCollect = false
 				if placed then fadeOutAndDestroy(placed) end
-				recheckPillsPress()
 				recheckPotSlot()
+				recheckPillsPress()
 				giveTool(trigPlayer, Config.TOOL_INGREDIENTS)
 				return
 			end
@@ -2249,6 +2251,10 @@ potSlotPrompt.Triggered:Connect(function(player: Player)
 		if equippedToolName(player) ~= Config.TOOL_MIXING_POT then return end
 		local state = getState(player.UserId)
 		if state.potOnTable then return end
+		for _, p in Players:GetPlayers() do
+			local st: CraftState? = craftStates[p.UserId]
+			if st ~= nil and st.potOnTable then return end
+		end
 		removeTool(player, Config.TOOL_MIXING_POT)
 		potSlotPrompt.Enabled = false
 		buildPlacedPot(player)
@@ -2363,7 +2369,8 @@ Players.PlayerRemoving:Connect(function(player: Player)
 	end
 	craftStates[player.UserId] = nil
 	debounce[player.UserId] = nil
-	recheckPotSlot()
+	recheckPotSlot(player.UserId)
+	recheckPillsPress(player.UserId)
 end)
 
 registerProp(worldMixingPot, Config.TOOL_MIXING_POT)
@@ -2376,6 +2383,7 @@ export type ConfigType = {
 	DEBOUNCE_DURATION: number,
 	WAIT_TIMEOUT: number,
 	PROMPT_MAX_DISTANCE: number,
+	WELD_MATCH_TOLERANCE: number,
 	PROP_RESPAWN_DELAY: number,
 	FADE_IN_TIME: number,
 	FADE_OUT_TIME: number,
@@ -2402,6 +2410,7 @@ local Config: ConfigType = {
 	DEBOUNCE_DURATION = 0.4,
 	WAIT_TIMEOUT = 10,
 	PROMPT_MAX_DISTANCE = 8,
+	WELD_MATCH_TOLERANCE = 0.5,
 	PROP_RESPAWN_DELAY = 30,
 	FADE_IN_TIME = 0.25,
 	FADE_OUT_TIME = 0.2,
@@ -2464,7 +2473,7 @@ if _fi ~= nil and _fi:IsA("Folder") then
 			tmplHandle = th :: BasePart
 			for _, child in tmpl:GetChildren() do
 				if child:IsA("BasePart") and child.Name ~= "Handle" then
-					table.insert(tmplParts, child :: BasePart)
+					table.insert(tmplParts, child)
 				end
 			end
 		end
@@ -2485,18 +2494,19 @@ local function createWelds(): ()
 	local liveParts: { BasePart } = {}
 	for _, child in tool:GetChildren() do
 		if child:IsA("BasePart") and child.Name ~= "Handle" then
-			table.insert(liveParts, child :: BasePart)
+			table.insert(liveParts, child)
 		end
 	end
 
-	for i, livePart in ipairs(liveParts) do
+	for i, livePart in liveParts do
 		local matched: BasePart? = tmplParts[i]
 		if matched == nil then continue end
-
+		local relOffset: CFrame = th.CFrame:Inverse() * matched.CFrame
+		livePart.CFrame = handle.CFrame * relOffset
 		local weld: Weld = Instance.new("Weld")
 		weld.Part0 = handle
 		weld.Part1 = livePart
-		weld.C0 = th.CFrame:Inverse() * matched.CFrame
+		weld.C0 = relOffset
 		weld.C1 = CFrame.new()
 		weld.Parent = handle
 	end
@@ -2551,7 +2561,7 @@ if _fi ~= nil and _fi:IsA("Folder") then
 			tmplHandle = th :: BasePart
 			for _, child in tmpl:GetChildren() do
 				if child:IsA("BasePart") and child.Name ~= "Handle" then
-					table.insert(tmplParts, child :: BasePart)
+					table.insert(tmplParts, child)
 				end
 			end
 		end
@@ -2572,18 +2582,19 @@ local function createWelds(): ()
 	local liveParts: { BasePart } = {}
 	for _, child in tool:GetChildren() do
 		if child:IsA("BasePart") and child.Name ~= "Handle" then
-			table.insert(liveParts, child :: BasePart)
+			table.insert(liveParts, child)
 		end
 	end
 
-	for i, livePart in ipairs(liveParts) do
+	for i, livePart in liveParts do
 		local matched: BasePart? = tmplParts[i]
 		if matched == nil then continue end
-
+		local relOffset: CFrame = th.CFrame:Inverse() * matched.CFrame
+		livePart.CFrame = handle.CFrame * relOffset
 		local weld: Weld = Instance.new("Weld")
 		weld.Part0 = handle
 		weld.Part1 = livePart
-		weld.C0 = th.CFrame:Inverse() * matched.CFrame
+		weld.C0 = relOffset
 		weld.C1 = CFrame.new()
 		weld.Parent = handle
 	end
