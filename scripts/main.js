@@ -1123,19 +1123,17 @@ return TimerService`
       name: 'Basic Plot System',
       files: {
         'PlotClaimSystem.lua': `--!strict
-
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 
-local PLOTS_FOLDER: string = "Plots"
-local CLAIM_PAD_NAME: string = "ClaimPad"
-local SIGN_NAME: string = "Sign"
-local UNCLAIMED_TEXT: string = "Unclaimed Brainrot Base"
-local CLAIMED_TEXT_FORMAT: string = "%s's Brainrot Base"
-local UNCLAIMED_COLOR: Color3 = Color3.fromRGB(0, 255, 0)
-local CLAIMED_COLOR: Color3 = Color3.fromRGB(255, 0, 0)
-local DEBOUNCE_TIME: number = 0.5
-
+local PLOTS_FOLDER = "Plots"
+local CLAIM_PAD_NAME = "ClaimPad"
+local SIGN_NAME = "Sign"
+local UNCLAIMED_TEXT = "Unclaimed Brainrot Base"
+local CLAIMED_TEXT_FORMAT = "%s's Brainrot Base"
+local UNCLAIMED_COLOR = Color3.fromRGB(0, 255, 0)
+local CLAIMED_COLOR = Color3.fromRGB(255, 0, 0)
+local DEBOUNCE_TIME = 0.5
 local playerDebounce: {[Player]: number?} = {}
 
 local function findPlotByOwner(ownerName: string): Model?
@@ -1145,10 +1143,110 @@ local function findPlotByOwner(ownerName: string): Model?
 	end
 	for _, child in plotsFolder:GetChildren() do
 		if child:IsA("Model") then
-			local owner = child:GetAttribute("Owner") :: string
+			local owner = (child:GetAttribute("Owner") or "") :: string
 			if owner == ownerName then
-				return child
+				return child :: Model
 			end
+		end
+	end
+	return nil
+end
+
+local function playerOwnsPlot(playerName: string): boolean
+	return findPlotByOwner(playerName) ~= nil
+end
+
+local function updatePlotVisuals(plot: Model, isClaimed: boolean, ownerName: string): ()
+	local rawPad = plot:FindFirstChild(CLAIM_PAD_NAME)
+	if rawPad and rawPad:IsA("BasePart") then
+		local pad = rawPad :: BasePart
+		pad.Color = if isClaimed then CLAIMED_COLOR else UNCLAIMED_COLOR
+	end
+	local rawSign = plot:FindFirstChild(SIGN_NAME)
+	if rawSign and rawSign:IsA("BasePart") then
+		local sign = rawSign :: BasePart
+		local rawGui = sign:FindFirstChild("SurfaceGui")
+		if rawGui then
+			local rawLabel = rawGui:FindFirstChild("TextLabel")
+			if rawLabel and rawLabel:IsA("TextLabel") then
+				local label = rawLabel :: TextLabel
+				label.Text = if isClaimed
+					then string.format(CLAIMED_TEXT_FORMAT, ownerName)
+					else UNCLAIMED_TEXT
+			end
+		end
+	end
+end
+
+local function claimPlot(plot: Model, player: Player): ()
+	plot:SetAttribute("Owner", player.Name)
+	updatePlotVisuals(plot, true, player.Name)
+	playerDebounce[player] = os.clock()
+end
+
+local function releasePlot(plot: Model): ()
+	plot:SetAttribute("Owner", "")
+	updatePlotVisuals(plot, false, "")
+end
+
+local function onPlayerRemoving(player: Player): ()
+	local ownedPlot = findPlotByOwner(player.Name)
+	if ownedPlot then
+		releasePlot(ownedPlot)
+	end
+	playerDebounce[player] = nil
+end
+
+local function initializePlots(): ()
+	local plotsFolder = Workspace:FindFirstChild(PLOTS_FOLDER)
+	if not plotsFolder then
+		warn("Plots folder not found in Workspace!")
+		return
+	end
+	for _, child in plotsFolder:GetChildren() do
+		if not child:IsA("Model") then
+			continue
+		end
+		local plot = child :: Model
+		plot:SetAttribute("Owner", "")
+		updatePlotVisuals(plot, false, "")
+		local rawPad = plot:FindFirstChild(CLAIM_PAD_NAME)
+		if not rawPad or not rawPad:IsA("BasePart") then
+			warn("ClaimPad not found in plot: " .. plot.Name)
+			continue
+		end
+		local pad = rawPad :: BasePart
+		pad.Touched:Connect(function(otherPart: BasePart): ()
+			local parent = otherPart.Parent
+			if not parent or not parent:IsA("Model") then
+				return
+			end
+			local character = parent :: Model
+			if not character:FindFirstChildOfClass("Humanoid") then
+				return
+			end
+			local player = Players:GetPlayerFromCharacter(character)
+			if not player then
+				return
+			end
+			local lastTouch = playerDebounce[player] or 0
+			if os.clock() - lastTouch < DEBOUNCE_TIME then
+				return
+			end
+			local currentOwner = (plot:GetAttribute("Owner") or "") :: string
+			if currentOwner ~= "" then
+				return
+			end
+			if playerOwnsPlot(player.Name) then
+				return
+			end
+			claimPlot(plot, player)
+		end)
+	end
+end
+
+Players.PlayerRemoving:Connect(onPlayerRemoving)
+initializePlots()
 		end
 	end
 	return nil
@@ -1258,7 +1356,13 @@ local function initializePlots(): ()
 end
 
 Players.PlayerRemoving:Connect(onPlayerRemoving)
-initializePlots()`
+initializePlots()`,
+
+        'readme.md': `## 📁 Project Structure
+
+\`\`\`
+ServerScriptService/
+└── PlotClaimSystem             ← Script`
       }
     },
 
