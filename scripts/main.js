@@ -8,340 +8,289 @@
     round: {
       name: 'Round System',
       files: {
-        'ClientMain.lua': `--!strict
+        'ClientMain.luau': `--!strict
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 
 local Maid = require(ReplicatedStorage:WaitForChild("SharedModules"):WaitForChild("Maid"))
 
-local player: Player = assert(Players.LocalPlayer, "ClientMain requires LocalPlayer")
+local localPlayer = Players.LocalPlayer
 
 local Events = ReplicatedStorage:WaitForChild("Events")
-local TimeSyncEvent: RemoteEvent = Events:WaitForChild("TimeSyncEvent") :: RemoteEvent
+local TimeSyncEvent = Events:WaitForChild("TimeSyncEvent") :: RemoteEvent
 
 local currentEndTime: number = 0
 local uiUpdateMaid = Maid.new()
 local lifetimeMaid = Maid.new()
 
-local function formatTime(seconds: number): string
-	local clamped = math.max(0, seconds)
-	local minutes = math.floor(clamped / 60)
-	local secs = math.floor(clamped % 60)
+local function FormatTime(seconds: number): string
+	local minutes = math.floor(seconds / 60)
+	local secs = math.floor(seconds % 60)
 	return string.format("%02d:%02d", minutes, secs)
 end
 
-local function startUIUpdate(): ()
+local function StartUIUpdate()
 	uiUpdateMaid:DoCleaning()
-	local playerGui = player:WaitForChild("PlayerGui") :: PlayerGui
+	local playerGui = localPlayer:WaitForChild("PlayerGui")
 	local roundGui = playerGui:WaitForChild("RoundGui")
-	local label = roundGui:WaitForChild("TimerLabel")
-	if not label:IsA("TextLabel") then
-		return
-	end
-	local timerLabel: TextLabel = label
-	uiUpdateMaid:GiveTask(RunService.RenderStepped:Connect(function(_dt: number): ()
-		local remaining = currentEndTime - workspace:GetServerTimeNow()
-		if remaining <= 0 then
+	local timerLabel = roundGui:WaitForChild("TimerLabel") :: TextLabel
+
+	uiUpdateMaid:GiveTask(RunService.RenderStepped:Connect(function()
+		local remainingTime = currentEndTime - workspace:GetServerTimeNow()
+		if remainingTime <= 0 then
 			timerLabel.Text = "00:00"
 			uiUpdateMaid:DoCleaning()
 			return
 		end
-		timerLabel.Text = formatTime(remaining)
+		timerLabel.Text = FormatTime(remainingTime)
 	end))
 end
 
-lifetimeMaid:GiveTask(TimeSyncEvent.OnClientEvent:Connect(function(endTime: number): ()
+lifetimeMaid:GiveTask(TimeSyncEvent.OnClientEvent:Connect(function(endTime: number)
 	currentEndTime = endTime
-	startUIUpdate()
+	StartUIUpdate()
 end))
 
-lifetimeMaid:GiveTask(player.CharacterAdded:Connect(function(_character: Model): ()
+lifetimeMaid:GiveTask(localPlayer.CharacterAdded:Connect(function()
 	if currentEndTime > workspace:GetServerTimeNow() then
-		startUIUpdate()
+		StartUIUpdate()
 	end
 end))`,
 
-        'ClientSwordController.lua': `--!strict
+        'ClientSwordController.luau': `--!strict
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Maid = require(ReplicatedStorage.SharedModules.Maid)
+local SwordHitEvent = ReplicatedStorage.Events.SwordHitEvent
 
-local Maid = require(ReplicatedStorage:WaitForChild("SharedModules"):WaitForChild("Maid"))
+local ClientSwordController = {}
+ClientSwordController.__index = ClientSwordController
 
-local Events = ReplicatedStorage:WaitForChild("Events")
-local SwordHitEvent: RemoteEvent = Events:WaitForChild("SwordHitEvent") :: RemoteEvent
-
-local ATTACK_COOLDOWN = 0.5
-
-type ControllerImpl = {
-	__index: ControllerImpl,
-	new: (tool: Tool) -> Controller,
-	Connect: (self: Controller) -> (),
-	Destroy: (self: Controller) -> (),
-	_onActivated: (self: Controller) -> (),
-	_onEquipped: (self: Controller) -> (),
-	_onUnequipped: (self: Controller) -> (),
+export type ClientSwordController = {
+	Tool: Tool,
+	_maid: Maid.Maid,
+	_equipMaid: Maid.Maid,
+	_lastAttack: number,
+	Connect: (self: ClientSwordController) -> (),
+	_onActivated: (self: ClientSwordController) -> (),
+	_onEquipped: (self: ClientSwordController) -> (),
+	_onUnequipped: (self: ClientSwordController) -> (),
 }
 
-type Controller = typeof(setmetatable(
-	{} :: {
-		Tool: Tool,
-		_maid: Maid.Maid,
-		_equipMaid: Maid.Maid,
-		_lastAttack: number,
-	},
-	{} :: ControllerImpl
-))
-
-local Controller = {} :: ControllerImpl
-Controller.__index = Controller
-
-function Controller.new(tool: Tool): Controller
-	local self = {
-		Tool = tool,
-		_maid = Maid.new(),
-		_equipMaid = Maid.new(),
-		_lastAttack = 0,
-	}
-	return setmetatable(self, Controller) :: Controller
+function ClientSwordController.new(tool: Tool): ClientSwordController
+	local self = setmetatable({} :: ClientSwordController, ClientSwordController)
+	self.Tool = tool
+	self._maid = Maid.new()
+	self._equipMaid = Maid.new()
+	self._lastAttack = 0
+	return self
 end
 
-function Controller._onActivated(self: Controller): ()
-	local now = os.clock()
-	if now - self._lastAttack < ATTACK_COOLDOWN then
+function ClientSwordController:_onActivated(): ()
+	local currentTime = os.clock()
+	if currentTime - self._lastAttack < 0.5 then
 		return
 	end
-	local localPlayer = Players.LocalPlayer
-	if localPlayer == nil then
+
+	local character = Players.LocalPlayer.Character
+	if not character or not character:FindFirstChild("HumanoidRootPart") then
 		return
 	end
-	local character = localPlayer.Character
-	if character == nil then
-		return
-	end
-	if character:FindFirstChild("HumanoidRootPart") == nil then
-		return
-	end
-	self._lastAttack = now
+
+	self._lastAttack = currentTime
 	SwordHitEvent:FireServer()
 end
 
-function Controller._onEquipped(self: Controller): ()
+function ClientSwordController:_onEquipped(): ()
 	self._equipMaid:DoCleaning()
-	self._equipMaid:GiveTask(self.Tool.Activated:Connect(function(): ()
+	self._equipMaid:GiveTask(self.Tool.Activated:Connect(function()
 		self:_onActivated()
 	end))
 end
 
-function Controller._onUnequipped(self: Controller): ()
+function ClientSwordController:_onUnequipped(): ()
 	self._equipMaid:DoCleaning()
 end
 
-function Controller.Connect(self: Controller): ()
-	self._maid:GiveTask(self.Tool.Equipped:Connect(function(): ()
+function ClientSwordController:Connect(): ()
+	self._maid:GiveTask(self.Tool.Equipped:Connect(function()
 		self:_onEquipped()
 	end))
-	self._maid:GiveTask(self.Tool.Unequipped:Connect(function(): ()
+	self._maid:GiveTask(self.Tool.Unequipped:Connect(function()
 		self:_onUnequipped()
 	end))
 end
 
-function Controller.Destroy(self: Controller): ()
-	self._equipMaid:DoCleaning()
-	self._maid:DoCleaning()
+local tool = script.Parent
+if tool:IsA("Tool") then
+	local controller = ClientSwordController.new(tool)
+	controller:Connect()
 end
 
-local parent = script.Parent
-if parent ~= nil and parent:IsA("Tool") then
-	local toolInstance: Tool = parent
-	local controller = Controller.new(toolInstance)
-	controller:Connect()
-	toolInstance.AncestryChanged:Connect(function(_child: Instance, newParent: Instance?): ()
-		if newParent == nil then
-			controller:Destroy()
-		end
-	end)
-end`,
+return ClientSwordController`,
 
-        'DataManager.lua': `--!strict
+        'DataManager.luau': `--!strict
+
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ProfileService = require(script.Parent.ProfileService)
+local Maid = require(game:GetService("ReplicatedStorage").SharedModules.Maid)
 
-local Maid = require(ReplicatedStorage.SharedModules.Maid)
-
-type ProfileData = {
-	Wins: number,
-	Coins: number,
-}
-
-export type Profile = {
-	Data: ProfileData,
-	Release: (Profile) -> (),
-	ListenToRelease: (Profile, () -> ()) -> (),
-}
-
-type ProfileStore = {
-	LoadProfileAsync: (ProfileStore, profileKey: string, notReleasedHandler: string) -> Profile?,
-}
-
-type ProfileServiceLib = {
-	GetProfileStore: (dataStoreName: string, profileTemplate: ProfileData) -> ProfileStore,
-}
-
-local ProfileService: ProfileServiceLib = (require(script.Parent.ProfileService) :: any) :: ProfileServiceLib
-
-local PROFILE_TEMPLATE: ProfileData = {
-	Wins = 0,
-	Coins = 0,
-}
-
-type DataManagerImpl = {
-	__index: DataManagerImpl,
-	new: () -> DataManager,
-	GetProfile: (self: DataManager, player: Player) -> Profile?,
+export type DataManager = {
+	_maid: Maid.Maid,
+	_profiles: { [Player]: any },
+	_loadingProfiles: { [Player]: boolean },
+	_profileStore: any,
+	_initialize: (self: DataManager) -> (),
+	_createLeaderstats: (self: DataManager, player: Player, profile: any) -> (),
+	_updateLeaderstats: (self: DataManager, player: Player, profile: any) -> (),
+	_onPlayerAdded: (self: DataManager, player: Player) -> (),
+	_onPlayerRemoving: (self: DataManager, player: Player) -> (),
+	GetProfile: (self: DataManager, player: Player) -> any,
 	AddWins: (self: DataManager, player: Player, amount: number) -> (),
 	AddCoins: (self: DataManager, player: Player, amount: number) -> (),
 	Destroy: (self: DataManager) -> (),
-	_initialize: (self: DataManager) -> (),
-	_onPlayerAdded: (self: DataManager, player: Player) -> (),
-	_onPlayerRemoving: (self: DataManager, player: Player) -> (),
-	_createLeaderstats: (self: DataManager, player: Player, profile: Profile) -> (),
-	_updateLeaderstats: (self: DataManager, player: Player, profile: Profile) -> (),
 }
 
-export type DataManager = typeof(setmetatable(
-	{} :: {
-		_maid: Maid.Maid,
-		_profiles: { [Player]: Profile },
-		_profileStore: ProfileStore,
-	},
-	{} :: DataManagerImpl
-))
-
-local DataManager = {} :: DataManagerImpl
+local DataManager = {}
 DataManager.__index = DataManager
 
 function DataManager.new(): DataManager
-	local self = {
-		_maid = Maid.new(),
-		_profiles = {} :: { [Player]: Profile },
-		_profileStore = ProfileService.GetProfileStore("PlayerData_v1", PROFILE_TEMPLATE),
-	}
-	local instance = setmetatable(self, DataManager) :: DataManager
-	instance:_initialize()
-	return instance
+	local self = setmetatable({}, DataManager)
+	self._maid = Maid.new()
+	self._profiles = {}
+	self._loadingProfiles = {}
+	self._profileStore = ProfileService.GetProfileStore("PlayerData_v1", {
+		Wins = 0,
+		Coins = 0
+	})
+	self:_initialize()
+	return self
 end
 
-function DataManager._initialize(self: DataManager): ()
-	self._maid:GiveTask(Players.PlayerAdded:Connect(function(player: Player): ()
+function DataManager:_initialize(): ()
+	local function onPlayerAdded(player)
 		self:_onPlayerAdded(player)
-	end))
-	self._maid:GiveTask(Players.PlayerRemoving:Connect(function(player: Player): ()
+	end
+	
+	self._maid:GiveTask(Players.PlayerAdded:Connect(onPlayerAdded))
+	self._maid:GiveTask(Players.PlayerRemoving:Connect(function(player)
 		self:_onPlayerRemoving(player)
 	end))
+	
 	for _, player in Players:GetPlayers() do
-		task.spawn(function(): ()
-			self:_onPlayerAdded(player)
-		end)
+		task.spawn(onPlayerAdded, player)
 	end
 end
 
-function DataManager._createLeaderstats(self: DataManager, player: Player, profile: Profile): ()
+function DataManager:_createLeaderstats(player: Player, profile: any)
 	local leaderstats = Instance.new("Folder")
 	leaderstats.Name = "leaderstats"
+	leaderstats.Parent = player
+
 	local winsValue = Instance.new("IntValue")
 	winsValue.Name = "Wins"
 	winsValue.Value = profile.Data.Wins
 	winsValue.Parent = leaderstats
+
 	local coinsValue = Instance.new("IntValue")
 	coinsValue.Name = "Coins"
 	coinsValue.Value = profile.Data.Coins
 	coinsValue.Parent = leaderstats
-	leaderstats.Parent = player
 end
 
-function DataManager._updateLeaderstats(self: DataManager, player: Player, profile: Profile): ()
+function DataManager:_updateLeaderstats(player: Player, profile: any)
 	local leaderstats = player:FindFirstChild("leaderstats")
-	if leaderstats == nil then
+	if not leaderstats then
 		return
 	end
+
 	local winsValue = leaderstats:FindFirstChild("Wins")
 	local coinsValue = leaderstats:FindFirstChild("Coins")
-	if winsValue ~= nil and winsValue:IsA("IntValue") then
+
+	if winsValue and winsValue:IsA("IntValue") then
 		winsValue.Value = profile.Data.Wins
 	end
-	if coinsValue ~= nil and coinsValue:IsA("IntValue") then
+
+	if coinsValue and coinsValue:IsA("IntValue") then
 		coinsValue.Value = profile.Data.Coins
 	end
 end
 
-function DataManager._onPlayerAdded(self: DataManager, player: Player): ()
-	local ok, result = pcall(function(): Profile?
+function DataManager:_onPlayerAdded(player: Player): ()
+	if self._profiles[player] ~= nil or self._loadingProfiles[player] then
+		return
+	end
+	self._loadingProfiles[player] = true
+
+	local success, profile = pcall(function()
 		return self._profileStore:LoadProfileAsync("Player_" .. player.UserId, "ForceLoad")
 	end)
-	if not ok or result == nil then
-		if player.Parent == Players then
-			player:Kick("Data loading failed. Please rejoin.")
-		end
+	
+	self._loadingProfiles[player] = nil
+	
+	if not success then
+		player:Kick("Data loading failed. Please rejoin.")
 		return
 	end
-	local loaded: Profile = result :: Profile
-	if player.Parent ~= Players then
-		loaded:Release()
-		return
-	end
-	loaded:ListenToRelease(function(): ()
-		self._profiles[player] = nil
+
+	if profile ~= nil then
+		profile:ListenToRelease(function()
+			self._profiles[player] = nil
+			player:Kick("Data session terminated elsewhere")
+		end)
+
 		if player.Parent == Players then
-			player:Kick("Data session terminated elsewhere.")
+			self._profiles[player] = profile
+			self:_createLeaderstats(player, profile)
+		else
+			profile:Release()
 		end
-	end)
-	self._profiles[player] = loaded
-	self:_createLeaderstats(player, loaded)
+	else
+		player:Kick("Data loading failed. Please rejoin.")
+	end
 end
 
-function DataManager._onPlayerRemoving(self: DataManager, player: Player): ()
+function DataManager:_onPlayerRemoving(player: Player): ()
 	local profile = self._profiles[player]
-	if profile ~= nil then
+	if profile then
 		profile:Release()
 		self._profiles[player] = nil
 	end
 end
 
-function DataManager.GetProfile(self: DataManager, player: Player): Profile?
+function DataManager:GetProfile(player: Player): any
 	return self._profiles[player]
 end
 
-function DataManager.AddWins(self: DataManager, player: Player, amount: number): ()
+function DataManager:AddWins(player: Player, amount: number)
 	local profile = self._profiles[player]
-	if profile == nil then
+	if not profile then
 		return
 	end
+
 	profile.Data.Wins += amount
 	self:_updateLeaderstats(player, profile)
 end
 
-function DataManager.AddCoins(self: DataManager, player: Player, amount: number): ()
+function DataManager:AddCoins(player: Player, amount: number)
 	local profile = self._profiles[player]
-	if profile == nil then
+	if not profile then
 		return
 	end
+
 	profile.Data.Coins += amount
 	self:_updateLeaderstats(player, profile)
 end
 
-function DataManager.Destroy(self: DataManager): ()
+function DataManager:Destroy(): ()
 	self._maid:DoCleaning()
-	local profiles = self._profiles
-	self._profiles = {} :: { [Player]: Profile }
-	for _, profile in pairs(profiles) do
-		profile:Release()
-	end
 end
 
 return DataManager`,
 
-        'GameConfig.lua': `--!strict
+        'GameConfig.luau': `--!strict
 
 export type Config = {
 	INTERMISSION_DURATION: number,
@@ -373,390 +322,290 @@ local GameConfig: Config = {
 
 return table.freeze(GameConfig)`,
 
-        'Maid.lua': `--!strict
+        'Maid.luau': `--!strict
 
-export type MaidTask = RBXScriptConnection
-	| Instance
-	| thread
-	| () -> ()
-	| { Destroy: (any) -> () }
+export type MaidTask = RBXScriptConnection | Instance | thread | () -> () | { Destroy: (any) -> () }
 
-type MaidImpl = {
-	__index: MaidImpl,
-	new: () -> Maid,
-	GiveTask: (self: Maid, item: MaidTask?) -> MaidTask?,
+export type Maid = {
+	_tasks: { [any]: MaidTask },
+	GiveTask: (self: Maid, task: MaidTask) -> MaidTask,
 	DoCleaning: (self: Maid) -> (),
-	Destroy: (self: Maid) -> (),
 	IsCleaning: (self: Maid) -> boolean,
 }
 
-export type Maid = typeof(setmetatable(
-	{} :: { _tasks: { [any]: MaidTask } },
-	{} :: MaidImpl
-))
-
-local Maid = {} :: MaidImpl
+local Maid = {}
 Maid.__index = Maid
 
 function Maid.new(): Maid
-	local self = {
-		_tasks = {} :: { [any]: MaidTask },
-	}
-	return setmetatable(self, Maid) :: Maid
+	local self = setmetatable({}, Maid)
+	self._tasks = {} :: { [any]: MaidTask }
+	return self
 end
 
-function Maid.GiveTask(self: Maid, item: MaidTask?): MaidTask?
-	if item == nil then
-		return nil
-	end
-	self._tasks[item] = item
-	return item
+function Maid:GiveTask(task: MaidTask): MaidTask
+	if not task then return task end
+	self._tasks[task] = task
+	return task
 end
 
-function Maid.DoCleaning(self: Maid): ()
+function Maid:DoCleaning(): ()
 	local tasks = self._tasks
 	self._tasks = {} :: { [any]: MaidTask }
-	for tracked in pairs(tasks) do
-		local kind = typeof(tracked)
-		pcall(function(): ()
-			if kind == "function" then
-				(tracked :: () -> ())()
-			elseif kind == "RBXScriptConnection" then
-				(tracked :: RBXScriptConnection):Disconnect()
-			elseif kind == "thread" then
-				local thr = tracked :: thread
-				if coroutine.status(thr) ~= "dead" then
-					task.cancel(thr)
-				end
-			elseif kind == "Instance" then
-				(tracked :: Instance):Destroy()
-			elseif kind == "table" then
-				local destroyable = tracked :: { Destroy: (any) -> () }
-				if typeof(destroyable.Destroy) == "function" then
-					destroyable:Destroy()
-				end
-			end
-		end)
+
+	for trackedTask, _ in pairs(tasks) do
+		local taskType = typeof(trackedTask)
+
+		if taskType == "function" then
+			trackedTask()
+		elseif taskType == "RBXScriptConnection" then
+			(trackedTask :: RBXScriptConnection):Disconnect()
+		elseif taskType == "thread" then
+			task.cancel(trackedTask)
+		elseif taskType == "Instance" then
+			trackedTask:Destroy()
+		elseif taskType == "table" and typeof(trackedTask.Destroy) == "function" then
+			trackedTask:Destroy()
+		end
 	end
 end
 
-function Maid.Destroy(self: Maid): ()
-	self:DoCleaning()
-end
-
-function Maid.IsCleaning(self: Maid): boolean
-	return next(self._tasks) == nil
+function Maid:IsCleaning(): boolean
+	return next(self._tasks) ~= nil
 end
 
 return Maid`,
 
-        'Main.lua': `--!strict
+        'Main.luau': `--!strict
+
 local ServerScriptService = game:GetService("ServerScriptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Players = game:GetService("Players")
-
 local Maid = require(ReplicatedStorage.SharedModules.Maid)
+
+local TimerService = require(ServerScriptService.ServerModules.TimerService)
+local roundManager = require(ServerScriptService.ServerModules.RoundManagerSingleton)
 local GameConfig = require(ReplicatedStorage.SharedModules.GameConfig)
-local ServerModules = ServerScriptService:WaitForChild("ServerModules")
-local TimerService = require(ServerModules:WaitForChild("TimerService"))
-local RoundManagerSingleton = require(ServerModules:WaitForChild("RoundManagerSingleton"))
-local ServerSwordHandler = require(ServerModules:WaitForChild("ServerSwordHandler"))
+local maid = Maid.new()
+local Players = game:GetService("Players")
 
 local INTERMISSION_DURATION = GameConfig.INTERMISSION_DURATION
 local INGAME_DURATION = GameConfig.INGAME_DURATION
 local CLEANUP_DURATION = GameConfig.CLEANUP_DURATION
 local MIN_PLAYERS = GameConfig.MIN_PLAYERS
 
-local mainMaid = Maid.new()
-local perPlayerConnections: { [Player]: { RBXScriptConnection } } = {}
-
-ServerSwordHandler.Start()
-
-local function teleportLateJoinerToLobby(player: Player): ()
-	task.wait(0.5)
-	local state = RoundManagerSingleton:GetCurrentState()
-	if state ~= "Lobby" and state ~= "Intermission" then
-		return
-	end
-	RoundManagerSingleton:SendPlayerToLobby(player)
-end
-
-local function runIteration(): ()
-	RoundManagerSingleton:TransitionToState("Intermission")
-	TimerService.StartTimer(INTERMISSION_DURATION)
-	task.wait(INTERMISSION_DURATION)
-	if #Players:GetPlayers() < MIN_PLAYERS then
-		task.wait(5)
-		return
-	end
-	RoundManagerSingleton:TransitionToState("InGame")
-	TimerService.StartTimer(INGAME_DURATION)
-	local roundEnded = RoundManagerSingleton.RoundEnded
-	local timeoutThread = task.delay(INGAME_DURATION, function(): ()
-		roundEnded:Fire()
-	end)
-	roundEnded.Event:Wait()
-	if coroutine.status(timeoutThread) ~= "dead" then
-		task.cancel(timeoutThread)
-	end
-	RoundManagerSingleton:TransitionToState("Cleanup")
-	TimerService.StartTimer(CLEANUP_DURATION)
-	task.wait(CLEANUP_DURATION)
-end
-
-local function runGameLoop(): ()
-	RoundManagerSingleton:TransitionToState("Lobby")
+local function runGameLoop()
 	while true do
-		local ok, err = pcall(runIteration)
-		if not ok then
-			warn("[Main] iteration failed:", err)
-			pcall(function(): ()
-				RoundManagerSingleton:TransitionToState("Lobby")
+		local success, errorMessage = pcall(function()
+			roundManager:TransitionToState("Intermission")
+			TimerService.StartTimer(INTERMISSION_DURATION)
+			task.wait(INTERMISSION_DURATION)
+
+			local players = Players:GetPlayers()
+			if #players < MIN_PLAYERS then
+				task.wait(5)
+				return
+			end
+
+			roundManager:TransitionToState("InGame")
+			TimerService.StartTimer(INGAME_DURATION)
+			local roundEndedRef = roundManager.RoundEnded
+			local timeout = task.delay(INGAME_DURATION, function()
+				roundEndedRef:Fire()
 			end)
+			roundEndedRef.Event:Wait()
+			task.cancel(timeout)
+
+			roundManager:TransitionToState("Cleanup")
+			TimerService.StartTimer(CLEANUP_DURATION)
+			task.wait(CLEANUP_DURATION)
+		end)
+		
+		if not success then
+			warn("Game loop error: " .. tostring(errorMessage))
 			task.wait(5)
+			continue
 		end
 	end
 end
 
-mainMaid:GiveTask(Players.PlayerAdded:Connect(function(player: Player): ()
-	local conns: { RBXScriptConnection } = {}
-	perPlayerConnections[player] = conns
-	table.insert(conns, player.CharacterAdded:Connect(function(_character: Model): ()
-		teleportLateJoinerToLobby(player)
-	end))
+local playerMaids: { [Player]: RBXScriptConnection } = {}
+
+maid:GiveTask(Players.PlayerAdded:Connect(function(player)
+	playerMaids[player] = player.CharacterAdded:Connect(function()
+		local currentState = roundManager:GetCurrentState()
+		if currentState == "Lobby" or currentState == "Intermission" then
+			task.wait(0.1)
+			local lobby = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Lobby")
+			if lobby then
+				roundManager._playerManager:TeleportPlayersTo({player}, lobby)
+			end
+		end
+	end)
 end))
 
-mainMaid:GiveTask(Players.PlayerRemoving:Connect(function(player: Player): ()
-	local conns = perPlayerConnections[player]
-	if conns == nil then
-		return
+maid:GiveTask(Players.PlayerRemoving:Connect(function(player)
+	if playerMaids[player] then
+		playerMaids[player]:Disconnect()
+		playerMaids[player] = nil
 	end
-	for _, c in conns do
-		c:Disconnect()
-	end
-	perPlayerConnections[player] = nil
 end))
 
-mainMaid:GiveTask(task.spawn(runGameLoop))`,
+maid:GiveTask(task.spawn(runGameLoop))
+`,
 
-        'PlayerManager.lua': `--!strict
+        'PlayerManager.luau': `--!strict
+
 local Players = game:GetService("Players")
 local ServerStorage = game:GetService("ServerStorage")
 
-local SWORD_TOOL_NAME = "ClassicSword"
-
-type PlayerManagerImpl = {
-	__index: PlayerManagerImpl,
-	new: () -> PlayerManager,
-	IsPlayerAlive: (self: PlayerManager, player: Player) -> boolean,
-	GetAlivePlayers: (self: PlayerManager) -> { Player },
-	TeleportPlayersTo: (self: PlayerManager, players: { Player }, destinationFolder: Folder) -> (),
-	GiveSword: (self: PlayerManager, player: Player) -> Tool?,
+export type PlayerManager = {
+	GetAlivePlayers: (self: PlayerManager) -> {Player},
+	TeleportPlayersTo: (self: PlayerManager, players: {Player}, destinationFolder: Folder) -> (),
+	GiveSword: (self: PlayerManager, player: Player) -> (),
 	ClearSwords: (self: PlayerManager, player: Player) -> (),
 	Destroy: (self: PlayerManager) -> (),
 }
 
-export type PlayerManager = typeof(setmetatable(
-	{} :: {},
-	{} :: PlayerManagerImpl
-))
-
-local PlayerManager = {} :: PlayerManagerImpl
+local PlayerManager = {}
 PlayerManager.__index = PlayerManager
 
 function PlayerManager.new(): PlayerManager
-	return setmetatable({}, PlayerManager) :: PlayerManager
+	local self = setmetatable({}, PlayerManager)
+	return self
 end
 
-function PlayerManager.IsPlayerAlive(_self: PlayerManager, player: Player): boolean
-	local character = player.Character
-	if character == nil then
-		return false
-	end
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
-	if humanoid == nil then
-		return false
-	end
-	return humanoid.Health > 0
-end
-
-function PlayerManager.GetAlivePlayers(self: PlayerManager): { Player }
-	local alive: { Player } = {}
+function PlayerManager:GetAlivePlayers(): {Player}
+	local alivePlayers: {Player} = {}
+	
 	for _, player in Players:GetPlayers() do
-		if self:IsPlayerAlive(player) then
-			table.insert(alive, player)
+		local character = player.Character
+		if character then
+			local humanoid = character:FindFirstChildOfClass("Humanoid")
+			if humanoid and humanoid.Health > 0 then
+				table.insert(alivePlayers, player)
+			end
 		end
 	end
-	return alive
+	
+	return alivePlayers
 end
 
-function PlayerManager.TeleportPlayersTo(_self: PlayerManager, players: { Player }, destinationFolder: Folder): ()
-	local validParts: { BasePart } = {}
-	for _, child in destinationFolder:GetChildren() do
-		if child:IsA("BasePart") then
-			table.insert(validParts, child)
-		end
-	end
-	if #validParts == 0 then
+function PlayerManager:TeleportPlayersTo(players: {Player}, destinationFolder: Folder): ()
+	if not destinationFolder then
 		return
 	end
+	
+	local spawnPoints = destinationFolder:GetChildren()
+	
+	if #spawnPoints == 0 then
+		return
+	end
+	
 	for _, player in players do
 		local character = player.Character
-		if character == nil then
-			continue
+		if character then
+			local randomPart = spawnPoints[math.random(1, #spawnPoints)]
+			if randomPart:IsA("BasePart") then
+				pcall(function()
+					character:PivotTo(randomPart.CFrame + Vector3.new(0, 3, 0))
+				end)
+			end
 		end
-		local target = validParts[math.random(1, #validParts)]
-		pcall(function(): ()
-			character:PivotTo(target.CFrame + Vector3.new(0, 3, 0))
-		end)
 	end
 end
 
-function PlayerManager.GiveSword(_self: PlayerManager, player: Player): Tool?
-	local template = ServerStorage:FindFirstChild(SWORD_TOOL_NAME)
-	if template == nil or not template:IsA("Tool") then
-		return nil
+function PlayerManager:GiveSword(player: Player): ()
+	local swordTemplate = ServerStorage:FindFirstChild("ClassicSword")
+	if not swordTemplate then
+		return
 	end
-	local backpack = player:FindFirstChildOfClass("Backpack")
-	if backpack == nil then
-		return nil
-	end
-	local clone = template:Clone()
+	local clone = swordTemplate:Clone()
 	clone.CanBeDropped = false
-	clone.Parent = backpack
-	return clone
+	clone.Parent = player.Backpack
 end
 
-function PlayerManager.ClearSwords(_self: PlayerManager, player: Player): ()
-	local backpack = player:FindFirstChildOfClass("Backpack")
-	if backpack ~= nil then
-		for _, child in backpack:GetChildren() do
-			if child:IsA("Tool") and child.Name == SWORD_TOOL_NAME then
-				child:Destroy()
-			end
-		end
+function PlayerManager:ClearSwords(player: Player): ()
+	local backpackSword = player.Backpack:FindFirstChild("ClassicSword")
+	if backpackSword then
+		backpackSword:Destroy()
 	end
+
 	local character = player.Character
-	if character ~= nil then
-		for _, child in character:GetChildren() do
-			if child:IsA("Tool") and child.Name == SWORD_TOOL_NAME then
-				child:Destroy()
-			end
+	if character then
+		local characterSword = character:FindFirstChild("ClassicSword")
+		if characterSword then
+			characterSword:Destroy()
 		end
 	end
 end
 
-function PlayerManager.Destroy(_self: PlayerManager): ()
+function PlayerManager:Destroy(): ()
 end
 
 return PlayerManager`,
 
-        'RoundManager.lua': `--!strict
+        'RoundManager.luau': `--!strict
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
-
-local Maid = require(ReplicatedStorage.SharedModules.Maid)
+local MaidModule = require(ReplicatedStorage.SharedModules.Maid)
 local GameConfig = require(ReplicatedStorage.SharedModules.GameConfig)
-local PlayerManager = require(script.Parent.PlayerManager)
-local DataManager = require(script.Parent.DataManager)
+local PlayerManagerModule = require(script.Parent.PlayerManager)
+local DataManagerModule = require(script.Parent.DataManager)
 
 export type RoundState = "Lobby" | "Intermission" | "InGame" | "Cleanup"
 
-type RoundManagerImpl = {
-	__index: RoundManagerImpl,
-	new: () -> RoundManager,
-	GetCurrentState: (self: RoundManager) -> RoundState,
-	IsParticipant: (self: RoundManager, player: Player) -> boolean,
+export type RoundManager = {
+	CurrentState: RoundState,
+	PreviousState: RoundState?,
+	CurrentMaid: MaidModule.Maid,
+	RoundEnded: BindableEvent,
+	_participatingPlayers: { [Player]: boolean },
+	_playerManager: PlayerManagerModule.PlayerManager,
+	_dataManager: DataManagerModule.DataManager,
 	TransitionToState: (self: RoundManager, newState: RoundState) -> (),
-	SendPlayerToLobby: (self: RoundManager, player: Player) -> (),
+	GetCurrentState: (self: RoundManager) -> RoundState,
 	StartLobby: (self: RoundManager) -> (),
 	StartIntermission: (self: RoundManager) -> (),
 	StartGame: (self: RoundManager) -> (),
 	StartCleanup: (self: RoundManager) -> (),
-	CheckWinCondition: (self: RoundManager, excludePlayer: Player?) -> (),
+	CheckWinCondition: (self: RoundManager) -> (),
 	Destroy: (self: RoundManager) -> (),
-	_findLobby: (self: RoundManager) -> Folder?,
-	_findArena: (self: RoundManager) -> Folder?,
 }
 
-export type RoundManager = typeof(setmetatable(
-	{} :: {
-		CurrentState: RoundState,
-		PreviousState: RoundState?,
-		CurrentMaid: Maid.Maid,
-		RoundEnded: BindableEvent,
-		Participants: { [Player]: true },
-		Winner: Player?,
-		_playerManager: PlayerManager.PlayerManager,
-		_dataManager: DataManager.DataManager,
-	},
-	{} :: RoundManagerImpl
-))
-
-local RoundManager = {} :: RoundManagerImpl
+local RoundManager = {}
 RoundManager.__index = RoundManager
 
 function RoundManager.new(): RoundManager
-	local maid = Maid.new()
-	local roundEnded = Instance.new("BindableEvent")
-	maid:GiveTask(roundEnded)
-	local self = {
-		CurrentState = "Lobby" :: RoundState,
-		PreviousState = nil :: RoundState?,
-		CurrentMaid = maid,
-		RoundEnded = roundEnded,
-		Participants = {} :: { [Player]: true },
-		Winner = nil :: Player?,
-		_playerManager = PlayerManager.new(),
-		_dataManager = DataManager.new(),
-	}
-	return setmetatable(self, RoundManager) :: RoundManager
+	local self = setmetatable({}, RoundManager)
+	self.CurrentState = "Lobby"
+	self.PreviousState = nil
+	self.CurrentMaid = MaidModule.new()
+	self.RoundEnded = Instance.new("BindableEvent")
+	self.CurrentMaid:GiveTask(self.RoundEnded)
+	self._participatingPlayers = {}
+	self._playerManager = PlayerManagerModule.new()
+	self._dataManager = DataManagerModule.new()
+	return self
 end
 
-function RoundManager.GetCurrentState(self: RoundManager): RoundState
+function RoundManager:GetCurrentState(): RoundState
 	return self.CurrentState
 end
 
-function RoundManager.IsParticipant(self: RoundManager, player: Player): boolean
-	return self.Participants[player] == true
-end
-
-function RoundManager._findLobby(_self: RoundManager): Folder?
-	local map = workspace:FindFirstChild("Map")
-	if map == nil then
-		return nil
-	end
-	local lobby = map:FindFirstChild("Lobby")
-	if lobby ~= nil and lobby:IsA("Folder") then
-		return lobby
-	end
-	return nil
-end
-
-function RoundManager._findArena(_self: RoundManager): Folder?
-	local map = workspace:FindFirstChild("Map")
-	if map == nil then
-		return nil
-	end
-	local arena = map:FindFirstChild("Arena")
-	if arena ~= nil and arena:IsA("Folder") then
-		return arena
-	end
-	return nil
-end
-
-function RoundManager.TransitionToState(self: RoundManager, newState: RoundState): ()
+function RoundManager:TransitionToState(newState: RoundState): ()
 	if newState == self.CurrentState then
 		return
 	end
+
 	self.CurrentMaid:DoCleaning()
+
 	self.PreviousState = self.CurrentState
 	self.CurrentState = newState
-	local newMaid = Maid.new()
-	local newRoundEnded = Instance.new("BindableEvent")
-	newMaid:GiveTask(newRoundEnded)
-	self.CurrentMaid = newMaid
-	self.RoundEnded = newRoundEnded
+
+	self.CurrentMaid = MaidModule.new()
+	self.RoundEnded = Instance.new("BindableEvent")
+	self.CurrentMaid:GiveTask(self.RoundEnded)
+
 	if newState == "Lobby" then
 		self:StartLobby()
 	elseif newState == "Intermission" then
@@ -768,126 +617,118 @@ function RoundManager.TransitionToState(self: RoundManager, newState: RoundState
 	end
 end
 
-function RoundManager.SendPlayerToLobby(self: RoundManager, player: Player): ()
-	local lobby = self:_findLobby()
-	if lobby == nil then
-		return
-	end
-	self._playerManager:TeleportPlayersTo({ player }, lobby)
-end
+function RoundManager:StartLobby(): ()
+	local lobby = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Lobby")
+	if lobby then
+		local allPlayers = Players:GetPlayers()
+		self._playerManager:TeleportPlayersTo(allPlayers, lobby)
 
-function RoundManager.StartLobby(self: RoundManager): ()
-	self.Participants = {}
-	self.Winner = nil
-	local lobby = self:_findLobby()
-	if lobby == nil then
-		return
-	end
-	local allPlayers = Players:GetPlayers()
-	self._playerManager:TeleportPlayersTo(allPlayers, lobby)
-	for _, player in allPlayers do
-		self._playerManager:ClearSwords(player)
-	end
-end
-
-function RoundManager.StartIntermission(self: RoundManager): ()
-	self.Participants = {}
-	self.Winner = nil
-	local lobby = self:_findLobby()
-	if lobby == nil then
-		return
-	end
-	local allPlayers = Players:GetPlayers()
-	self._playerManager:TeleportPlayersTo(allPlayers, lobby)
-	for _, player in allPlayers do
-		self._playerManager:ClearSwords(player)
-	end
-end
-
-function RoundManager.StartGame(self: RoundManager): ()
-	local arena = self:_findArena()
-	if arena == nil then
-		return
-	end
-	local alivePlayers = self._playerManager:GetAlivePlayers()
-	if #alivePlayers < GameConfig.MIN_PLAYERS then
-		return
-	end
-	local participants: { [Player]: true } = {}
-	for _, player in alivePlayers do
-		participants[player] = true
-	end
-	self.Participants = participants
-	self.Winner = nil
-	self._playerManager:TeleportPlayersTo(alivePlayers, arena)
-	for _, player in alivePlayers do
-		self._playerManager:GiveSword(player)
-		local character = player.Character
-		if character == nil then
-			continue
+		for _, player in allPlayers do
+			self._playerManager:ClearSwords(player)
 		end
-		local humanoid = character:FindFirstChildOfClass("Humanoid")
-		if humanoid == nil then
-			continue
-		end
-		self.CurrentMaid:GiveTask(humanoid.Died:Connect(function(): ()
-			self:CheckWinCondition(nil)
-		end))
 	end
-	self.CurrentMaid:GiveTask(Players.PlayerRemoving:Connect(function(player: Player): ()
-		self:CheckWinCondition(player)
-	end))
 end
 
-function RoundManager.CheckWinCondition(self: RoundManager, excludePlayer: Player?): ()
+function RoundManager:StartIntermission(): ()
+	local lobby = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Lobby")
+	if lobby then
+		local allPlayers = Players:GetPlayers()
+		self._playerManager:TeleportPlayersTo(allPlayers, lobby)
+	end
+end
+
+function RoundManager:CheckWinCondition(): ()
+	if self.CurrentState ~= "InGame" then
+		return
+	end
+
 	local aliveCount = 0
-	local lastAlive: Player? = nil
-	for player in pairs(self.Participants) do
-		if player == excludePlayer then
-			continue
+	for _, player in self._playerManager:GetAlivePlayers() do
+		if self._participatingPlayers[player] then
+			aliveCount += 1
 		end
-		if player.Parent ~= Players then
-			continue
-		end
-		if not self._playerManager:IsPlayerAlive(player) then
-			continue
-		end
-		aliveCount += 1
-		lastAlive = player
 	end
+
 	if aliveCount <= 1 then
-		self.Winner = lastAlive
 		self.RoundEnded:Fire()
 	end
 end
 
-function RoundManager.StartCleanup(self: RoundManager): ()
-	local winner = self.Winner
-	if winner ~= nil and winner.Parent == Players then
-		self._dataManager:AddWins(winner, GameConfig.WIN_AMOUNT)
-		self._dataManager:AddCoins(winner, GameConfig.WIN_COINS)
+function RoundManager:StartGame(): ()
+	table.clear(self._participatingPlayers)
+	local alivePlayers = self._playerManager:GetAlivePlayers()
+
+	local arena = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Arena")
+	if not arena then
+		return
 	end
-	for _, player in Players:GetPlayers() do
-		self._playerManager:ClearSwords(player)
+
+	self._playerManager:TeleportPlayersTo(alivePlayers, arena)
+
+	for _, player in alivePlayers do
+		self._participatingPlayers[player] = true
+		self._playerManager:GiveSword(player)
+
 		local character = player.Character
-		if character == nil then
-			player:LoadCharacter()
-		else
+		if character then
 			local humanoid = character:FindFirstChildOfClass("Humanoid")
-			if humanoid == nil or humanoid.Health <= 0 then
-				player:LoadCharacter()
+			if humanoid then
+				local connection = humanoid.Died:Connect(function()
+					self:CheckWinCondition()
+				end)
+				self.CurrentMaid:GiveTask(connection)
 			end
 		end
 	end
-	task.wait(0.5)
-	local lobby = self:_findLobby()
-	if lobby == nil then
-		return
-	end
-	self._playerManager:TeleportPlayersTo(Players:GetPlayers(), lobby)
+
+	local playerRemovingConnection = Players.PlayerRemoving:Connect(function(player)
+		self._participatingPlayers[player] = nil
+		self:CheckWinCondition()
+	end)
+	self.CurrentMaid:GiveTask(playerRemovingConnection)
 end
 
-function RoundManager.Destroy(self: RoundManager): ()
+function RoundManager:StartCleanup(): ()
+	local winner = nil
+	for _, player in self._playerManager:GetAlivePlayers() do
+		if self._participatingPlayers[player] then
+			winner = player
+			break
+		end
+	end
+
+	if winner then
+		self._dataManager:AddWins(winner, GameConfig.WIN_AMOUNT)
+		self._dataManager:AddCoins(winner, GameConfig.WIN_COINS)
+	end
+	
+	table.clear(self._participatingPlayers)
+
+	for _, player in Players:GetPlayers() do
+		self._playerManager:ClearSwords(player)
+
+		if player.Character then
+			local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+			if not humanoid or humanoid.Health <= 0 then
+				player:LoadCharacter()
+			end
+		else
+			player:LoadCharacter()
+		end
+	end
+
+	task.wait(0.5)
+
+	local lobby = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Lobby")
+	if not lobby then
+		return
+	end
+
+	local allPlayers = Players:GetPlayers()
+	self._playerManager:TeleportPlayersTo(allPlayers, lobby)
+end
+
+function RoundManager:Destroy(): ()
 	self.CurrentMaid:DoCleaning()
 	self._playerManager:Destroy()
 	self._dataManager:Destroy()
@@ -895,7 +736,8 @@ end
 
 return RoundManager`,
 
-        'RoundManagerSingleton.lua': `--!strict
+        'RoundManagerSingleton.luau': `--!strict
+
 local RoundManager = require(script.Parent.RoundManager)
 
 export type RoundManager = RoundManager.RoundManager
@@ -904,197 +746,158 @@ local instance: RoundManager = RoundManager.new()
 
 return instance`,
 
-        'ServerSwordHandler.lua': `--!strict
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Players = game:GetService("Players")
+        'ServerSwordHandler.luau': `--!strict
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
+local Players = game:GetService("Players")
 local Maid = require(ReplicatedStorage.SharedModules.Maid)
 local GameConfig = require(ReplicatedStorage.SharedModules.GameConfig)
-local RoundManagerSingleton = require(script.Parent.RoundManagerSingleton)
+local SwordHitEvent = ReplicatedStorage.Events.SwordHitEvent
+local roundManager = require(ServerScriptService.ServerModules.RoundManagerSingleton)
 
-local SWORD_TOOL_NAME = "ClassicSword"
+local maid = Maid.new()
+local debounceTable: {[Player]: number} = {}
 
-local function getOrCreateFolder(parent: Instance, name: string): Folder
-	local existing = parent:FindFirstChild(name)
-	if existing ~= nil and existing:IsA("Folder") then
-		return existing
-	end
-	local folder = Instance.new("Folder")
-	folder.Name = name
-	folder.Parent = parent
-	return folder
+local function getCharacter(player: Player): Model?
+	return player.Character
 end
 
-local function getOrCreateRemoteEvent(parent: Instance, name: string): RemoteEvent
-	local existing = parent:FindFirstChild(name)
-	if existing ~= nil and existing:IsA("RemoteEvent") then
-		return existing
+local function hasToolEquipped(player: Player, toolName: string): boolean
+	local character = getCharacter(player)
+	if not character then
+		return false
 	end
-	local event = Instance.new("RemoteEvent")
-	event.Name = name
-	event.Parent = parent
-	return event
+
+	for _, item in character:GetChildren() do
+		if item:IsA("Tool") and item.Name == toolName then
+			return true
+		end
+	end
+
+	return false
 end
 
-local Events: Folder = getOrCreateFolder(ReplicatedStorage, "Events")
-local SwordHitEvent: RemoteEvent = getOrCreateRemoteEvent(Events, "SwordHitEvent")
+local function onSwordHit(player: Player)
+	if roundManager:GetCurrentState() ~= "InGame" then
+		return
+	end
 
-local ServerSwordHandler = {}
-
-local started: boolean = false
-local handlerMaid: Maid.Maid? = nil
-local debounceTable: { [Player]: number } = {}
-
-local function getEquippedSword(player: Player): Tool?
 	local character = player.Character
-	if character == nil then
-		return nil
+	if not character or script.Parent.Parent ~= character then
+		return
 	end
-	local tool = character:FindFirstChildOfClass("Tool")
-	if tool ~= nil and tool.Name == SWORD_TOOL_NAME then
-		return tool
-	end
-	return nil
-end
 
-local function resolveRoot(character: Model): BasePart?
-	local root = character:FindFirstChild("HumanoidRootPart")
-	if root ~= nil and root:IsA("BasePart") then
-		return root
-	end
-	return nil
-end
+	local currentTime = os.clock()
 
-local function onSwordHit(player: Player): ()
-	if RoundManagerSingleton:GetCurrentState() ~= "InGame" then
+	if debounceTable[player] and currentTime - debounceTable[player] < GameConfig.SWORD_DEBOUNCE then
 		return
 	end
-	if not RoundManagerSingleton:IsParticipant(player) then
+
+	local attackerCharacter = character
+
+	local attackerHumanoidRootPart = attackerCharacter:FindFirstChild("HumanoidRootPart")
+	if not attackerHumanoidRootPart then
 		return
 	end
-	local now = os.clock()
-	local last = debounceTable[player]
-	if last ~= nil and now - last < GameConfig.SWORD_DEBOUNCE then
+
+	local tool = script.Parent
+	if not hasToolEquipped(player, tool.Name) then
 		return
 	end
-	local attackerCharacter = player.Character
-	if attackerCharacter == nil then
+
+	local handle = tool:FindFirstChild("Handle")
+	if not handle then
 		return
 	end
-	local attackerRoot = resolveRoot(attackerCharacter)
-	if attackerRoot == nil then
+
+	local spherecastParams = RaycastParams.new()
+	spherecastParams.FilterDescendantsInstances = {attackerCharacter}
+	spherecastParams.FilterType = Enum.RaycastFilterType.Exclude
+
+	local lookDirection = attackerHumanoidRootPart.CFrame.LookVector
+	local rayOrigin = handle.Position
+	local rayDirection = lookDirection * GameConfig.SPHERECAST_RANGE
+
+	local rayResult = workspace:Spherecast(rayOrigin, GameConfig.SPHERECAST_RADIUS, rayDirection, spherecastParams)
+
+	if not rayResult then
 		return
 	end
-	if getEquippedSword(player) == nil then
+
+	local hitPart = rayResult.Instance
+	local targetCharacter = hitPart.Parent
+	if not targetCharacter or not targetCharacter:IsA("Model") then
 		return
 	end
-	local params = RaycastParams.new()
-	params.FilterDescendantsInstances = { attackerCharacter }
-	params.FilterType = Enum.RaycastFilterType.Exclude
-	local origin = attackerRoot.Position
-	local direction = attackerRoot.CFrame.LookVector * GameConfig.SPHERECAST_RANGE
-	local result = workspace:Spherecast(origin, GameConfig.SPHERECAST_RADIUS, direction, params)
-	if result == nil then
-		return
-	end
-	local hitPart = result.Instance
-	if hitPart == nil then
-		return
-	end
-	local rawAncestor = hitPart:FindFirstAncestorOfClass("Model")
-	if rawAncestor == nil then
-		return
-	end
-	local targetCharacter: Model = rawAncestor :: Model
-	if targetCharacter == attackerCharacter then
-		return
-	end
+
 	local targetHumanoid = targetCharacter:FindFirstChildOfClass("Humanoid")
-	if targetHumanoid == nil or targetHumanoid.Health <= 0 then
+	if not targetHumanoid then
 		return
 	end
-	local targetRoot = resolveRoot(targetCharacter)
-	if targetRoot == nil then
+
+	local targetHumanoidRootPart = targetCharacter:FindFirstChild("HumanoidRootPart")
+	if not targetHumanoidRootPart then
 		return
 	end
-	local distance = (attackerRoot.Position - targetRoot.Position).Magnitude
+
+	local distance = (attackerHumanoidRootPart.Position - targetHumanoidRootPart.Position).Magnitude
 	if distance > GameConfig.MAX_DAMAGE_DISTANCE then
 		return
 	end
-	local targetPlayer = Players:GetPlayerFromCharacter(targetCharacter)
-	if targetPlayer == nil then
+
+	if targetCharacter == attackerCharacter then
 		return
 	end
-	if not RoundManagerSingleton:IsParticipant(targetPlayer) then
-		return
-	end
-	debounceTable[player] = now
+
 	targetHumanoid:TakeDamage(GameConfig.SWORD_DAMAGE)
+	debounceTable[player] = currentTime
 end
 
-function ServerSwordHandler.Start(): ()
-	if started then
-		return
-	end
-	started = true
-	local newMaid = Maid.new()
-	handlerMaid = newMaid
-	newMaid:GiveTask(SwordHitEvent.OnServerEvent:Connect(function(player: Player, ...: any): ()
-		onSwordHit(player)
-	end))
-	newMaid:GiveTask(Players.PlayerRemoving:Connect(function(player: Player): ()
-		debounceTable[player] = nil
-	end))
+local function onPlayerRemoving(player: Player)
+	debounceTable[player] = nil
 end
 
-function ServerSwordHandler.Stop(): ()
-	if not started then
-		return
+maid:GiveTask(SwordHitEvent.OnServerEvent:Connect(onSwordHit))
+maid:GiveTask(Players.PlayerRemoving:Connect(onPlayerRemoving))
+maid:GiveTask(script.Parent.AncestryChanged:Connect(function()
+	if not script.Parent:IsDescendantOf(game) then
+		maid:DoCleaning()
 	end
-	started = false
-	local existing = handlerMaid
-	if existing ~= nil then
-		existing:DoCleaning()
-		handlerMaid = nil
-	end
-	table.clear(debounceTable)
-end
+end))`,
 
-return ServerSwordHandler`,
+        'TimerService.luau': `--!strict
 
-        'TimerService.lua': `--!strict
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 
-local Maid = require(ReplicatedStorage.SharedModules.Maid)
-
-local function getOrCreateFolder(parent: Instance, name: string): Folder
-	local existing = parent:FindFirstChild(name)
-	if existing ~= nil and existing:IsA("Folder") then
-		return existing
+local Events: Folder
+do
+	local found = ReplicatedStorage:FindFirstChild("Events")
+	if found and found:IsA("Folder") then
+		Events = found
+	else
+		local f = Instance.new("Folder")
+		f.Name = "Events"
+		f.Parent = ReplicatedStorage
+		Events = f
 	end
-	local folder = Instance.new("Folder")
-	folder.Name = name
-	folder.Parent = parent
-	return folder
 end
 
-local function getOrCreateRemoteEvent(parent: Instance, name: string): RemoteEvent
-	local existing = parent:FindFirstChild(name)
-	if existing ~= nil and existing:IsA("RemoteEvent") then
-		return existing
+local TimeSyncEvent: RemoteEvent
+do
+	local found = Events:FindFirstChild("TimeSyncEvent")
+	if found and found:IsA("RemoteEvent") then
+		TimeSyncEvent = found
+	else
+		local e = Instance.new("RemoteEvent")
+		e.Name = "TimeSyncEvent"
+		e.Parent = Events
+		TimeSyncEvent = e
 	end
-	local event = Instance.new("RemoteEvent")
-	event.Name = name
-	event.Parent = parent
-	return event
 end
-
-local Events: Folder = getOrCreateFolder(ReplicatedStorage, "Events")
-local TimeSyncEvent: RemoteEvent = getOrCreateRemoteEvent(Events, "TimeSyncEvent")
 
 local currentEndTime: number = 0
-local moduleMaid = Maid.new()
 
 local TimerService = {}
 
@@ -1105,17 +908,59 @@ function TimerService.StartTimer(durationInSeconds: number): number
 	return endTime
 end
 
-function TimerService.GetCurrentEndTime(): number
-	return currentEndTime
-end
+local maid = require(ReplicatedStorage.SharedModules.Maid).new()
 
-moduleMaid:GiveTask(Players.PlayerAdded:Connect(function(player: Player): ()
+maid:GiveTask(Players.PlayerAdded:Connect(function(player: Player)
 	if currentEndTime > workspace:GetServerTimeNow() then
 		TimeSyncEvent:FireClient(player, currentEndTime)
 	end
 end))
 
-return TimerService`
+task.spawn(function()
+	for _, player in Players:GetPlayers() do
+		if currentEndTime > workspace:GetServerTimeNow() then
+			TimeSyncEvent:FireClient(player, currentEndTime)
+		end
+	end
+end)
+
+return TimerService`,
+
+        'readme.md': `## 📂 Project Structure
+
+\`\`\`text
+ReplicatedStorage/
+├── Events/
+│   └── SwordHitEvent                ← RemoteEvent
+└── SharedModules/
+    ├── GameConfig                   ← ModuleScript
+    └── Maid                         ← ModuleScript
+
+ServerScriptService/
+├── Core/
+│   └── Main                         ← Script
+└── ServerModules/
+    ├── DataManager                  ← ModuleScript
+    ├── PlayerManager                ← ModuleScript
+    ├── ProfileService               ← ModuleScript
+    ├── RoundManager                 ← ModuleScript
+    ├── RoundManagerSingleton        ← ModuleScript
+    └── TimerService                 ← ModuleScript
+
+ServerStorage/
+└── ClassicSword/
+    ├── ServerSwordHandler           ← Script
+    ├── ClientSwordController        ← LocalScript
+    └── Handle                       ← Part
+
+StarterGui/
+
+StarterPack/
+
+StarterPlayer/
+├── StarterCharacterScripts/
+└── StarterPlayerScripts/
+    └── ClientMain                   ← LocalScript`
       }
     },
 
@@ -1899,9 +1744,9 @@ type ConfigType = {
 	PROMPT_POT_OBJECT_TEXT: string,
 }
 
-local _cfgInst: Instance = ReplicatedStorage:WaitForChild("GameConfig")
-assert(_cfgInst:IsA("ModuleScript"), "GameConfig must be ModuleScript")
-local Config: ConfigType = require(_cfgInst :: ModuleScript) :: ConfigType
+local cfgInst = ReplicatedStorage:WaitForChild("GameConfig")
+assert(cfgInst and cfgInst:IsA("ModuleScript"), "GameConfig must be ModuleScript")
+local Config = require(cfgInst) :: ConfigType
 
 type IngredientFlags = { TabBinder: boolean, EnergyExtract: boolean }
 
@@ -1911,8 +1756,8 @@ type CraftState = {
 	placedPrompt: ProximityPrompt?,
 	ingredients: IngredientFlags,
 	readyToCollect: boolean,
-	charConnections: { RBXScriptConnection },
-	pendingTools: { string },
+	charConnections: {RBXScriptConnection},
+	pendingTools: {string},
 }
 
 type PropEntry = {
@@ -1924,60 +1769,50 @@ type PropEntry = {
 	conn: RBXScriptConnection?,
 }
 
-local craftStates: { [number]: CraftState } = {}
-local debounce: { [number]: boolean } = {}
-local propRegistry: { [string]: PropEntry } = {}
+local craftStates: {[number]: CraftState} = {}
+local debounce: {[number]: boolean} = {}
+local propRegistry: {[string]: PropEntry} = {}
 
 local function requireFolder(parent: Instance, name: string): Folder
-	local inst: Instance? = parent:WaitForChild(name, Config.WAIT_TIMEOUT)
-	assert(inst ~= nil, name .. " not found (timeout)")
-	assert(inst:IsA("Folder"), name .. " must be Folder")
-	return inst :: Folder
+	local inst = parent:WaitForChild(name, Config.WAIT_TIMEOUT)
+	assert(inst and inst:IsA("Folder"), name .. " must be Folder")
+	return inst
 end
 
 local function requireModel(parent: Instance, name: string): Model
-	local inst: Instance? = parent:WaitForChild(name, Config.WAIT_TIMEOUT)
-	assert(inst ~= nil, name .. " not found (timeout)")
-	assert(inst:IsA("Model"), name .. " must be Model")
-	return inst :: Model
+	local inst = parent:WaitForChild(name, Config.WAIT_TIMEOUT)
+	assert(inst and inst:IsA("Model"), name .. " must be Model")
+	return inst
 end
 
 local function requirePart(parent: Instance, name: string): BasePart
-	local inst: Instance? = parent:WaitForChild(name, Config.WAIT_TIMEOUT)
-	assert(inst ~= nil, name .. " not found (timeout)")
-	assert(inst:IsA("BasePart"), name .. " must be BasePart")
-	return inst :: BasePart
+	local inst = parent:WaitForChild(name, Config.WAIT_TIMEOUT)
+	assert(inst and inst:IsA("BasePart"), name .. " must be BasePart")
+	return inst
 end
 
 local function getDirectPrompt(parent: Instance): ProximityPrompt
 	local p = parent:FindFirstChildOfClass("ProximityPrompt")
-	assert(p ~= nil, parent.Name .. " missing direct ProximityPrompt")
-	return p :: ProximityPrompt
+	assert(p, parent.Name .. " missing direct ProximityPrompt")
+	return p
 end
 
 local function getDeepPrompt(parent: Instance): ProximityPrompt
 	local p = parent:FindFirstChildWhichIsA("ProximityPrompt", true)
-	assert(p ~= nil, parent.Name .. " missing ProximityPrompt")
-	return p :: ProximityPrompt
+	assert(p, parent.Name .. " missing ProximityPrompt")
+	return p
 end
 
-local function getDeepPromptOpt(inst: Instance): ProximityPrompt?
-	local p = inst:FindFirstChildWhichIsA("ProximityPrompt", true)
-	if p == nil then return nil end
-	return p :: ProximityPrompt
-end
-
-local function ensurePrimaryPart(model: Model): ()
-	if model.PrimaryPart ~= nil then return end
+local function ensurePrimaryPart(model: Model)
+	if model.PrimaryPart then return end
 	local part = model:FindFirstChildWhichIsA("BasePart")
-	if part ~= nil then model.PrimaryPart = part end
+	if part then model.PrimaryPart = part end
 end
 
-local function anchorDescendants(inst: Instance): ()
+local function anchorDescendants(inst: Instance)
 	if inst:IsA("BasePart") then
-		local bp: BasePart = inst :: BasePart
-		bp.Anchored = true
-		bp.CanCollide = true
+		inst.Anchored = true
+		inst.CanCollide = true
 	end
 	for _, desc in inst:GetDescendants() do
 		if desc:IsA("BasePart") then
@@ -1989,97 +1824,120 @@ end
 
 local function getInstanceCFrame(inst: Instance): CFrame
 	if inst:IsA("BasePart") then
-		return (inst :: BasePart).CFrame
+		return inst.CFrame
 	elseif inst:IsA("Model") then
-		local m: Model = inst :: Model
-		local pp = m.PrimaryPart
-		if pp ~= nil then return pp.CFrame end
-		local firstPart = m:FindFirstChildWhichIsA("BasePart")
-		if firstPart ~= nil then return firstPart.CFrame end
+		if inst.PrimaryPart then return inst.PrimaryPart.CFrame end
+		local firstPart = inst:FindFirstChildWhichIsA("BasePart")
+		if firstPart then return firstPart.CFrame end
 	end
 	return CFrame.new()
 end
 
-local function placeInstance(inst: Instance, cf: CFrame): ()
+local function placeInstance(inst: Instance, cf: CFrame)
 	if inst:IsA("BasePart") then
-		(inst :: BasePart).CFrame = cf
+		inst.CFrame = cf
 	elseif inst:IsA("Model") then
-		local m: Model = inst :: Model
-		ensurePrimaryPart(m)
-		if m.PrimaryPart ~= nil then m:PivotTo(cf) end
+		ensurePrimaryPart(inst)
+		if inst.PrimaryPart then inst:PivotTo(cf) end
 	end
 end
 
-local function setAllTransparency(inst: Instance, t: number): ()
-	if inst:IsA("BasePart") then (inst :: BasePart).Transparency = t end
+local function setAllTransparency(inst: Instance, t: number)
+	if inst:IsA("BasePart") or inst:IsA("Decal") or inst:IsA("Texture") then 
+		(inst :: any).Transparency = t 
+	end
 	for _, desc in inst:GetDescendants() do
-		if desc:IsA("BasePart") then desc.Transparency = t end
+		if desc:IsA("BasePart") or desc:IsA("Decal") or desc:IsA("Texture") then 
+			(desc :: any).Transparency = t 
+		end
 	end
 end
 
-local function fadeIn(inst: Instance): ()
-	local info: TweenInfo = TweenInfo.new(
-		Config.FADE_IN_TIME, Enum.EasingStyle.Quad, Enum.EasingDirection.Out
-	)
+local function fadeIn(inst: Instance)
+	local info = TweenInfo.new(Config.FADE_IN_TIME, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 	setAllTransparency(inst, 1)
-	local tweens: { Tween } = {}
-	local function tween(part: BasePart): ()
-		local tw: Tween = TweenService:Create(part, info, { Transparency = 0 })
-		table.insert(tweens, tw)
-		tw:Play()
+	local tweens: {Tween} = {}
+	
+	local function applyTween(obj: Instance)
+		if obj:IsA("BasePart") or obj:IsA("Decal") or obj:IsA("Texture") then
+			local tw = TweenService:Create(obj :: any, info, { Transparency = 0 })
+			table.insert(tweens, tw)
+			tw:Play()
+		end
 	end
-	if inst:IsA("BasePart") then tween(inst :: BasePart) end
+
+	applyTween(inst)
 	for _, desc in inst:GetDescendants() do
-		if desc:IsA("BasePart") then tween(desc :: BasePart) end
+		applyTween(desc)
 	end
+
 	task.delay(Config.FADE_IN_TIME + Config.FADE_BUFFER, function()
 		for _, tw in tweens do tw:Destroy() end
 	end)
 end
 
-local function fadeOutAndDestroy(inst: Instance): ()
-	local info: TweenInfo = TweenInfo.new(
-		Config.FADE_OUT_TIME, Enum.EasingStyle.Quad, Enum.EasingDirection.In
-	)
+local function fadeOutAndDestroy(inst: Instance)
+	local info = TweenInfo.new(Config.FADE_OUT_TIME, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 	for _, desc in inst:GetDescendants() do
 		if desc:IsA("ProximityPrompt") then
-			(desc :: ProximityPrompt).Enabled = false
+			desc.Enabled = false
 		end
 	end
-	local tweens: { Tween } = {}
-	local function tween(part: BasePart): ()
-		local tw: Tween = TweenService:Create(part, info, { Transparency = 1 })
-		table.insert(tweens, tw)
-		tw:Play()
+	
+	local tweens: {Tween} = {}
+	
+	local function applyTween(obj: Instance)
+		if obj:IsA("BasePart") or obj:IsA("Decal") or obj:IsA("Texture") then
+			local tw = TweenService:Create(obj :: any, info, { Transparency = 1 })
+			table.insert(tweens, tw)
+			tw:Play()
+		end
 	end
-	if inst:IsA("BasePart") then tween(inst :: BasePart) end
+
+	applyTween(inst)
 	for _, desc in inst:GetDescendants() do
-		if desc:IsA("BasePart") then tween(desc :: BasePart) end
+		applyTween(desc)
 	end
+
 	task.delay(Config.FADE_OUT_TIME + Config.FADE_BUFFER, function()
 		for _, tw in tweens do tw:Destroy() end
-		if inst.Parent ~= nil then inst:Destroy() end
+		if inst.Parent then inst:Destroy() end
 	end)
 end
 
-local toolsFolder: Folder = requireFolder(ReplicatedStorage, Config.TOOLS_FOLDER_NAME)
-local tableModel: Model = requireModel(workspace, Config.WORLD_TABLE)
-local potSlot: BasePart = requirePart(tableModel, Config.WORLD_POT_SLOT)
-local potSlotPrompt: ProximityPrompt = getDirectPrompt(potSlot)
-local pillsPressModel: Model = requireModel(workspace, Config.WORLD_PILLS_PRESS)
-local pillsPressPrompt: ProximityPrompt = getDeepPrompt(pillsPressModel)
-local worldMixingPot: Model = requireModel(workspace, Config.WORLD_MIXING_POT)
-local worldTabBinder: Model = requireModel(workspace, Config.WORLD_TAB_BINDER)
-local worldEnergyExtract: BasePart = requirePart(workspace, Config.WORLD_ENERGY_EXTRACT)
+local toolsFolder = requireFolder(ReplicatedStorage, Config.TOOLS_FOLDER_NAME)
+
+local function giveTool(player: Player, name: string)
+	local tmpl = toolsFolder:FindFirstChild(name)
+	if not tmpl or not tmpl:IsA("Tool") then return end
+	local bp = player:FindFirstChildOfClass("Backpack")
+	if not bp then return end
+	local clone = tmpl:Clone()
+	clone.CanBeDropped = false
+	for _, desc in clone:GetDescendants() do
+		if desc:IsA("BasePart") then
+			desc.CanCollide = false
+			desc.Massless = true
+			desc.Anchored = (desc.Name ~= "Handle")
+		end
+	end
+	clone.Parent = bp
+end
+
+local tableModel = requireModel(workspace, Config.WORLD_TABLE)
+local potSlot = requirePart(tableModel, Config.WORLD_POT_SLOT)
+local potSlotPrompt = getDirectPrompt(potSlot)
+local pillsPressModel = requireModel(workspace, Config.WORLD_PILLS_PRESS)
+local pillsPressPrompt = getDeepPrompt(pillsPressModel)
+local worldMixingPot = requireModel(workspace, Config.WORLD_MIXING_POT)
+local worldTabBinder = requireModel(workspace, Config.WORLD_TAB_BINDER)
+local worldEnergyExtract = requirePart(workspace, Config.WORLD_ENERGY_EXTRACT)
 
 ensurePrimaryPart(worldMixingPot)
 ensurePrimaryPart(worldTabBinder)
 
-local giveTool: (player: Player, name: string) -> () = nil :: any
-local spawnProp: (toolName: string) -> () = nil :: any
-
 local function getState(userId: number): CraftState
-	local existing: CraftState? = craftStates[userId]
+	local existing = craftStates[userId]
 	if existing then return existing end
 	local fresh: CraftState = {
 		potOnTable = false,
@@ -2094,7 +1952,7 @@ local function getState(userId: number): CraftState
 	return fresh
 end
 
-local function debounced(userId: number, fn: () -> ()): ()
+local function debounced(userId: number, fn: () -> ())
 	if debounce[userId] then return end
 	debounce[userId] = true
 	local ok, errVal = pcall(fn)
@@ -2106,32 +1964,10 @@ local function debounced(userId: number, fn: () -> ()): ()
 	end
 end
 
-giveTool = function(player: Player, name: string): ()
-	local tmpl = toolsFolder:FindFirstChild(name)
-	if not tmpl or not tmpl:IsA("Tool") then return end
+local function removeTool(player: Player, name: string)
+	local char = player.Character
 	local bp = player:FindFirstChildOfClass("Backpack")
-	if not bp then return end
-	local clone: Tool = (tmpl :: Tool):Clone()
-	clone.CanBeDropped = false
-	for _, desc in clone:GetDescendants() do
-		if desc:IsA("BasePart") then
-			local bp2: BasePart = desc :: BasePart
-			bp2.CanCollide = false
-			bp2.Massless = true
-			if desc.Name == "Handle" then
-				bp2.Anchored = false
-			else
-				bp2.Anchored = true
-			end
-		end
-	end
-	clone.Parent = bp
-end
-
-local function removeTool(player: Player, name: string): ()
-	local char: Model? = player.Character
-	local bp = player:FindFirstChildOfClass("Backpack")
-	if char ~= nil then
+	if char then
 		local t = char:FindFirstChild(name)
 		if t and t:IsA("Tool") then t:Destroy() return end
 	end
@@ -2142,15 +1978,14 @@ local function removeTool(player: Player, name: string): ()
 end
 
 local function equippedToolName(player: Player): string?
-	local char: Model? = player.Character
-	if char == nil then return nil end
+	local char = player.Character
+	if not char then return nil end
 	local t = char:FindFirstChildWhichIsA("Tool")
 	return if t then t.Name else nil
 end
 
-local function recheckPillsPress(skipUserId: number?): ()
+local function recheckPillsPress()
 	for _, player in Players:GetPlayers() do
-		if player.UserId == skipUserId then continue end
 		if equippedToolName(player) == Config.TOOL_INGREDIENTS then
 			pillsPressPrompt.Enabled = true
 			return
@@ -2159,27 +1994,21 @@ local function recheckPillsPress(skipUserId: number?): ()
 	pillsPressPrompt.Enabled = false
 end
 
-local function recheckPotSlot(skipUserId: number?): ()
-	for _, p in Players:GetPlayers() do
-		if p.UserId == skipUserId then continue end
-		local st: CraftState? = craftStates[p.UserId]
-		if st ~= nil and st.potOnTable then
-			potSlotPrompt.Enabled = false
-			return
-		end
-	end
-	for _, p in Players:GetPlayers() do
-		if p.UserId == skipUserId then continue end
-		if equippedToolName(p) == Config.TOOL_MIXING_POT then
-			potSlotPrompt.Enabled = true
-			return
+local function recheckPotSlot()
+	for _, pl in Players:GetPlayers() do
+		if equippedToolName(pl) == Config.TOOL_MIXING_POT then
+			local st = craftStates[pl.UserId]
+			if not st or not st.potOnTable then
+				potSlotPrompt.Enabled = true
+				return
+			end
 		end
 	end
 	potSlotPrompt.Enabled = false
 end
 
-local function resetCraftState(player: Player): ()
-	local state: CraftState = getState(player.UserId)
+local function resetCraftState(player: Player)
+	local state = getState(player.UserId)
 	if not state.potOnTable then return end
 	local placed = state.placedModel
 	state.potOnTable = false
@@ -2192,14 +2021,14 @@ local function resetCraftState(player: Player): ()
 	recheckPillsPress()
 end
 
-local function connectPropTrigger(entry: PropEntry): ()
+local spawnProp: (string) -> ()
+
+local function connectPropTrigger(entry: PropEntry)
 	local inst = entry.live
-	if inst == nil then return end
-	local prompt = getDeepPromptOpt(inst)
-	if prompt == nil then
-		warn("PropSystem: No ProximityPrompt for " .. entry.toolName)
-		return
-	end
+	if not inst then return end
+	local prompt = inst:FindFirstChildWhichIsA("ProximityPrompt", true)
+	if not prompt then return end
+
 	entry.conn = prompt.Triggered:Connect(function(player: Player)
 		if not entry.available then return end
 		debounced(player.UserId, function()
@@ -2210,7 +2039,7 @@ local function connectPropTrigger(entry: PropEntry): ()
 				entry.conn = nil
 			end
 			local live = entry.live
-			if live ~= nil then
+			if live then
 				entry.live = nil
 				fadeOutAndDestroy(live)
 			end
@@ -2222,11 +2051,12 @@ local function connectPropTrigger(entry: PropEntry): ()
 	end)
 end
 
-spawnProp = function(toolName: string): ()
-	local entry: PropEntry? = propRegistry[toolName]
-	if entry == nil then return end
-	local newInst: Instance = entry.template:Clone()
+function spawnProp(toolName: string)
+	local entry = propRegistry[toolName]
+	if not entry then return end
+	local newInst = entry.template:Clone()
 	anchorDescendants(newInst)
+	setAllTransparency(newInst, 1)
 	newInst.Parent = workspace
 	placeInstance(newInst, entry.spawnCFrame)
 	entry.live = newInst
@@ -2235,10 +2065,10 @@ spawnProp = function(toolName: string): ()
 	fadeIn(newInst)
 end
 
-local function registerProp(inst: Instance, toolName: string): ()
-	if inst:IsA("Model") then ensurePrimaryPart(inst :: Model) end
-	local cf: CFrame = getInstanceCFrame(inst)
-	local template: Instance = inst:Clone()
+local function registerProp(inst: Instance, toolName: string)
+	if inst:IsA("Model") then ensurePrimaryPart(inst) end
+	local cf = getInstanceCFrame(inst)
+	local template = inst:Clone()
 	local entry: PropEntry = {
 		toolName = toolName,
 		spawnCFrame = cf,
@@ -2251,17 +2081,17 @@ local function registerProp(inst: Instance, toolName: string): ()
 	connectPropTrigger(entry)
 end
 
-local function buildPlacedPot(player: Player): ()
+local function buildPlacedPot(player: Player)
 	local userId = player.UserId
 	local state = getState(userId)
 	if state.potOnTable then return end
 
-	local propEntry: PropEntry? = propRegistry[Config.TOOL_MIXING_POT]
-	if propEntry == nil then return end
+	local propEntry = propRegistry[Config.TOOL_MIXING_POT]
+	if not propEntry then return end
 
-	local rawClone: Instance = propEntry.template:Clone()
+	local rawClone = propEntry.template:Clone()
 	if not rawClone:IsA("Model") then rawClone:Destroy() return end
-	local container: Model = rawClone :: Model
+	local container = rawClone
 	container.Name = Config.PLACED_POT_PREFIX .. userId
 
 	anchorDescendants(container)
@@ -2271,7 +2101,7 @@ local function buildPlacedPot(player: Player): ()
 	end
 
 	ensurePrimaryPart(container)
-	local anchorPart: BasePart? = container.PrimaryPart
+	local anchorPart = container.PrimaryPart
 
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.ActionText = Config.PROMPT_ADD_TEXT
@@ -2279,12 +2109,7 @@ local function buildPlacedPot(player: Player): ()
 	prompt.MaxActivationDistance = Config.PROMPT_MAX_DISTANCE
 	prompt.RequiresLineOfSight = false
 	prompt.Enabled = false
-
-	if anchorPart ~= nil then
-		prompt.Parent = anchorPart
-	else
-		prompt.Parent = container
-	end
+	prompt.Parent = anchorPart or container
 
 	prompt.Triggered:Connect(function(trigPlayer: Player)
 		if trigPlayer.UserId ~= userId then return end
@@ -2298,7 +2123,6 @@ local function buildPlacedPot(player: Player): ()
 				st.ingredients = { TabBinder = false, EnergyExtract = false }
 				st.readyToCollect = false
 				if placed then fadeOutAndDestroy(placed) end
-				recheckPotSlot()
 				recheckPillsPress()
 				giveTool(trigPlayer, Config.TOOL_INGREDIENTS)
 				return
@@ -2313,9 +2137,12 @@ local function buildPlacedPot(player: Player): ()
 			else
 				return
 			end
+			
+			local pp = st.placedPrompt
+			if pp then pp.Enabled = false end
+
 			if st.ingredients.TabBinder and st.ingredients.EnergyExtract then
 				st.readyToCollect = true
-				local pp = st.placedPrompt
 				if pp then
 					pp.ActionText = Config.PROMPT_COLLECT_TEXT
 					pp.Enabled = true
@@ -2328,24 +2155,25 @@ local function buildPlacedPot(player: Player): ()
 	state.placedModel = container
 	state.placedPrompt = prompt
 
+	setAllTransparency(container, 1)
 	container.Parent = workspace
 
-	if anchorPart ~= nil then
-		local bbCF: CFrame, bbSz: Vector3 = container:GetBoundingBox()
-		local bbBottomY: number = bbCF.Position.Y - bbSz.Y * 0.5
-		local ppToBBBottom: number = anchorPart.Position.Y - bbBottomY
-		local targetY: number = potSlot.Position.Y + potSlot.Size.Y * 0.5 + ppToBBBottom
-		local ppToBBCX: number = anchorPart.Position.X - bbCF.Position.X
-		local ppToBBCZ: number = anchorPart.Position.Z - bbCF.Position.Z
-		local targetX: number = potSlot.Position.X + ppToBBCX
-		local targetZ: number = potSlot.Position.Z + ppToBBCZ
-		container:PivotTo(CFrame.new(targetX, targetY, targetZ))
+	if anchorPart then
+		local bbCF, bbSz = container:GetBoundingBox()
+		local bbBottomY = bbCF.Position.Y - bbSz.Y * 0.5
+		local ppToBBBottom = anchorPart.Position.Y - bbBottomY
+		local targetY = potSlot.Position.Y + potSlot.Size.Y * 0.5 + ppToBBBottom
+		local ppToBBCX = anchorPart.Position.X - bbCF.Position.X
+		local ppToBBCZ = anchorPart.Position.Z - bbCF.Position.Z
+		container:PivotTo(CFrame.new(potSlot.Position.X + ppToBBCX, targetY, potSlot.Position.Z + ppToBBCZ))
 	end
 
 	fadeIn(container)
 
 	local currentTool = equippedToolName(player)
-	if currentTool == Config.TOOL_TAB_BINDER or currentTool == Config.TOOL_ENERGY_EXTRACT then
+	if currentTool == Config.TOOL_TAB_BINDER and not state.ingredients.TabBinder then
+		prompt.Enabled = true
+	elseif currentTool == Config.TOOL_ENERGY_EXTRACT and not state.ingredients.EnergyExtract then
 		prompt.Enabled = true
 	end
 end
@@ -2355,10 +2183,6 @@ potSlotPrompt.Triggered:Connect(function(player: Player)
 		if equippedToolName(player) ~= Config.TOOL_MIXING_POT then return end
 		local state = getState(player.UserId)
 		if state.potOnTable then return end
-		for _, p in Players:GetPlayers() do
-			local st: CraftState? = craftStates[p.UserId]
-			if st ~= nil and st.potOnTable then return end
-		end
 		removeTool(player, Config.TOOL_MIXING_POT)
 		potSlotPrompt.Enabled = false
 		buildPlacedPot(player)
@@ -2374,42 +2198,41 @@ pillsPressPrompt.Triggered:Connect(function(player: Player)
 	end)
 end)
 
-local function setupCharacter(player: Player, character: Model): ()
+local function setupCharacter(player: Player, character: Model)
 	local userId = player.UserId
 	local state = getState(userId)
 	for _, c in state.charConnections do c:Disconnect() end
 	table.clear(state.charConnections)
 
-	local addedConn: RBXScriptConnection = character.ChildAdded:Connect(function(child: Instance)
+	local addedConn = character.ChildAdded:Connect(function(child: Instance)
 		if not child:IsA("Tool") then return end
-		local name: string = child.Name
+		local name = child.Name
 		local st = getState(userId)
 		if name == Config.TOOL_MIXING_POT and not st.potOnTable then
-			recheckPotSlot()
-		elseif (name == Config.TOOL_TAB_BINDER or name == Config.TOOL_ENERGY_EXTRACT)
-			and st.potOnTable and not st.readyToCollect then
+			potSlotPrompt.Enabled = true
+		elseif (name == Config.TOOL_TAB_BINDER or name == Config.TOOL_ENERGY_EXTRACT) and st.potOnTable and not st.readyToCollect then
 			local pr = st.placedPrompt
-			if pr then pr.Enabled = true end
+			if pr then
+				if name == Config.TOOL_TAB_BINDER and not st.ingredients.TabBinder then
+					pr.Enabled = true
+				elseif name == Config.TOOL_ENERGY_EXTRACT and not st.ingredients.EnergyExtract then
+					pr.Enabled = true
+				end
+			end
 		elseif name == Config.TOOL_INGREDIENTS then
 			pillsPressPrompt.Enabled = true
 		end
 	end)
 
-	local removedConn: RBXScriptConnection = character.ChildRemoved:Connect(function(child: Instance)
+	local removedConn = character.ChildRemoved:Connect(function(child: Instance)
 		if not child:IsA("Tool") then return end
-		local name: string = child.Name
+		local name = child.Name
 		local st = getState(userId)
 		if name == Config.TOOL_MIXING_POT and not st.potOnTable then
-			recheckPotSlot()
-		elseif (name == Config.TOOL_TAB_BINDER or name == Config.TOOL_ENERGY_EXTRACT)
-			and st.potOnTable and not st.readyToCollect then
-			local other: string = if name == Config.TOOL_TAB_BINDER
-				then Config.TOOL_ENERGY_EXTRACT
-				else Config.TOOL_TAB_BINDER
-			if not character:FindFirstChild(other) then
-				local pr = st.placedPrompt
-				if pr then pr.Enabled = false end
-			end
+			potSlotPrompt.Enabled = false
+		elseif (name == Config.TOOL_TAB_BINDER or name == Config.TOOL_ENERGY_EXTRACT) and st.potOnTable and not st.readyToCollect then
+			local pr = st.placedPrompt
+			if pr then pr.Enabled = false end
 		elseif name == Config.TOOL_INGREDIENTS then
 			recheckPillsPress()
 		end
@@ -2419,10 +2242,10 @@ local function setupCharacter(player: Player, character: Model): ()
 	table.insert(state.charConnections, removedConn)
 end
 
-local function setupPlayer(player: Player): ()
+local function setupPlayer(player: Player)
 	player.CharacterRemoving:Connect(function()
 		local state = getState(player.UserId)
-		local saved: { string } = {}
+		local saved: {string} = {}
 		local bp = player:FindFirstChildOfClass("Backpack")
 		if bp then
 			for _, child in bp:GetChildren() do
@@ -2431,10 +2254,10 @@ local function setupPlayer(player: Player): ()
 				end
 			end
 		end
-		local char: Model? = player.Character
-		if char ~= nil then
+		local char = player.Character
+		if char then
 			local equipped = char:FindFirstChildWhichIsA("Tool")
-			if equipped ~= nil then
+			if equipped then
 				table.insert(saved, equipped.Name)
 			end
 		end
@@ -2445,17 +2268,18 @@ local function setupPlayer(player: Player): ()
 		resetCraftState(player)
 		setupCharacter(player, character)
 		local state = getState(player.UserId)
-		local tools: { string } = state.pendingTools
+		local tools = state.pendingTools
 		state.pendingTools = {}
 		task.defer(function()
+			if not player.Parent then return end
 			for _, toolName in tools do
 				giveTool(player, toolName)
 			end
 		end)
 	end)
 
-	local existingChar: Model? = player.Character
-	if existingChar ~= nil then
+	local existingChar = player.Character
+	if existingChar then
 		setupCharacter(player, existingChar)
 	end
 end
@@ -2466,15 +2290,14 @@ end
 Players.PlayerAdded:Connect(setupPlayer)
 
 Players.PlayerRemoving:Connect(function(player: Player)
-	local state: CraftState? = craftStates[player.UserId]
+	local state = craftStates[player.UserId]
 	if state then
 		for _, c in state.charConnections do c:Disconnect() end
 		if state.placedModel then state.placedModel:Destroy() end
 	end
 	craftStates[player.UserId] = nil
 	debounce[player.UserId] = nil
-	recheckPotSlot(player.UserId)
-	recheckPillsPress(player.UserId)
+	recheckPotSlot()
 end)
 
 registerProp(worldMixingPot, Config.TOOL_MIXING_POT)
@@ -2487,7 +2310,6 @@ export type ConfigType = {
 	DEBOUNCE_DURATION: number,
 	WAIT_TIMEOUT: number,
 	PROMPT_MAX_DISTANCE: number,
-	WELD_MATCH_TOLERANCE: number,
 	PROP_RESPAWN_DELAY: number,
 	FADE_IN_TIME: number,
 	FADE_OUT_TIME: number,
@@ -2511,33 +2333,32 @@ export type ConfigType = {
 }
 
 local Config: ConfigType = {
-	DEBOUNCE_DURATION = 0.4,
-	WAIT_TIMEOUT = 10,
-	PROMPT_MAX_DISTANCE = 8,
-	WELD_MATCH_TOLERANCE = 0.5,
-	PROP_RESPAWN_DELAY = 30,
-	FADE_IN_TIME = 0.25,
-	FADE_OUT_TIME = 0.2,
-	FADE_BUFFER = 0.05,
+	DEBOUNCE_DURATION    = 0.4,
+	WAIT_TIMEOUT         = 10,
+	PROMPT_MAX_DISTANCE  = 8,
+	PROP_RESPAWN_DELAY   = 30,
+	FADE_IN_TIME         = 0.25,
+	FADE_OUT_TIME        = 0.2,
+	FADE_BUFFER          = 0.05,
 
-	TOOLS_FOLDER_NAME = "Tools",
-	PLACED_POT_PREFIX = "PlacedMixingPot_",
+	TOOLS_FOLDER_NAME    = "Tools",
+	PLACED_POT_PREFIX    = "PlacedMixingPot_",
 
-	TOOL_MIXING_POT = "MixingPot",
-	TOOL_TAB_BINDER = "TabBinder",
-	TOOL_ENERGY_EXTRACT = "EnergyExtract",
-	TOOL_INGREDIENTS = "Ingredients",
-	TOOL_PILLS = "Pills",
+	TOOL_MIXING_POT      = "MixingPot",
+	TOOL_TAB_BINDER      = "TabBinder",
+	TOOL_ENERGY_EXTRACT  = "EnergyExtract",
+	TOOL_INGREDIENTS     = "Ingredients",
+	TOOL_PILLS           = "Pills",
 
-	WORLD_MIXING_POT = "MixingPot",
-	WORLD_TAB_BINDER = "TabBinder",
+	WORLD_MIXING_POT     = "MixingPot",
+	WORLD_TAB_BINDER     = "TabBinder",
 	WORLD_ENERGY_EXTRACT = "EnergyExtract",
-	WORLD_TABLE = "Table",
-	WORLD_POT_SLOT = "PotSlot",
-	WORLD_PILLS_PRESS = "PillsPress",
+	WORLD_TABLE          = "Table",
+	WORLD_POT_SLOT       = "PotSlot",
+	WORLD_PILLS_PRESS    = "PillsPress",
 
-	PROMPT_ADD_TEXT = "Add Ingredient",
-	PROMPT_COLLECT_TEXT = "Collect",
+	PROMPT_ADD_TEXT        = "Add Ingredient",
+	PROMPT_COLLECT_TEXT    = "Collect",
 	PROMPT_POT_OBJECT_TEXT = "Mixing Pot",
 }
 
@@ -2552,71 +2373,57 @@ type ConfigType = {
 	TOOLS_FOLDER_NAME: string,
 }
 
-local _cfgInst: Instance = ReplicatedStorage:WaitForChild("GameConfig")
-assert(_cfgInst:IsA("ModuleScript"), "GameConfig must be ModuleScript")
-local Config: ConfigType = require(_cfgInst :: ModuleScript) :: ConfigType
+local cfgInst = ReplicatedStorage:WaitForChild("GameConfig")
+assert(cfgInst and cfgInst:IsA("ModuleScript"), "GameConfig must be ModuleScript")
+local Config = require(cfgInst) :: ConfigType
 
-local tool: Tool = script.Parent :: Tool
+local tool = script.Parent
+assert(tool and tool:IsA("Tool"), "Parent must be Tool")
 
-local handleInst: Instance? = tool:WaitForChild("Handle", Config.WAIT_TIMEOUT)
-assert(handleInst ~= nil, tool.Name .. "/Handle not found")
-assert(handleInst:IsA("BasePart"), tool.Name .. "/Handle must be BasePart")
-local handle: BasePart = handleInst :: BasePart
+local handle = tool:WaitForChild("Handle", Config.WAIT_TIMEOUT)
+assert(handle and handle:IsA("BasePart"), tool.Name .. "/Handle must be BasePart")
 
 local tmplHandle: BasePart? = nil
-local tmplParts: { BasePart } = {}
+local tmplParts: {[string]: BasePart} = {}
 
-local _fi: Instance? = ReplicatedStorage:WaitForChild(Config.TOOLS_FOLDER_NAME, Config.WAIT_TIMEOUT)
-if _fi ~= nil and _fi:IsA("Folder") then
-	local folder: Folder = _fi :: Folder
-	local ti = folder:FindFirstChild(tool.Name)
+local folderInst = ReplicatedStorage:WaitForChild(Config.TOOLS_FOLDER_NAME, Config.WAIT_TIMEOUT)
+if folderInst and folderInst:IsA("Folder") then
+	local ti = folderInst:FindFirstChild(tool.Name)
 	if ti and ti:IsA("Tool") then
-		local tmpl: Tool = ti :: Tool
-		local th = tmpl:FindFirstChild("Handle")
+		local th = ti:FindFirstChild("Handle")
 		if th and th:IsA("BasePart") then
-			tmplHandle = th :: BasePart
-			for _, child in tmpl:GetChildren() do
+			tmplHandle = th
+			for _, child in ti:GetChildren() do
 				if child:IsA("BasePart") and child.Name ~= "Handle" then
-					table.insert(tmplParts, child)
+					tmplParts[child.Name] = child
 				end
 			end
 		end
 	end
 end
 
-if tmplHandle == nil then
+if not tmplHandle then
 	warn("WeldScript[" .. tool.Name .. "]: template missing, welds skipped")
 end
 
-local weldsCreated: boolean = false
+local weldsCreated = false
 
-local function createWelds(): ()
-	if weldsCreated then return end
-	local th: BasePart? = tmplHandle
-	if th == nil then return end
+local function createWelds()
+	if weldsCreated or not tmplHandle then return end
 
-	local liveParts: { BasePart } = {}
-	for _, child in tool:GetChildren() do
-		if child:IsA("BasePart") and child.Name ~= "Handle" then
-			table.insert(liveParts, child)
+	for _, livePart in tool:GetChildren() do
+		if livePart:IsA("BasePart") and livePart.Name ~= "Handle" then
+			local matched = tmplParts[livePart.Name]
+			if matched then
+				local weld = Instance.new("Weld")
+				weld.Part0 = handle
+				weld.Part1 = livePart
+				weld.C0 = tmplHandle.CFrame:Inverse() * matched.CFrame
+				weld.C1 = CFrame.new()
+				weld.Parent = handle
+			end
+			livePart.Anchored = false
 		end
-	end
-
-	for i, livePart in liveParts do
-		local matched: BasePart? = tmplParts[i]
-		if matched == nil then continue end
-		local relOffset: CFrame = th.CFrame:Inverse() * matched.CFrame
-		livePart.CFrame = handle.CFrame * relOffset
-		local weld: Weld = Instance.new("Weld")
-		weld.Part0 = handle
-		weld.Part1 = livePart
-		weld.C0 = relOffset
-		weld.C1 = CFrame.new()
-		weld.Parent = handle
-	end
-
-	for _, livePart in liveParts do
-		livePart.Anchored = false
 	end
 
 	handle.CanCollide = false
@@ -2624,12 +2431,19 @@ local function createWelds(): ()
 	weldsCreated = true
 end
 
-local parentInst: Instance? = tool.Parent
-if parentInst ~= nil and parentInst:FindFirstChildOfClass("Humanoid") ~= nil then
+local parentInst = tool.Parent
+if parentInst and parentInst:FindFirstChildOfClass("Humanoid") then
 	createWelds()
 end
 
-tool.Equipped:Connect(createWelds)`,
+local eqConn: RBXScriptConnection?
+eqConn = tool.Equipped:Connect(function()
+	createWelds()
+	if eqConn then
+		eqConn:Disconnect()
+		eqConn = nil
+	end
+end)`,
 
         'TabBinderWeldScript.luau': `--!strict
 
@@ -2640,71 +2454,57 @@ type ConfigType = {
 	TOOLS_FOLDER_NAME: string,
 }
 
-local _cfgInst: Instance = ReplicatedStorage:WaitForChild("GameConfig")
-assert(_cfgInst:IsA("ModuleScript"), "GameConfig must be ModuleScript")
-local Config: ConfigType = require(_cfgInst :: ModuleScript) :: ConfigType
+local cfgInst = ReplicatedStorage:WaitForChild("GameConfig")
+assert(cfgInst and cfgInst:IsA("ModuleScript"), "GameConfig must be ModuleScript")
+local Config = require(cfgInst) :: ConfigType
 
-local tool: Tool = script.Parent :: Tool
+local tool = script.Parent
+assert(tool and tool:IsA("Tool"), "Parent must be Tool")
 
-local handleInst: Instance? = tool:WaitForChild("Handle", Config.WAIT_TIMEOUT)
-assert(handleInst ~= nil, tool.Name .. "/Handle not found")
-assert(handleInst:IsA("BasePart"), tool.Name .. "/Handle must be BasePart")
-local handle: BasePart = handleInst :: BasePart
+local handle = tool:WaitForChild("Handle", Config.WAIT_TIMEOUT)
+assert(handle and handle:IsA("BasePart"), tool.Name .. "/Handle must be BasePart")
 
 local tmplHandle: BasePart? = nil
-local tmplParts: { BasePart } = {}
+local tmplParts: {[string]: BasePart} = {}
 
-local _fi: Instance? = ReplicatedStorage:WaitForChild(Config.TOOLS_FOLDER_NAME, Config.WAIT_TIMEOUT)
-if _fi ~= nil and _fi:IsA("Folder") then
-	local folder: Folder = _fi :: Folder
-	local ti = folder:FindFirstChild(tool.Name)
+local folderInst = ReplicatedStorage:WaitForChild(Config.TOOLS_FOLDER_NAME, Config.WAIT_TIMEOUT)
+if folderInst and folderInst:IsA("Folder") then
+	local ti = folderInst:FindFirstChild(tool.Name)
 	if ti and ti:IsA("Tool") then
-		local tmpl: Tool = ti :: Tool
-		local th = tmpl:FindFirstChild("Handle")
+		local th = ti:FindFirstChild("Handle")
 		if th and th:IsA("BasePart") then
-			tmplHandle = th :: BasePart
-			for _, child in tmpl:GetChildren() do
+			tmplHandle = th
+			for _, child in ti:GetChildren() do
 				if child:IsA("BasePart") and child.Name ~= "Handle" then
-					table.insert(tmplParts, child)
+					tmplParts[child.Name] = child
 				end
 			end
 		end
 	end
 end
 
-if tmplHandle == nil then
+if not tmplHandle then
 	warn("WeldScript[" .. tool.Name .. "]: template missing, welds skipped")
 end
 
-local weldsCreated: boolean = false
+local weldsCreated = false
 
-local function createWelds(): ()
-	if weldsCreated then return end
-	local th: BasePart? = tmplHandle
-	if th == nil then return end
+local function createWelds()
+	if weldsCreated or not tmplHandle then return end
 
-	local liveParts: { BasePart } = {}
-	for _, child in tool:GetChildren() do
-		if child:IsA("BasePart") and child.Name ~= "Handle" then
-			table.insert(liveParts, child)
+	for _, livePart in tool:GetChildren() do
+		if livePart:IsA("BasePart") and livePart.Name ~= "Handle" then
+			local matched = tmplParts[livePart.Name]
+			if matched then
+				local weld = Instance.new("Weld")
+				weld.Part0 = handle
+				weld.Part1 = livePart
+				weld.C0 = tmplHandle.CFrame:Inverse() * matched.CFrame
+				weld.C1 = CFrame.new()
+				weld.Parent = handle
+			end
+			livePart.Anchored = false
 		end
-	end
-
-	for i, livePart in liveParts do
-		local matched: BasePart? = tmplParts[i]
-		if matched == nil then continue end
-		local relOffset: CFrame = th.CFrame:Inverse() * matched.CFrame
-		livePart.CFrame = handle.CFrame * relOffset
-		local weld: Weld = Instance.new("Weld")
-		weld.Part0 = handle
-		weld.Part1 = livePart
-		weld.C0 = relOffset
-		weld.C1 = CFrame.new()
-		weld.Parent = handle
-	end
-
-	for _, livePart in liveParts do
-		livePart.Anchored = false
 	end
 
 	handle.CanCollide = false
@@ -2712,12 +2512,19 @@ local function createWelds(): ()
 	weldsCreated = true
 end
 
-local parentInst: Instance? = tool.Parent
-if parentInst ~= nil and parentInst:FindFirstChildOfClass("Humanoid") ~= nil then
+local parentInst = tool.Parent
+if parentInst and parentInst:FindFirstChildOfClass("Humanoid") then
 	createWelds()
 end
 
-tool.Equipped:Connect(createWelds)`,
+local eqConn: RBXScriptConnection?
+eqConn = tool.Equipped:Connect(function()
+	createWelds()
+	if eqConn then
+		eqConn:Disconnect()
+		eqConn = nil
+	end
+end)`,
 
         'readme.md': `## 📁 Project Structure
 
