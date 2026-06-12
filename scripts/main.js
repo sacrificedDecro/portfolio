@@ -979,18 +979,20 @@ local CLAIMED_TEXT_FORMAT = "%s's Brainrot Base"
 local UNCLAIMED_COLOR = Color3.fromRGB(0, 255, 0)
 local CLAIMED_COLOR = Color3.fromRGB(255, 0, 0)
 local DEBOUNCE_TIME = 0.5
-local playerDebounce: {[Player]: number?} = {}
+
+local playerDebounce: { [number]: number } = {}
 
 local function findPlotByOwner(ownerName: string): Model?
 	local plotsFolder = Workspace:FindFirstChild(PLOTS_FOLDER)
 	if not plotsFolder then
 		return nil
 	end
+
 	for _, child in plotsFolder:GetChildren() do
 		if child:IsA("Model") then
-			local owner = (child:GetAttribute("Owner") or "") :: string
-			if owner == ownerName then
-				return child :: Model
+			local owner = child:GetAttribute("Owner")
+			if type(owner) == "string" and owner == ownerName then
+				return child
 			end
 		end
 	end
@@ -1001,151 +1003,46 @@ local function playerOwnsPlot(playerName: string): boolean
 	return findPlotByOwner(playerName) ~= nil
 end
 
-local function updatePlotVisuals(plot: Model, isClaimed: boolean, ownerName: string): ()
-	local rawPad = plot:FindFirstChild(CLAIM_PAD_NAME)
-	if rawPad and rawPad:IsA("BasePart") then
-		local pad = rawPad :: BasePart
+local function updatePlotVisuals(plot: Model, isClaimed: boolean, ownerName: string)
+	local pad = plot:FindFirstChild(CLAIM_PAD_NAME)
+	if pad and pad:IsA("BasePart") then
 		pad.Color = if isClaimed then CLAIMED_COLOR else UNCLAIMED_COLOR
 	end
-	local rawSign = plot:FindFirstChild(SIGN_NAME)
-	if rawSign and rawSign:IsA("BasePart") then
-		local sign = rawSign :: BasePart
-		local rawGui = sign:FindFirstChild("SurfaceGui")
-		if rawGui then
-			local rawLabel = rawGui:FindFirstChild("TextLabel")
-			if rawLabel and rawLabel:IsA("TextLabel") then
-				local label = rawLabel :: TextLabel
-				label.Text = if isClaimed
-					then string.format(CLAIMED_TEXT_FORMAT, ownerName)
-					else UNCLAIMED_TEXT
+
+	local sign = plot:FindFirstChild(SIGN_NAME)
+	if sign and sign:IsA("BasePart") then
+		local gui = sign:FindFirstChild("SurfaceGui")
+		if gui and gui:IsA("SurfaceGui") then
+			local label = gui:FindFirstChild("TextLabel")
+			if label and label:IsA("TextLabel") then
+				label.Text = if isClaimed then string.format(CLAIMED_TEXT_FORMAT, ownerName) else UNCLAIMED_TEXT
 			end
 		end
 	end
 end
 
-local function claimPlot(plot: Model, player: Player): ()
+local function claimPlot(plot: Model, player: Player)
 	plot:SetAttribute("Owner", player.Name)
 	updatePlotVisuals(plot, true, player.Name)
-	playerDebounce[player] = os.clock()
+	playerDebounce[player.UserId] = os.clock()
 end
 
-local function releasePlot(plot: Model): ()
+local function releasePlot(plot: Model)
 	plot:SetAttribute("Owner", "")
 	updatePlotVisuals(plot, false, "")
 end
 
-local function onPlayerRemoving(player: Player): ()
+local function onPlayerRemoving(player: Player)
 	local ownedPlot = findPlotByOwner(player.Name)
 	if ownedPlot then
 		releasePlot(ownedPlot)
 	end
-	playerDebounce[player] = nil
+	playerDebounce[player.UserId] = nil
 end
 
-local function initializePlots(): ()
+local function initializePlots()
 	local plotsFolder = Workspace:FindFirstChild(PLOTS_FOLDER)
 	if not plotsFolder then
-		warn("Plots folder not found in Workspace!")
-		return
-	end
-	for _, child in plotsFolder:GetChildren() do
-		if not child:IsA("Model") then
-			continue
-		end
-		local plot = child :: Model
-		plot:SetAttribute("Owner", "")
-		updatePlotVisuals(plot, false, "")
-		local rawPad = plot:FindFirstChild(CLAIM_PAD_NAME)
-		if not rawPad or not rawPad:IsA("BasePart") then
-			warn("ClaimPad not found in plot: " .. plot.Name)
-			continue
-		end
-		local pad = rawPad :: BasePart
-		pad.Touched:Connect(function(otherPart: BasePart): ()
-			local parent = otherPart.Parent
-			if not parent or not parent:IsA("Model") then
-				return
-			end
-			local character = parent :: Model
-			if not character:FindFirstChildOfClass("Humanoid") then
-				return
-			end
-			local player = Players:GetPlayerFromCharacter(character)
-			if not player then
-				return
-			end
-			local lastTouch = playerDebounce[player] or 0
-			if os.clock() - lastTouch < DEBOUNCE_TIME then
-				return
-			end
-			local currentOwner = (plot:GetAttribute("Owner") or "") :: string
-			if currentOwner ~= "" then
-				return
-			end
-			if playerOwnsPlot(player.Name) then
-				return
-			end
-			claimPlot(plot, player)
-		end)
-	end
-end
-
-Players.PlayerRemoving:Connect(onPlayerRemoving)
-initializePlots()
-		end
-	end
-	return nil
-end
-
-local function playerOwnsPlot(playerName: string): boolean
-	return findPlotByOwner(playerName) ~= nil
-end
-
-local function updatePlotVisuals(plot: Model, isClaimed: boolean, ownerName: string): ()
-	local rawPad = plot:FindFirstChild(CLAIM_PAD_NAME)
-	if rawPad and rawPad:IsA("BasePart") then
-		local pad = rawPad :: BasePart
-		pad.Color = if isClaimed then CLAIMED_COLOR else UNCLAIMED_COLOR
-	end
-
-	local rawSign = plot:FindFirstChild(SIGN_NAME)
-	if rawSign and rawSign:IsA("BasePart") then
-		local rawGui = rawSign:FindFirstChild("SurfaceGui")
-		if rawGui then
-			local rawLabel = rawGui:FindFirstChild("TextLabel")
-			if rawLabel and rawLabel:IsA("TextLabel") then
-				local label = rawLabel :: TextLabel
-				label.Text = if isClaimed
-					then string.format(CLAIMED_TEXT_FORMAT, ownerName)
-					else UNCLAIMED_TEXT
-			end
-		end
-	end
-end
-
-local function claimPlot(plot: Model, player: Player): ()
-	plot:SetAttribute("Owner", player.Name)
-	updatePlotVisuals(plot, true, player.Name)
-	playerDebounce[player] = os.clock()
-end
-
-local function releasePlot(plot: Model): ()
-	plot:SetAttribute("Owner", "")
-	updatePlotVisuals(plot, false, "")
-end
-
-local function onPlayerRemoving(player: Player): ()
-	local ownedPlot = findPlotByOwner(player.Name)
-	if ownedPlot then
-		releasePlot(ownedPlot)
-	end
-	playerDebounce[player] = nil
-end
-
-local function initializePlots(): ()
-	local plotsFolder = Workspace:FindFirstChild(PLOTS_FOLDER)
-	if not plotsFolder then
-		warn("Plots folder not found in Workspace!")
 		return
 	end
 
@@ -1153,41 +1050,38 @@ local function initializePlots(): ()
 		if not child:IsA("Model") then
 			continue
 		end
-		local plot = child :: Model
 
-		plot:SetAttribute("Owner", "")
-		updatePlotVisuals(plot, false, "")
+		child:SetAttribute("Owner", "")
+		updatePlotVisuals(child, false, "")
 
-		local rawPad = plot:FindFirstChild(CLAIM_PAD_NAME)
-		if not rawPad or not rawPad:IsA("BasePart") then
-			warn("ClaimPad not found in plot: " .. plot.Name)
+		local pad = child:FindFirstChild(CLAIM_PAD_NAME)
+		if not pad or not pad:IsA("BasePart") then
 			continue
 		end
-		local pad = rawPad :: BasePart
 
-		pad.Touched:Connect(function(otherPart: BasePart): ()
+		pad.Touched:Connect(function(otherPart: BasePart)
 			local parent = otherPart.Parent
 			if not parent or not parent:IsA("Model") then
 				return
 			end
-			local character = parent :: Model
 
-			if not character:FindFirstChildOfClass("Humanoid") then
+			local humanoid = parent:FindFirstChildOfClass("Humanoid")
+			if not humanoid then
 				return
 			end
 
-			local player = Players:GetPlayerFromCharacter(character)
+			local player = Players:GetPlayerFromCharacter(parent)
 			if not player then
 				return
 			end
 
-			local lastTouch: number = playerDebounce[player] or 0
+			local lastTouch = playerDebounce[player.UserId] or 0
 			if os.clock() - lastTouch < DEBOUNCE_TIME then
 				return
 			end
 
-			local currentOwner = plot:GetAttribute("Owner") :: string
-			if currentOwner ~= "" then
+			local currentOwner = child:GetAttribute("Owner")
+			if type(currentOwner) == "string" and currentOwner ~= "" then
 				return
 			end
 
@@ -1195,7 +1089,7 @@ local function initializePlots(): ()
 				return
 			end
 
-			claimPlot(plot, player)
+			claimPlot(child, player)
 		end)
 	end
 end
@@ -1217,7 +1111,9 @@ ServerScriptService/
         'ImportantNotificationBootstrap.lua': `--!strict
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local existing: Instance? = ReplicatedStorage:FindFirstChild("ImportantNotificationEvent")
+local eventName: string = "ImportantNotificationEvent"
+local existing: Instance? = ReplicatedStorage:FindFirstChild(eventName)
+
 if existing then
 	if existing:IsA("RemoteEvent") then
 		return
@@ -1226,7 +1122,7 @@ if existing then
 end
 
 local remote: RemoteEvent = Instance.new("RemoteEvent")
-remote.Name = "ImportantNotificationEvent"
+remote.Name = eventName
 remote.Parent = ReplicatedStorage`,
 
         'NotificationController.lua': `--!strict
@@ -1238,6 +1134,7 @@ local RunService: RunService = game:GetService("RunService")
 type NotificationKind = "error" | "success"
 type TextObject = TextLabel | TextButton | TextBox
 type ImageObject = ImageLabel | ImageButton
+
 type Originals = {
 	textTransparency: { [Instance]: number },
 	textStrokeTransparency: { [Instance]: number },
@@ -1245,21 +1142,24 @@ type Originals = {
 	backgroundTransparency: { [Instance]: number },
 	strokeTransparency: { [Instance]: number },
 }
+
 type Layout = {
 	anchorPoint: Vector2,
 	position: UDim2,
 	size: UDim2,
 	rotation: number,
 }
+
 type QueueItem = {
 	kind: NotificationKind,
 	text: string,
 }
+
 type CancelHandler = () -> ()
 
 local player: Player = Players.LocalPlayer
 
-local screenGui: Instance? = script:FindFirstAncestorOfClass("ScreenGui")
+local screenGui: ScreenGui? = script:FindFirstAncestorOfClass("ScreenGui")
 if not screenGui then
 	return
 end
@@ -1302,6 +1202,7 @@ local function resolveOverlay(): Frame
 	if existing then
 		existing:Destroy()
 	end
+
 	local fresh: Frame = Instance.new("Frame")
 	fresh.Name = "ImportantNotificationsOverlay"
 	fresh.BackgroundTransparency = 1
@@ -1317,7 +1218,9 @@ local overlay: Frame = resolveOverlay()
 
 local queue: { QueueItem } = {}
 local isProcessing: boolean = false
+local queueToken: number = 0
 local cancelCurrentNotification: CancelHandler? = nil
+local activeConnections: { RBXScriptConnection } = {}
 
 local function collectAnimatables(root: Instance): ({ TextObject }, { ImageObject }, { GuiObject }, { UIStroke })
 	local texts: { TextObject } = {}
@@ -1326,25 +1229,16 @@ local function collectAnimatables(root: Instance): ({ TextObject }, { ImageObjec
 	local strokes: { UIStroke } = {}
 
 	local function add(instance: Instance): ()
-		if instance:IsA("TextLabel") then
-			table.insert(texts, instance)
-			table.insert(backgrounds, instance)
-		elseif instance:IsA("TextButton") then
-			table.insert(texts, instance)
-			table.insert(backgrounds, instance)
-		elseif instance:IsA("TextBox") then
-			table.insert(texts, instance)
-			table.insert(backgrounds, instance)
-		elseif instance:IsA("ImageLabel") then
-			table.insert(images, instance)
-			table.insert(backgrounds, instance)
-		elseif instance:IsA("ImageButton") then
-			table.insert(images, instance)
-			table.insert(backgrounds, instance)
+		if instance:IsA("TextLabel") or instance:IsA("TextButton") or instance:IsA("TextBox") then
+			table.insert(texts, instance :: TextObject)
+			table.insert(backgrounds, instance :: GuiObject)
+		elseif instance:IsA("ImageLabel") or instance:IsA("ImageButton") then
+			table.insert(images, instance :: ImageObject)
+			table.insert(backgrounds, instance :: GuiObject)
 		elseif instance:IsA("Frame") then
-			table.insert(backgrounds, instance)
+			table.insert(backgrounds, instance :: GuiObject)
 		elseif instance:IsA("UIStroke") then
-			table.insert(strokes, instance)
+			table.insert(strokes, instance :: UIStroke)
 		end
 	end
 
@@ -1506,10 +1400,8 @@ local function getTemplateLayout(template: GuiObject): Layout
 	local templateAbsoluteSize: Vector2 = template.AbsoluteSize
 	local anchor: Vector2 = template.AnchorPoint
 
-	local anchorX: number =
-		(templateAbsolutePosition.X - overlayAbsolutePosition.X) + (templateAbsoluteSize.X * anchor.X)
-	local anchorY: number =
-		(templateAbsolutePosition.Y - overlayAbsolutePosition.Y) + (templateAbsoluteSize.Y * anchor.Y)
+	local anchorX: number = (templateAbsolutePosition.X - overlayAbsolutePosition.X) + (templateAbsoluteSize.X * anchor.X)
+	local anchorY: number = (templateAbsolutePosition.Y - overlayAbsolutePosition.Y) + (templateAbsoluteSize.Y * anchor.Y)
 
 	local layout: Layout = {
 		anchorPoint = anchor,
@@ -1531,21 +1423,29 @@ local function raiseZIndex(root: Instance, amount: number): ()
 	end
 end
 
-local function cancelTweens(tweens: { Tween }): ()
+local function playAndDestroyTweens(tweens: { Tween }): ()
 	for _: number, tween: Tween in ipairs(tweens) do
-		pcall(function(): ()
-			tween:Cancel()
-		end)
+		tween:Play()
+	end
+	if #tweens > 0 then
+		tweens[1].Completed:Wait()
+	end
+	for _: number, tween: Tween in ipairs(tweens) do
+		tween:Destroy()
+	end
+end
+
+local function cancelAndDestroyTweens(tweens: { Tween }): ()
+	for _: number, tween: Tween in ipairs(tweens) do
+		tween:Cancel()
+		tween:Destroy()
 	end
 end
 
 local function applyText(instance: Instance, text: string): ()
-	if instance:IsA("TextLabel") then
-		instance.Text = text
-	elseif instance:IsA("TextButton") then
-		instance.Text = text
-	elseif instance:IsA("TextBox") then
-		instance.Text = text
+	if instance:IsA("TextLabel") or instance:IsA("TextButton") or instance:IsA("TextBox") then
+		local textObj: TextObject = instance :: TextObject
+		textObj.Text = text
 	end
 end
 
@@ -1579,11 +1479,7 @@ local function displayNotification(kind: NotificationKind, text: string): ()
 	end
 	applyText(notification, text)
 
-	local texts: { TextObject },
-		images: { ImageObject },
-		backgrounds: { GuiObject },
-		strokes: { UIStroke } =
-		collectAnimatables(notification)
+	local texts: { TextObject }, images: { ImageObject }, backgrounds: { GuiObject }, strokes: { UIStroke } = collectAnimatables(notification)
 	local originals: Originals = storeOriginals(texts, images, backgrounds, strokes)
 
 	setHidden(texts, images, backgrounds, strokes)
@@ -1591,8 +1487,7 @@ local function displayNotification(kind: NotificationKind, text: string): ()
 	local targetPosition: UDim2 = layout.position
 	local endPosition: UDim2 = UDim2.fromOffset(layout.position.X.Offset, layout.position.Y.Offset - 10)
 
-	local introTweens: { Tween } =
-		buildIntroTweens(notification, texts, images, backgrounds, strokes, originals, targetPosition)
+	local introTweens: { Tween } = buildIntroTweens(notification, texts, images, backgrounds, strokes, originals, targetPosition)
 
 	for _: number, tween: Tween in ipairs(introTweens) do
 		tween:Play()
@@ -1603,11 +1498,15 @@ local function displayNotification(kind: NotificationKind, text: string): ()
 	end
 
 	if cancelled or not notification.Parent then
-		cancelTweens(introTweens)
+		cancelAndDestroyTweens(introTweens)
 		pcall(function(): ()
 			notification:Destroy()
 		end)
 		return
+	end
+
+	for _: number, tween: Tween in ipairs(introTweens) do
+		tween:Destroy()
 	end
 
 	task.wait(0.85)
@@ -1619,40 +1518,36 @@ local function displayNotification(kind: NotificationKind, text: string): ()
 		return
 	end
 
-	local outroTweens: { Tween } =
-		buildOutroTweens(notification, texts, images, backgrounds, strokes, endPosition)
+	local outroTweens: { Tween } = buildOutroTweens(notification, texts, images, backgrounds, strokes, endPosition)
 
-	for _: number, tween: Tween in ipairs(outroTweens) do
-		tween:Play()
-	end
-
-	if #outroTweens > 0 then
-		outroTweens[1].Completed:Wait()
-	end
+	playAndDestroyTweens(outroTweens)
 
 	if cancelled or not notification.Parent then
-		cancelTweens(outroTweens)
 		pcall(function(): ()
 			notification:Destroy()
 		end)
 		return
 	end
 
-	notification:Destroy()
+	pcall(function(): ()
+		notification:Destroy()
+	end)
 end
 
-local function processQueue(): ()
+local function processQueue(expectedToken: number): ()
 	if isProcessing then
 		return
 	end
 	isProcessing = true
-	while #queue > 0 do
+	while #queue > 0 and queueToken == expectedToken do
 		local item: QueueItem? = table.remove(queue, 1)
 		if item then
 			displayNotification(item.kind, item.text)
 		end
 	end
-	isProcessing = false
+	if queueToken == expectedToken then
+		isProcessing = false
+	end
 end
 
 local function resolveKind(value: string): NotificationKind
@@ -1666,10 +1561,11 @@ local function enqueue(kind: string, text: string): ()
 	local resolved: NotificationKind = resolveKind(kind)
 	local item: QueueItem = { kind = resolved, text = text }
 	table.insert(queue, item)
-	task.spawn(processQueue)
+	task.spawn(processQueue, queueToken)
 end
 
 local function clearOverlay(): ()
+	queueToken += 1
 	if cancelCurrentNotification then
 		cancelCurrentNotification()
 		cancelCurrentNotification = nil
@@ -1684,7 +1580,7 @@ end
 noAffordTemplate.Visible = false
 successTemplate.Visible = false
 
-importantNotificationEvent.OnClientEvent:Connect(function(kind: any, text: any): ()
+table.insert(activeConnections, importantNotificationEvent.OnClientEvent:Connect(function(kind: any, text: any): ()
 	if type(kind) ~= "string" then
 		return
 	end
@@ -1701,11 +1597,31 @@ importantNotificationEvent.OnClientEvent:Connect(function(kind: any, text: any):
 	end
 
 	enqueue(kindString, finalText)
-end)
+end))
 
-player.CharacterAdded:Connect(function(_character: Model): ()
+table.insert(activeConnections, player.CharacterAdded:Connect(function(_character: Model): ()
 	clearOverlay()
-end)`
+end))
+
+script.Destroying:Connect(function(): ()
+	clearOverlay()
+	for _: number, connection: RBXScriptConnection in ipairs(activeConnections) do
+		connection:Disconnect()
+	end
+	table.clear(activeConnections)
+end)`,
+
+        'readme.md': `## 📁 Project Structure
+
+\`\`\`
+ServerScriptService/
+└── ImportantNotificationBootstrap ← Script
+
+ServerScriptService/
+└── NotificationsAndPopups
+    └── ImportantNotifications
+        └── NotificationController ← Local script
+\`\`\``
       }
     },
 
@@ -2554,7 +2470,7 @@ ServerScriptService/
     'drag-throw': {
       name: 'Dead Rails Drag System + Throw and Weight ( multiplayer )',
       files: {
-        'DragClient.lua': `--!strict
+        'DragClient.luau': `--!strict
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -2562,7 +2478,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
-local Config = require(ReplicatedStorage.GameConfig)
+local GameConfig = ReplicatedStorage:WaitForChild("GameConfig") :: ModuleScript
+local Config = require(GameConfig)
 
 type ThrowSample = {
 	time: number,
@@ -2574,11 +2491,11 @@ local localPlayer: Player = Players.LocalPlayer
 local character: Model = (localPlayer.Character or localPlayer.CharacterAdded:Wait()) :: Model
 
 local dragAttName: string = Config.AttachmentPrefix .. tostring(localPlayer.UserId)
-local dragAttachment = workspace.Terrain:WaitForChild(dragAttName) :: Attachment
+local dragAttachment: Attachment = workspace.Terrain:WaitForChild(dragAttName) :: Attachment
 
-local remotes = ReplicatedStorage:WaitForChild("Remotes") :: Folder
-local eDragStart = remotes:WaitForChild("DragStart") :: RemoteEvent
-local eDragEnd = remotes:WaitForChild("DragEnd") :: RemoteEvent
+local remotes: Folder = ReplicatedStorage:WaitForChild("Remotes") :: Folder
+local eDragStart: RemoteEvent = remotes:WaitForChild("DragStart") :: RemoteEvent
+local eDragEnd: RemoteEvent = remotes:WaitForChild("DragEnd") :: RemoteEvent
 
 local selectionBox: SelectionBox = Instance.new("SelectionBox")
 selectionBox.Color3 = Config.LightWeightColor
@@ -2640,7 +2557,9 @@ local function consumeThrowVelocity(): Vector3?
 	if oldest == nil or newest == nil then return nil end
 	local dt: number = newest.time - oldest.time
 	if dt <= 0 then return nil end
-	return (newest.position - oldest.position) / dt
+	local velocity: Vector3 = (newest.position - oldest.position) / dt
+	if velocity.Magnitude ~= velocity.Magnitude then return nil end
+	return velocity
 end
 
 localPlayer.CharacterAdded:Connect(function(newCharacter: Model)
@@ -2672,17 +2591,32 @@ UserInputService.InputEnded:Connect(function(input: InputObject, _gameProcessed:
 	if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
 	if not isDragging then return end
 	isDragging = false
+	local target: BasePart? = hoveredPart
 	hoveredPart = nil
 	setHighlight(nil)
 	rayParams.FilterDescendantsInstances = { character :: Instance }
 	local velocity: Vector3? = consumeThrowVelocity()
-	eDragEnd:FireServer(velocity)
+	if target ~= nil and target.Parent ~= nil then
+		eDragEnd:FireServer(velocity)
+	else
+		eDragEnd:FireServer(nil)
+	end
 end)
 
 RunService.RenderStepped:Connect(function(_dt: number)
 	if isDragging then
+		if hoveredPart == nil or hoveredPart.Parent == nil then
+			isDragging = false
+			hoveredPart = nil
+			setHighlight(nil)
+			throwSamples = {}
+			eDragEnd:FireServer(nil)
+			rayParams.FilterDescendantsInstances = { character :: Instance }
+			return
+		end
+
 		dragAttachment.CFrame = computeTargetCFrame()
-		sampleThrow(tick())
+		sampleThrow(os.clock())
 		return
 	end
 	local newHover: BasePart? = getHoveredPart()
@@ -2692,14 +2626,15 @@ RunService.RenderStepped:Connect(function(_dt: number)
 	end
 end)`,
 
-        'DragServer.lua': `--!strict
+        'DragServer.luau': `--!strict
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local Config = require(ReplicatedStorage.GameConfig)
+local GameConfig = ReplicatedStorage:WaitForChild("GameConfig") :: ModuleScript
+local Config = require(GameConfig)
 
 type DragState = {
 	owner: Player,
@@ -2709,17 +2644,17 @@ type DragState = {
 	alignOrientation: AlignOrientation,
 }
 
-local remotes = ReplicatedStorage:WaitForChild("Remotes") :: Folder
-local eDragStart = remotes:WaitForChild("DragStart") :: RemoteEvent
-local eDragEnd = remotes:WaitForChild("DragEnd") :: RemoteEvent
+local remotes: Folder = ReplicatedStorage:WaitForChild("Remotes") :: Folder
+local eDragStart: RemoteEvent = remotes:WaitForChild("DragStart") :: RemoteEvent
+local eDragEnd: RemoteEvent = remotes:WaitForChild("DragEnd") :: RemoteEvent
 
-local activeDrags: { [Player]: DragState? } = {}
-local playerAttachments: { [Player]: Attachment? } = {}
+local activeDrags: { [Player]: DragState } = {}
+local playerAttachments: { [Player]: Attachment } = {}
 
 for _, partName in Config.DraggableNames do
-	local found = workspace:FindFirstChild(partName)
+	local found: Instance? = workspace:FindFirstChild(partName)
 	if found ~= nil and found:IsA("BasePart") then
-		local part = found :: BasePart
+		local part: BasePart = found :: BasePart
 		part.Anchored = false
 		CollectionService:AddTag(part, Config.Tag)
 		local initialWeight: number? = Config.InitialWeights[partName]
@@ -2730,7 +2665,7 @@ for _, partName in Config.DraggableNames do
 end
 
 local function createPlayerAttachment(player: Player): Attachment
-	local att = Instance.new("Attachment")
+	local att: Attachment = Instance.new("Attachment")
 	att.Name = Config.AttachmentPrefix .. tostring(player.UserId)
 	att.CFrame = CFrame.identity
 	att.Parent = workspace.Terrain
@@ -2743,12 +2678,12 @@ local function buildDragState(owner: Player, part: BasePart, dragAtt: Attachment
 	local effMaxVelocity: number = Config.BaseMaxVelocity / weight
 	local effMaxAngularVelocity: number = Config.BaseMaxAngularVelocity / weight
 
-	local partAtt = Instance.new("Attachment")
+	local partAtt: Attachment = Instance.new("Attachment")
 	partAtt.Name = Config.PartAttachmentName
 	partAtt.Position = Vector3.zero
 	partAtt.Parent = part
 
-	local ap = Instance.new("AlignPosition")
+	local ap: AlignPosition = Instance.new("AlignPosition")
 	ap.Mode = Enum.PositionAlignmentMode.TwoAttachment
 	ap.Attachment0 = partAtt
 	ap.Attachment1 = dragAtt
@@ -2758,7 +2693,7 @@ local function buildDragState(owner: Player, part: BasePart, dragAtt: Attachment
 	ap.Enabled = true
 	ap.Parent = part
 
-	local ao = Instance.new("AlignOrientation")
+	local ao: AlignOrientation = Instance.new("AlignOrientation")
 	ao.Mode = Enum.OrientationAlignmentMode.OneAttachment
 	ao.Attachment0 = partAtt
 	ao.MaxTorque = Config.BaseMaxTorque
@@ -2778,10 +2713,12 @@ local function buildDragState(owner: Player, part: BasePart, dragAtt: Attachment
 end
 
 local function teardownConstraints(state: DragState): ()
-	state.alignOrientation:Destroy()
-	state.alignPosition:Destroy()
-	state.partAttachment:Destroy()
-	state.part:SetAttribute(Config.OwnerAttribute, nil)
+	if state.alignOrientation then state.alignOrientation:Destroy() end
+	if state.alignPosition then state.alignPosition:Destroy() end
+	if state.partAttachment then state.partAttachment:Destroy() end
+	if state.part and state.part.Parent then
+		state.part:SetAttribute(Config.OwnerAttribute, nil)
+	end
 end
 
 local function applyThrow(part: BasePart, velocity: Vector3): ()
@@ -2799,10 +2736,14 @@ local function dropPlayerDrag(player: Player, throwVelocity: Vector3?): ()
 	activeDrags[player] = nil
 	local part: BasePart = state.part
 	teardownConstraints(state)
-	if throwVelocity ~= nil then
-		applyThrow(part, throwVelocity)
+	if part and part.Parent and not part.Anchored then
+		if throwVelocity ~= nil and throwVelocity.Magnitude == throwVelocity.Magnitude then
+			applyThrow(part, throwVelocity)
+		end
+		pcall(function()
+			part:SetNetworkOwnershipAuto()
+		end)
 	end
-	part:SetNetworkOwnershipAuto()
 end
 
 local function onPlayerAdded(player: Player): ()
@@ -2834,13 +2775,21 @@ eDragStart.OnServerEvent:Connect(function(player: Player, rawPart: any)
 	if not rawPart:IsA("BasePart") then return end
 	if not CollectionService:HasTag(rawPart, Config.Tag) then return end
 	if rawPart:GetAttribute(Config.OwnerAttribute) ~= nil then return end
+	if rawPart.Parent == nil or rawPart.Anchored then return end
 
 	local dragAtt: Attachment? = playerAttachments[player]
 	if dragAtt == nil then return end
 
-	local part = rawPart :: BasePart
+	local part: BasePart = rawPart :: BasePart
 	part:SetAttribute(Config.OwnerAttribute, player.UserId)
-	part:SetNetworkOwner(player)
+	local ok: boolean = pcall(function()
+		part:SetNetworkOwner(player)
+	end)
+	if not ok then
+		part:SetAttribute(Config.OwnerAttribute, nil)
+		return
+	end
+
 	activeDrags[player] = buildDragState(player, part, dragAtt)
 end)
 
@@ -2856,6 +2805,11 @@ RunService.Heartbeat:Connect(function(_dt: number)
 	local toRemove: { Player } = {}
 	for player, state in pairs(activeDrags) do
 		if state == nil then continue end
+		if not state.part or state.part.Parent == nil or state.part.Anchored then
+			pcall(teardownConstraints, state)
+			table.insert(toRemove, player)
+			continue
+		end
 		local ok: boolean = pcall(function()
 			state.part:SetNetworkOwner(player)
 		end)
@@ -2869,26 +2823,27 @@ RunService.Heartbeat:Connect(function(_dt: number)
 	end
 end)`,
 
-        'FirstPersonLock.lua': `--!strict
+        'FirstPersonLock.luau': `--!strict
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Config = require(ReplicatedStorage.GameConfig)
+local Config = require(ReplicatedStorage:WaitForChild("GameConfig") :: ModuleScript)
 
 local localPlayer: Player = Players.LocalPlayer
 
 local function enforce(): ()
-	if localPlayer.CameraMode ~= Config.CameraMode then
+	if localPlayer and localPlayer.CameraMode ~= Config.CameraMode then
 		localPlayer.CameraMode = Config.CameraMode
 	end
 end
 
-enforce()
+if localPlayer then
+	enforce()
+	localPlayer:GetPropertyChangedSignal("CameraMode"):Connect(enforce)
+end`,
 
-localPlayer:GetPropertyChangedSignal("CameraMode"):Connect(enforce)`,
-
-        'GameConfig.lua': `--!strict
+        'GameConfig.luau': `--!strict
 
 local Config = {}
 
@@ -2927,8 +2882,8 @@ Config.DraggableNames = { "Part1", "Part2", "Part3" } :: { string }
 Config.InitialWeights = { Part1 = 1, Part2 = 3, Part3 = 8 } :: { [string]: number }
 
 function Config.GetWeight(part: BasePart): number
-	local raw = part:GetAttribute(Config.WeightAttribute)
-	local value: number = tonumber(raw) or Config.DefaultWeight
+	local raw: any = part:GetAttribute(Config.WeightAttribute)
+	local value: number = if type(raw) == "number" then raw else tonumber(raw) or Config.DefaultWeight
 	return math.clamp(value, Config.MinWeight, Config.MaxWeight)
 end
 
@@ -2938,6 +2893,8 @@ function Config.ColorForWeight(weight: number): Color3
 	return Config.LightWeightColor:Lerp(Config.HeavyWeightColor, t)
 end
 
+export type ConfigType = typeof(Config)
+
 return Config`
       }
     },
@@ -2945,63 +2902,303 @@ return Config`
     tink: {
       name: 'Tink',
       files: {
-        'Client.luau': `--!strict
+        'readme.md': `# TINK
 
+A modern, strictly-typed Roblox framework — a drop-in replacement for the archived Knit.
+
+Built with --!strict throughout. No archived dependencies. Supports Services, Controllers, RemoteSignals, UnreliableRemoteSignals, and RemoteProperties out of the box.
+
+----------------------------------------
+
+## INSTALLATION
+
+### 1. FOLDER STRUCTURE
+
+Create the following in Roblox Studio:
+
+ReplicatedStorage/
+└── Spark/          ← ModuleScript named "Spark"
+    ├── Spark       ← ModuleScript (main core)
+    ├── Signal      ← ModuleScript
+    ├── Network     ← ModuleScript
+    ├── Service     ← ModuleScript
+    ├── Controller  ← ModuleScript
+    └── Promise     ← ModuleScript (paste evaera/Promise lib here)
+
+ReplicatedStorage/
+└── Controllers/    ← Folder for client-side controllers
+
+ServerScriptService/
+├── Server          ← Script (entry point)
+└── Services/       ← Folder for server-side services
+
+StarterPlayer/
+└── StarterPlayerScripts/
+    └── Client      ← LocalScript (entry point)
+
+### 2. PROMISE DEPENDENCY
+
+Tink requires evaera/roblox-lua-promise.
+Paste the contents of lib/init.lua into the Promise ModuleScript inside the Spark folder.
+
+### 3. PASTE THE SCRIPTS
+
+| File | Where |
+| :--- | :--- |
+| Spark.lua | ReplicatedStorage/Spark/Spark |
+| Signal.lua | ReplicatedStorage/Spark/Signal |
+| Network.lua | ReplicatedStorage/Spark/Network |
+| Service.lua | ReplicatedStorage/Spark/Service |
+| Controller.lua | ReplicatedStorage/Spark/Controller |
+| Server.lua | ServerScriptService/Server (Script) |
+| Client.lua | StarterPlayer/StarterPlayerScripts/Client (LocalScript) |
+
+----------------------------------------
+
+## USAGE
+
+### CREATING A SERVICE (SERVER)
+
+Place a ModuleScript inside ServerScriptService/Services/.
+
+\`\`\`luau
+--!strict
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Spark = require(ReplicatedStorage.Spark.Spark)
 
+local PointsService = Spark.CreateService {
+    Name = "PointsService",
+
+    Client = {
+        -- Method the client can invoke (returns a Promise on the client)
+        GetPoints = function(self, player: Player): number
+            return 100
+        end,
+
+        -- Server fires this to a specific client
+        PointsChanged = Spark.CreateRemoteSignal(),
+
+        -- Unreliable signal for high-frequency data (e.g. position updates)
+        PositionSync = Spark.CreateUnreliableRemoteSignal(),
+
+        -- Replicated value: auto-synced to all clients
+        Multiplier = Spark.CreateRemoteProperty(1),
+    },
+}
+
+function PointsService:OnInit()
+    -- runs first, do not call other services here
+end
+
+function PointsService:OnStart()
+    -- runs after all OnInit, safe to call other services
+    self.Client.Multiplier:Set(2)                    -- send to all clients
+    self.Client.Multiplier:SetFor(somePlayer, 5)     -- send to one client
+    self.Client.PointsChanged:Fire(somePlayer, 200)  -- fire event to one client
+    self.Client.PointsChanged:FireAll(200)           -- fire event to all clients
+end
+
+function PointsService:OnPlayerRemoving(player: Player)
+    -- automatically called when a player leaves
+end
+
+return PointsService
+\`\`\`
+
+### CREATING A CONTROLLER (CLIENT)
+
+Place a ModuleScript inside ReplicatedStorage/Controllers/.
+
+\`\`\`luau
+--!strict
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Spark = require(ReplicatedStorage.Spark.Spark)
+
+local PointsController = Spark.CreateController { Name = "PointsController" }
+
+function PointsController:OnInit()
+    -- runs first
+end
+
+function PointsController:OnStart()
+    local PointsService = Spark.GetService("PointsService")
+
+    -- Call a server method (returns Promise)
+    PointsService:GetPoints():andThen(function(points)
+        print("My points:", points)
+    end)
+
+    -- Listen to a server signal
+    PointsService.PointsChanged:Connect(function(points)
+        print("Points updated:", points)
+    end)
+
+    -- Observe a replicated property (fires immediately + on every change)
+    PointsService.Multiplier:Observe(function(value)
+        print("Multiplier is now:", value)
+    end)
+
+    -- Get current value of a property (yields if not yet loaded)
+    local current = PointsService.Multiplier:Get()
+    print("Current multiplier:", current)
+end
+
+return PointsController
+\`\`\`
+
+### GETTING A SERVICE FROM ANOTHER SERVICE (SERVER)
+
+\`\`\`luau
+local OtherService = Spark.GetServerService("OtherService")
+\`\`\`
+
+### GETTING A CONTROLLER FROM ANOTHER CONTROLLER (CLIENT)
+
+\`\`\`luau
+local OtherController = Spark.GetController("OtherController")
+\`\`\`
+
+----------------------------------------
+
+## API REFERENCE
+
+### SPARK
+
+| Method | Side | Description |
+| :--- | :--- | :--- |
+| Spark.CreateService(config) | Server | Creates and registers a service |
+| Spark.CreateController(config) | Client | Creates and registers a controller |
+| Spark.CreateRemoteSignal() | Server | Marker for a server↔client event |
+| Spark.CreateUnreliableRemoteSignal() | Server | Same but uses UnreliableRemoteEvent |
+| Spark.CreateRemoteProperty(default) | Server | Marker for a replicated value |
+| Spark.AddModules(parent) | Both | Requires all ModuleScripts under a folder |
+| Spark.Start() | Both | Starts the framework, returns Promise |
+| Spark.OnStart() | Both | Returns the startup Promise |
+| Spark.GetService(name) | Client | Returns a client proxy for a service |
+| Spark.GetController(name) | Client | Returns a controller |
+| Spark.GetServerService(name) | Server | Returns a service from the server |
+
+### REMOTESIGNAL (SERVER-SIDE)
+
+| Method | Description |
+| :--- | :--- |
+| :Fire(player, ...) | Fire to one client |
+| :FireAll(...) | Fire to all clients |
+| :FireExcept(player, ...) | Fire to all clients except one |
+| :Connect(fn) | Listen for client→server fires |
+| :Destroy() | Clean up |
+
+### REMOTEPROPERTY (SERVER-SIDE)
+
+| Method | Description |
+| :--- | :--- |
+| :Set(value) | Set for all clients without a per-player override |
+| :SetFor(player, value) | Set for one client specifically |
+| :SetFilter(predicate, value) | Set for clients matching a predicate |
+| :Get() | Get the global value |
+| :GetFor(player) | Get the value for a specific player |
+| :Destroy() | Clean up |
+
+### REMOTEPROPERTY PROXY (CLIENT-SIDE)
+
+| Method | Description |
+| :--- | :--- |
+| :Get() | Returns current value (yields until loaded) |
+| :Observe(fn) | Fires immediately with current value, then on every change |
+| :Destroy() | Clean up |
+
+### SIGNAL (SPARK.UTIL.SIGNAL)
+
+| Method | Description |
+| :--- | :--- |
+| Signal.new() | Create a new signal |
+| :Connect(fn) | Subscribe |
+| :Once(fn) | Subscribe for one fire only |
+| :Wait() | Yield until next fire |
+| :Fire(...) | Fire all listeners |
+| :DisconnectAll() | Remove all connections |
+| :Destroy() | Clean up |
+
+----------------------------------------
+
+## LIFECYCLE
+
+\`\`\`
+Server                              Client
+──────────────────────────────      ──────────────────────────────
+AddModules (loads all services)     AddModules (loads all controllers)
+         ↓                                      ↓
+   _bindClient (creates remotes)         WaitForReady
+         ↓                                      ↓
+   CreateReadyMarker                   OnInit (all controllers)
+         ↓                                      ↓
+   OnInit (all services)             OnStart (all controllers)
+         ↓
+   OnStart (all services)
+\`\`\`
+
+* **OnInit** — setup only, do not call other services/controllers here. Can optionally return a Promise to delay the next lifecycle stage.
+* **OnStart** — everything is ready, call freely. Can optionally return a Promise.
+
+----------------------------------------
+
+## LICENSE
+
+MIT`,
+
+        'Client.luau': `--!strict
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Spark = require(ReplicatedStorage:WaitForChild("Spark"):WaitForChild("Spark"))
 
 Spark.AddModules(ReplicatedStorage:WaitForChild("Controllers"))
 
 Spark.Start():andThen(function()
-	print("[Spark] Client started")
+    print("[Spark] Client started")
 end):catch(function(err: any)
-	warn("[Spark] Client startup error: " .. tostring(err))
+    warn("[Spark] Client startup error: " .. tostring(err))
 end)`,
 
         'Controller.luau': `--!strict
-
 export type ControllerConfig = {
-	Name: string,
-	[string]: any,
+    Name: string,
+    [string]: any,
 }
 
 export type Controller = {
-	Name: string,
-	[string]: any,
+    Name: string,
+    [string]: any,
 }
 
 local ControllerModule = {}
-
 local createdControllers: { [string]: Controller } = {}
 local startupLocked: boolean = false
 
 function ControllerModule._lock(): ()
-	startupLocked = true
+    startupLocked = true
 end
 
 function ControllerModule._getAll(): { [string]: Controller }
-	return createdControllers
+    return createdControllers
 end
 
 function ControllerModule.CreateController(config: ControllerConfig): Controller
-	assert(not startupLocked, "[Spark.Controller] Cannot create a Controller after Spark.Start()")
-	assert(type(config) == "table", "[Spark.Controller] CreateController expects a table")
-	assert(
-		type(config.Name) == "string" and config.Name ~= "",
-		"[Spark.Controller] Controller requires a non-empty Name"
-	)
-	assert(createdControllers[config.Name] == nil, "[Spark.Controller] Duplicate Controller name: " .. config.Name)
+    assert(not startupLocked, "[Spark.Controller] Cannot create a Controller after Spark.Start()")
+    assert(type(config) == "table", "[Spark.Controller] CreateController expects a table")
+    assert(
+        type(config.Name) == "string" and config.Name ~= "",
+        "[Spark.Controller] Controller requires a non-empty Name"
+    )
+    assert(createdControllers[config.Name] == nil, "[Spark.Controller] Duplicate Controller name: " .. config.Name)
 
-	local controller: Controller = config :: any
-	createdControllers[config.Name] = controller
-	return controller
+    local controller: Controller = config :: any
+    createdControllers[config.Name] = controller
+
+    return controller
 end
 
 return ControllerModule`,
 
         'Network.luau': `--!strict
-
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -3010,7 +3207,6 @@ local FOLDER_NAME: string = "SparkRemotes"
 local READY_MARKER: string = "__spark_ready__"
 
 local cachedFolder: Folder? = nil
-
 local eventCache: { [string]: RemoteEvent } = {}
 local functionCache: { [string]: RemoteFunction } = {}
 local unreliableCache: { [string]: UnreliableRemoteEvent } = {}
@@ -3020,173 +3216,209 @@ local propFunctionCache: { [string]: RemoteFunction } = {}
 local Network = {}
 
 local function getFolder(): Folder
-	local cached = cachedFolder
-	if cached ~= nil then
-		return cached
-	end
-	if IS_SERVER then
-		local existing = ReplicatedStorage:FindFirstChild(FOLDER_NAME)
-		if existing ~= nil and existing:IsA("Folder") then
-			cachedFolder = existing
-			return existing
-		end
-		local created = Instance.new("Folder")
-		created.Name = FOLDER_NAME
-		created.Parent = ReplicatedStorage
-		cachedFolder = created
-		return created
-	end
-	local found = ReplicatedStorage:WaitForChild(FOLDER_NAME, 60)
-	assert(found ~= nil and found:IsA("Folder"), "[Spark.Network] SparkRemotes did not replicate in time")
-	local folder = found :: Folder
-	cachedFolder = folder
-	return folder
+    local cached = cachedFolder
+    if cached ~= nil then
+        return cached
+    end
+
+    if IS_SERVER then
+        local existing = ReplicatedStorage:FindFirstChild(FOLDER_NAME)
+        if existing ~= nil and existing:IsA("Folder") then
+            cachedFolder = existing
+            return existing
+        end
+
+        local created = Instance.new("Folder")
+        created.Name = FOLDER_NAME
+        created.Parent = ReplicatedStorage
+        cachedFolder = created
+        return created
+    end
+
+    local found = ReplicatedStorage:WaitForChild(FOLDER_NAME, 60)
+    assert(found ~= nil and found:IsA("Folder"), "[Spark.Network] SparkRemotes did not replicate in time")
+    local folder = found :: Folder
+    cachedFolder = folder
+    return folder
 end
 
 local function buildKey(service: string, member: string, kind: string): string
-	return service .. "/" .. member .. "/" .. kind
+    return service .. "/" .. member .. "/" .. kind
 end
 
 local function getRemoteEvent(service: string, member: string): RemoteEvent
-	local key = buildKey(service, member, "RE")
-	local cached = eventCache[key]
-	if cached ~= nil then return cached end
-	local folder = getFolder()
-	if IS_SERVER then
-		local existing = folder:FindFirstChild(key)
-		if existing ~= nil and existing:IsA("RemoteEvent") then
-			eventCache[key] = existing
-			return existing
-		end
-		local remote = Instance.new("RemoteEvent")
-		remote.Name = key
-		remote.Parent = folder
-		eventCache[key] = remote
-		return remote
-	end
-	local found = folder:WaitForChild(key, 60)
-	assert(found ~= nil and found:IsA("RemoteEvent"), "[Spark.Network] RemoteEvent not found: " .. key)
-	local remote = found :: RemoteEvent
-	eventCache[key] = remote
-	return remote
+    local key = buildKey(service, member, "RE")
+    local cached = eventCache[key]
+    if cached ~= nil then
+        return cached
+    end
+
+    local folder = getFolder()
+    if IS_SERVER then
+        local existing = folder:FindFirstChild(key)
+        if existing ~= nil and existing:IsA("RemoteEvent") then
+            eventCache[key] = existing
+            return existing
+        end
+
+        local remote = Instance.new("RemoteEvent")
+        remote.Name = key
+        remote.Parent = folder
+        eventCache[key] = remote
+        return remote
+    end
+
+    local found = folder:WaitForChild(key, 60)
+    assert(found ~= nil and found:IsA("RemoteEvent"), "[Spark.Network] RemoteEvent not found: " .. key)
+    local remote = found :: RemoteEvent
+    eventCache[key] = remote
+    return remote
 end
+
 Network.GetRemoteEvent = getRemoteEvent
 
 local function getRemoteFunction(service: string, member: string): RemoteFunction
-	local key = buildKey(service, member, "RF")
-	local cached = functionCache[key]
-	if cached ~= nil then return cached end
-	local folder = getFolder()
-	if IS_SERVER then
-		local existing = folder:FindFirstChild(key)
-		if existing ~= nil and existing:IsA("RemoteFunction") then
-			functionCache[key] = existing
-			return existing
-		end
-		local remote = Instance.new("RemoteFunction")
-		remote.Name = key
-		remote.Parent = folder
-		functionCache[key] = remote
-		return remote
-	end
-	local found = folder:WaitForChild(key, 60)
-	assert(found ~= nil and found:IsA("RemoteFunction"), "[Spark.Network] RemoteFunction not found: " .. key)
-	local remote = found :: RemoteFunction
-	functionCache[key] = remote
-	return remote
+    local key = buildKey(service, member, "RF")
+    local cached = functionCache[key]
+    if cached ~= nil then
+        return cached
+    end
+
+    local folder = getFolder()
+    if IS_SERVER then
+        local existing = folder:FindFirstChild(key)
+        if existing ~= nil and existing:IsA("RemoteFunction") then
+            functionCache[key] = existing
+            return existing
+        end
+
+        local remote = Instance.new("RemoteFunction")
+        remote.Name = key
+        remote.Parent = folder
+        functionCache[key] = remote
+        return remote
+    end
+
+    local found = folder:WaitForChild(key, 60)
+    assert(found ~= nil and found:IsA("RemoteFunction"), "[Spark.Network] RemoteFunction not found: " .. key)
+    local remote = found :: RemoteFunction
+    functionCache[key] = remote
+    return remote
 end
+
 Network.GetRemoteFunction = getRemoteFunction
 
 local function getUnreliableRemoteEvent(service: string, member: string): UnreliableRemoteEvent
-	local key = buildKey(service, member, "URE")
-	local cached = unreliableCache[key]
-	if cached ~= nil then return cached end
-	local folder = getFolder()
-	if IS_SERVER then
-		local existing = folder:FindFirstChild(key)
-		if existing ~= nil and existing:IsA("UnreliableRemoteEvent") then
-			unreliableCache[key] = existing
-			return existing
-		end
-		local remote = Instance.new("UnreliableRemoteEvent")
-		remote.Name = key
-		remote.Parent = folder
-		unreliableCache[key] = remote
-		return remote
-	end
-	local found = folder:WaitForChild(key, 60)
-	assert(found ~= nil and found:IsA("UnreliableRemoteEvent"), "[Spark.Network] UnreliableRemoteEvent not found: " .. key)
-	local remote = found :: UnreliableRemoteEvent
-	unreliableCache[key] = remote
-	return remote
+    local key = buildKey(service, member, "URE")
+    local cached = unreliableCache[key]
+    if cached ~= nil then
+        return cached
+    end
+
+    local folder = getFolder()
+    if IS_SERVER then
+        local existing = folder:FindFirstChild(key)
+        if existing ~= nil and existing:IsA("UnreliableRemoteEvent") then
+            unreliableCache[key] = existing
+            return existing
+        end
+
+        local remote = Instance.new("UnreliableRemoteEvent")
+        remote.Name = key
+        remote.Parent = folder
+        unreliableCache[key] = remote
+        return remote
+    end
+
+    local found = folder:WaitForChild(key, 60)
+    assert(found ~= nil and found:IsA("UnreliableRemoteEvent"), "[Spark.Network] UnreliableRemoteEvent not found: " .. key)
+    local remote = found :: UnreliableRemoteEvent
+    unreliableCache[key] = remote
+    return remote
 end
+
 Network.GetUnreliableRemoteEvent = getUnreliableRemoteEvent
 
 local function getPropertyUpdateEvent(service: string, member: string): RemoteEvent
-	local key = buildKey(service, member, "RPE")
-	local cached = propEventCache[key]
-	if cached ~= nil then return cached end
-	local folder = getFolder()
-	if IS_SERVER then
-		local existing = folder:FindFirstChild(key)
-		if existing ~= nil and existing:IsA("RemoteEvent") then
-			propEventCache[key] = existing
-			return existing
-		end
-		local remote = Instance.new("RemoteEvent")
-		remote.Name = key
-		remote.Parent = folder
-		propEventCache[key] = remote
-		return remote
-	end
-	local found = folder:WaitForChild(key, 60)
-	assert(found ~= nil and found:IsA("RemoteEvent"), "[Spark.Network] Property update event not found: " .. key)
-	local remote = found :: RemoteEvent
-	propEventCache[key] = remote
-	return remote
+    local key = buildKey(service, member, "RPE")
+    local cached = propEventCache[key]
+    if cached ~= nil then
+        return cached
+    end
+
+    local folder = getFolder()
+    if IS_SERVER then
+        local existing = folder:FindFirstChild(key)
+        if existing ~= nil and existing:IsA("RemoteEvent") then
+            propEventCache[key] = existing
+            return existing
+        end
+
+        local remote = Instance.new("RemoteEvent")
+        remote.Name = key
+        remote.Parent = folder
+        propEventCache[key] = remote
+        return remote
+    end
+
+    local found = folder:WaitForChild(key, 60)
+    assert(found ~= nil and found:IsA("RemoteEvent"), "[Spark.Network] Property update event not found: " .. key)
+    local remote = found :: RemoteEvent
+    propEventCache[key] = remote
+    return remote
 end
+
 Network.GetPropertyUpdateEvent = getPropertyUpdateEvent
 
 local function getPropertyInitFunction(service: string, member: string): RemoteFunction
-	local key = buildKey(service, member, "RPF")
-	local cached = propFunctionCache[key]
-	if cached ~= nil then return cached end
-	local folder = getFolder()
-	if IS_SERVER then
-		local existing = folder:FindFirstChild(key)
-		if existing ~= nil and existing:IsA("RemoteFunction") then
-			propFunctionCache[key] = existing
-			return existing
-		end
-		local remote = Instance.new("RemoteFunction")
-		remote.Name = key
-		remote.Parent = folder
-		propFunctionCache[key] = remote
-		return remote
-	end
-	local found = folder:WaitForChild(key, 60)
-	assert(found ~= nil and found:IsA("RemoteFunction"), "[Spark.Network] Property init function not found: " .. key)
-	local remote = found :: RemoteFunction
-	propFunctionCache[key] = remote
-	return remote
+    local key = buildKey(service, member, "RPF")
+    local cached = propFunctionCache[key]
+    if cached ~= nil then
+        return cached
+    end
+
+    local folder = getFolder()
+    if IS_SERVER then
+        local existing = folder:FindFirstChild(key)
+        if existing ~= nil and existing:IsA("RemoteFunction") then
+            propFunctionCache[key] = existing
+            return existing
+        end
+
+        local remote = Instance.new("RemoteFunction")
+        remote.Name = key
+        remote.Parent = folder
+        propFunctionCache[key] = remote
+        return remote
+    end
+
+    local found = folder:WaitForChild(key, 60)
+    assert(found ~= nil and found:IsA("RemoteFunction"), "[Spark.Network] Property init function not found: " .. key)
+    local remote = found :: RemoteFunction
+    propFunctionCache[key] = remote
+    return remote
 end
+
 Network.GetPropertyInitFunction = getPropertyInitFunction
 
 function Network.CreateReadyMarker(): ()
-	assert(IS_SERVER, "[Spark.Network] CreateReadyMarker must be called on the server")
-	local folder = getFolder()
-	if folder:FindFirstChild(READY_MARKER) ~= nil then return end
-	local marker = Instance.new("BoolValue")
-	marker.Name = READY_MARKER
-	marker.Value = true
-	marker.Parent = folder
+    assert(IS_SERVER, "[Spark.Network] CreateReadyMarker must be called on the server")
+    local folder = getFolder()
+    if folder:FindFirstChild(READY_MARKER) ~= nil then
+        return
+    end
+
+    local marker = Instance.new("BoolValue")
+    marker.Name = READY_MARKER
+    marker.Value = true
+    marker.Parent = folder
 end
 
 function Network.WaitForReady(): ()
-	assert(not IS_SERVER, "[Spark.Network] WaitForReady must be called on the client")
-	local folder = getFolder()
-	local found = folder:WaitForChild(READY_MARKER, 60)
-	assert(found ~= nil, "[Spark.Network] Server did not signal ready in time")
+    assert(not IS_SERVER, "[Spark.Network] WaitForReady must be called on the client")
+    local folder = getFolder()
+    local found = folder:WaitForChild(READY_MARKER, 60)
+    assert(found ~= nil, "[Spark.Network] Server did not signal ready in time")
 end
 
 return Network`,
@@ -5177,402 +5409,403 @@ end
 return Promise`,
 
         'Server.luau': `--!strict
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
-
 local Spark = require(ReplicatedStorage:WaitForChild("Spark"):WaitForChild("Spark"))
 
 Spark.AddModules(ServerScriptService:WaitForChild("Services"))
 
 Spark.Start():andThen(function()
-	print("[Spark] Server started")
+    print("[Spark] Server started")
 end):catch(function(err: any)
-	warn("[Spark] Server startup error: " .. tostring(err))
+    warn("[Spark] Server startup error: " .. tostring(err))
 end)`,
 
         'Service.luau': `--!strict
-
 local Players = game:GetService("Players")
-
 local Signal = require(script.Parent:WaitForChild("Signal"))
 local Network = require(script.Parent:WaitForChild("Network"))
 
 export type RemoteSignal = {
-	Fire: (self: RemoteSignal, player: Player, ...any) -> (),
-	FireAll: (self: RemoteSignal, ...any) -> (),
-	FireExcept: (self: RemoteSignal, except: Player, ...any) -> (),
-	Connect: (self: RemoteSignal, fn: (player: Player, ...any) -> ()) -> Signal.Connection,
-	Destroy: (self: RemoteSignal) -> (),
+    Fire: (self: RemoteSignal, player: Player, ...any) -> (),
+    FireAll: (self: RemoteSignal, ...any) -> (),
+    FireExcept: (self: RemoteSignal, except: Player, ...any) -> (),
+    Connect: (self: RemoteSignal, fn: (player: Player, ...any) -> ()) -> Signal.Connection,
+    Destroy: (self: RemoteSignal) -> (),
 }
 
 type RemoteSignalInternal = {
-	_remote: RemoteEvent,
-	_signal: Signal.Signal,
-	_conn: RBXScriptConnection?,
-	Fire: (self: RemoteSignalInternal, player: Player, ...any) -> (),
-	FireAll: (self: RemoteSignalInternal, ...any) -> (),
-	FireExcept: (self: RemoteSignalInternal, except: Player, ...any) -> (),
-	Connect: (self: RemoteSignalInternal, fn: (player: Player, ...any) -> ()) -> Signal.Connection,
-	Destroy: (self: RemoteSignalInternal) -> (),
+    _remote: RemoteEvent,
+    _signal: Signal.Signal,
+    _conn: RBXScriptConnection?,
+    Fire: (self: RemoteSignalInternal, player: Player, ...any) -> (),
+    FireAll: (self: RemoteSignalInternal, ...any) -> (),
+    FireExcept: (self: RemoteSignalInternal, except: Player, ...any) -> (),
+    Connect: (self: RemoteSignalInternal, fn: (player: Player, ...any) -> ()) -> Signal.Connection,
+    Destroy: (self: RemoteSignalInternal) -> (),
 }
 
 type UnreliableRemoteSignalInternal = {
-	_remote: UnreliableRemoteEvent,
-	_signal: Signal.Signal,
-	_conn: RBXScriptConnection?,
-	Fire: (self: UnreliableRemoteSignalInternal, player: Player, ...any) -> (),
-	FireAll: (self: UnreliableRemoteSignalInternal, ...any) -> (),
-	FireExcept: (self: UnreliableRemoteSignalInternal, except: Player, ...any) -> (),
-	Connect: (self: UnreliableRemoteSignalInternal, fn: (player: Player, ...any) -> ()) -> Signal.Connection,
-	Destroy: (self: UnreliableRemoteSignalInternal) -> (),
+    _remote: UnreliableRemoteEvent,
+    _signal: Signal.Signal,
+    _conn: RBXScriptConnection?,
+    Fire: (self: UnreliableRemoteSignalInternal, player: Player, ...any) -> (),
+    FireAll: (self: UnreliableRemoteSignalInternal, ...any) -> (),
+    FireExcept: (self: UnreliableRemoteSignalInternal, except: Player, ...any) -> (),
+    Connect: (self: UnreliableRemoteSignalInternal, fn: (player: Player, ...any) -> ()) -> Signal.Connection,
+    Destroy: (self: UnreliableRemoteSignalInternal) -> (),
 }
 
 export type RemoteProperty = {
-	Set: (self: RemoteProperty, value: any) -> (),
-	SetFor: (self: RemoteProperty, player: Player, value: any) -> (),
-	SetFilter: (self: RemoteProperty, predicate: (player: Player) -> boolean, value: any) -> (),
-	Get: (self: RemoteProperty) -> any,
-	GetFor: (self: RemoteProperty, player: Player) -> any,
-	Destroy: (self: RemoteProperty) -> (),
+    Set: (self: RemoteProperty, value: any) -> (),
+    SetFor: (self: RemoteProperty, player: Player, value: any) -> (),
+    SetFilter: (self: RemoteProperty, predicate: (player: Player) -> boolean, value: any) -> (),
+    Get: (self: RemoteProperty) -> any,
+    GetFor: (self: RemoteProperty, player: Player) -> any,
+    Destroy: (self: RemoteProperty) -> (),
 }
 
 type RemotePropertyInternal = {
-	_value: any,
-	_playerValues: { [Player]: any },
-	_updateEvent: RemoteEvent,
-	_playerConn: RBXScriptConnection?,
-	Set: (self: RemotePropertyInternal, value: any) -> (),
-	SetFor: (self: RemotePropertyInternal, player: Player, value: any) -> (),
-	SetFilter: (self: RemotePropertyInternal, predicate: (player: Player) -> boolean, value: any) -> (),
-	Get: (self: RemotePropertyInternal) -> any,
-	GetFor: (self: RemotePropertyInternal, player: Player) -> any,
-	Destroy: (self: RemotePropertyInternal) -> (),
+    _value: any,
+    _playerValues: { [Player]: any },
+    _updateEvent: RemoteEvent,
+    _playerConn: RBXScriptConnection?,
+    Set: (self: RemotePropertyInternal, value: any) -> (),
+    SetFor: (self: RemotePropertyInternal, player: Player, value: any) -> (),
+    SetFilter: (self: RemotePropertyInternal, predicate: (player: Player) -> boolean, value: any) -> (),
+    Get: (self: RemotePropertyInternal) -> any,
+    GetFor: (self: RemotePropertyInternal, player: Player) -> any,
+    Destroy: (self: RemotePropertyInternal) -> (),
 }
 
 export type ServiceConfig = {
-	Name: string,
-	Client: { [string]: any }?,
-	[string]: any,
+    Name: string,
+    Client: { [string]: any }?,
+    [string]: any,
 }
 
 export type Service = {
-	Name: string,
-	Client: { [string]: any },
-	[string]: any,
+    Name: string,
+    Client: { [string]: any },
+    [string]: any,
 }
 
 local RemoteSignalClass = {}
 RemoteSignalClass.__index = RemoteSignalClass
 
 local function rsFire(self: RemoteSignalInternal, player: Player, ...: any): ()
-	self._remote:FireClient(player, ...)
+    self._remote:FireClient(player, ...)
 end
 RemoteSignalClass.Fire = rsFire
 
 local function rsFireAll(self: RemoteSignalInternal, ...: any): ()
-	self._remote:FireAllClients(...)
+    self._remote:FireAllClients(...)
 end
 RemoteSignalClass.FireAll = rsFireAll
 
 local function rsFireExcept(self: RemoteSignalInternal, except: Player, ...: any): ()
-	for _, player in Players:GetPlayers() do
-		if player ~= except then
-			self._remote:FireClient(player, ...)
-		end
-	end
+    for _, player in Players:GetPlayers() do
+        if player ~= except then
+            self._remote:FireClient(player, ...)
+        end
+    end
 end
 RemoteSignalClass.FireExcept = rsFireExcept
 
 local function rsConnect(self: RemoteSignalInternal, fn: (player: Player, ...any) -> ()): Signal.Connection
-	return self._signal:Connect(fn)
+    return self._signal:Connect(fn)
 end
 RemoteSignalClass.Connect = rsConnect
 
 local function rsDestroy(self: RemoteSignalInternal): ()
-	if self._conn ~= nil then
-		self._conn:Disconnect()
-		self._conn = nil
-	end
-	self._signal:Destroy()
+    if self._conn ~= nil then
+        self._conn:Disconnect()
+        self._conn = nil
+    end
+    self._signal:Destroy()
 end
 RemoteSignalClass.Destroy = rsDestroy
 
 local function createRemoteSignal(serviceName: string, memberName: string): RemoteSignalInternal
-	local remote: RemoteEvent = Network.GetRemoteEvent(serviceName, memberName)
-	local signal: Signal.Signal = Signal.new()
-	local self: RemoteSignalInternal = setmetatable({
-		_remote = remote,
-		_signal = signal,
-		_conn = nil,
-	}, RemoteSignalClass) :: any
-	self._conn = remote.OnServerEvent:Connect(function(player: Player, ...: any)
-		signal:Fire(player, ...)
-	end)
-	return self
+    local remote: RemoteEvent = Network.GetRemoteEvent(serviceName, memberName)
+    local signal: Signal.Signal = Signal.new()
+    local self: RemoteSignalInternal = setmetatable({
+        _remote = remote,
+        _signal = signal,
+        _conn = nil,
+    }, RemoteSignalClass) :: any
+
+    self._conn = remote.OnServerEvent:Connect(function(player: Player, ...: any)
+        signal:Fire(player, ...)
+    end)
+
+    return self
 end
 
 local UnreliableRemoteSignalClass = {}
 UnreliableRemoteSignalClass.__index = UnreliableRemoteSignalClass
 
 local function ursFire(self: UnreliableRemoteSignalInternal, player: Player, ...: any): ()
-	self._remote:FireClient(player, ...)
+    self._remote:FireClient(player, ...)
 end
 UnreliableRemoteSignalClass.Fire = ursFire
 
 local function ursFireAll(self: UnreliableRemoteSignalInternal, ...: any): ()
-	self._remote:FireAllClients(...)
+    self._remote:FireAllClients(...)
 end
 UnreliableRemoteSignalClass.FireAll = ursFireAll
 
 local function ursFireExcept(self: UnreliableRemoteSignalInternal, except: Player, ...: any): ()
-	for _, player in Players:GetPlayers() do
-		if player ~= except then
-			self._remote:FireClient(player, ...)
-		end
-	end
+    for _, player in Players:GetPlayers() do
+        if player ~= except then
+            self._remote:FireClient(player, ...)
+        end
+    end
 end
 UnreliableRemoteSignalClass.FireExcept = ursFireExcept
 
 local function ursConnect(self: UnreliableRemoteSignalInternal, fn: (player: Player, ...any) -> ()): Signal.Connection
-	return self._signal:Connect(fn)
+    return self._signal:Connect(fn)
 end
 UnreliableRemoteSignalClass.Connect = ursConnect
 
 local function ursDestroy(self: UnreliableRemoteSignalInternal): ()
-	if self._conn ~= nil then
-		self._conn:Disconnect()
-		self._conn = nil
-	end
-	self._signal:Destroy()
+    if self._conn ~= nil then
+        self._conn:Disconnect()
+        self._conn = nil
+    end
+    self._signal:Destroy()
 end
 UnreliableRemoteSignalClass.Destroy = ursDestroy
 
 local function createUnreliableRemoteSignal(serviceName: string, memberName: string): UnreliableRemoteSignalInternal
-	local remote: UnreliableRemoteEvent = Network.GetUnreliableRemoteEvent(serviceName, memberName)
-	local signal: Signal.Signal = Signal.new()
-	local self: UnreliableRemoteSignalInternal = setmetatable({
-		_remote = remote,
-		_signal = signal,
-		_conn = nil,
-	}, UnreliableRemoteSignalClass) :: any
-	self._conn = remote.OnServerEvent:Connect(function(player: Player, ...: any)
-		signal:Fire(player, ...)
-	end)
-	return self
+    local remote: UnreliableRemoteEvent = Network.GetUnreliableRemoteEvent(serviceName, memberName)
+    local signal: Signal.Signal = Signal.new()
+    local self: UnreliableRemoteSignalInternal = setmetatable({
+        _remote = remote,
+        _signal = signal,
+        _conn = nil,
+    }, UnreliableRemoteSignalClass) :: any
+
+    self._conn = remote.OnServerEvent:Connect(function(player: Player, ...: any)
+        signal:Fire(player, ...)
+    end)
+
+    return self
 end
 
 local RemotePropertyClass = {}
 RemotePropertyClass.__index = RemotePropertyClass
 
 local function rpSet(self: RemotePropertyInternal, value: any): ()
-	self._value = value
-	for _, player in Players:GetPlayers() do
-		if self._playerValues[player] == nil then
-			self._updateEvent:FireClient(player, value)
-		end
-	end
+    self._value = value
+    for _, player in Players:GetPlayers() do
+        if self._playerValues[player] == nil then
+            self._updateEvent:FireClient(player, value)
+        end
+    end
 end
 RemotePropertyClass.Set = rpSet
 
 local function rpSetFor(self: RemotePropertyInternal, player: Player, value: any): ()
-	self._playerValues[player] = value
-	self._updateEvent:FireClient(player, value)
+    self._playerValues[player] = value
+    self._updateEvent:FireClient(player, value)
 end
 RemotePropertyClass.SetFor = rpSetFor
 
 local function rpSetFilter(self: RemotePropertyInternal, predicate: (player: Player) -> boolean, value: any): ()
-	for _, player in Players:GetPlayers() do
-		if predicate(player) then
-			self._playerValues[player] = value
-			self._updateEvent:FireClient(player, value)
-		end
-	end
+    for _, player in Players:GetPlayers() do
+        if predicate(player) then
+            self._playerValues[player] = value
+            self._updateEvent:FireClient(player, value)
+        end
+    end
 end
 RemotePropertyClass.SetFilter = rpSetFilter
 
 local function rpGet(self: RemotePropertyInternal): any
-	return self._value
+    return self._value
 end
 RemotePropertyClass.Get = rpGet
 
 local function rpGetFor(self: RemotePropertyInternal, player: Player): any
-	local perPlayer = self._playerValues[player]
-	if perPlayer ~= nil then
-		return perPlayer
-	end
-	return self._value
+    local perPlayer = self._playerValues[player]
+    if perPlayer ~= nil then
+        return perPlayer
+    end
+    return self._value
 end
 RemotePropertyClass.GetFor = rpGetFor
 
 local function rpDestroy(self: RemotePropertyInternal): ()
-	local conn = self._playerConn
-	if conn ~= nil then
-		conn:Disconnect()
-		self._playerConn = nil
-	end
+    local conn = self._playerConn
+    if conn ~= nil then
+        conn:Disconnect()
+        self._playerConn = nil
+    end
+    table.clear(self._playerValues)
 end
 RemotePropertyClass.Destroy = rpDestroy
 
 local function createRemoteProperty(serviceName: string, memberName: string, defaultValue: any): RemotePropertyInternal
-	local updateEvent: RemoteEvent = Network.GetPropertyUpdateEvent(serviceName, memberName)
-	local initFunc: RemoteFunction = Network.GetPropertyInitFunction(serviceName, memberName)
+    local updateEvent: RemoteEvent = Network.GetPropertyUpdateEvent(serviceName, memberName)
+    local initFunc: RemoteFunction = Network.GetPropertyInitFunction(serviceName, memberName)
+    local self: RemotePropertyInternal = setmetatable({
+        _value = defaultValue,
+        _playerValues = setmetatable({}, { __mode = "k" }) :: { [Player]: any },
+        _updateEvent = updateEvent,
+        _playerConn = nil,
+    }, RemotePropertyClass) :: any
 
-	local self: RemotePropertyInternal = setmetatable({
-		_value = defaultValue,
-		_playerValues = {} :: { [Player]: any },
-		_updateEvent = updateEvent,
-		_playerConn = nil,
-	}, RemotePropertyClass) :: any
+    initFunc.OnServerInvoke = function(player: Player): any
+        return rpGetFor(self, player)
+    end
 
-	initFunc.OnServerInvoke = function(player: Player): any
-		return rpGetFor(self, player)
-	end
+    self._playerConn = Players.PlayerRemoving:Connect(function(player: Player)
+        self._playerValues[player] = nil
+    end)
 
-	self._playerConn = Players.PlayerRemoving:Connect(function(player: Player)
-		self._playerValues[player] = nil
-	end)
-
-	return self
+    return self
 end
 
 local ServiceModule = {}
-
 local createdServices: { [string]: Service } = {}
 local startupLocked: boolean = false
 
 function ServiceModule._lock(): ()
-	startupLocked = true
+    startupLocked = true
 end
 
 function ServiceModule._getAll(): { [string]: Service }
-	return createdServices
+    return createdServices
 end
 
 function ServiceModule.CreateService(config: ServiceConfig): Service
-	assert(not startupLocked, "[Spark.Service] Cannot create a Service after Spark.Start()")
-	assert(type(config) == "table", "[Spark.Service] CreateService expects a table")
-	assert(type(config.Name) == "string" and config.Name ~= "", "[Spark.Service] Service requires a non-empty Name")
-	assert(createdServices[config.Name] == nil, "[Spark.Service] Duplicate Service name: " .. config.Name)
-	if config.Client == nil then
-		config.Client = {}
-	end
-	local service: Service = config :: any
-	service.Client.Server = service
-	createdServices[config.Name] = service
-	return service
+    assert(not startupLocked, "[Spark.Service] Cannot create a Service after Spark.Start()")
+    assert(type(config) == "table", "[Spark.Service] CreateService expects a table")
+    assert(type(config.Name) == "string" and config.Name ~= "", "[Spark.Service] Service requires a non-empty Name")
+    assert(createdServices[config.Name] == nil, "[Spark.Service] Duplicate Service name: " .. config.Name)
+
+    if config.Client == nil then
+        config.Client = {}
+    end
+
+    local service: Service = config :: any
+    service.Client.Server = service
+    createdServices[config.Name] = service
+
+    return service
 end
 
 function ServiceModule._bindClient(service: Service): ()
-	local clientTable = service.Client
-	local replacements: { [string]: any } = {}
+    local clientTable = service.Client
+    local replacements: { [string]: any } = {}
 
-	for memberName, value in clientTable do
-		if memberName == "Server" then
-			continue
-		end
-		if type(value) == "function" then
-			local remote: RemoteFunction = Network.GetRemoteFunction(service.Name, memberName)
-			local boundFn = value
-			remote.OnServerInvoke = function(player: Player, ...: any): ...any
-				return boundFn(clientTable, player, ...)
-			end
-		elseif type(value) == "table" then
-			local t = value :: { [string]: any }
-			if t._sparkRemoteSignalMarker == true then
-				replacements[memberName] = createRemoteSignal(service.Name, memberName)
-			elseif t._sparkUnreliableSignalMarker == true then
-				replacements[memberName] = createUnreliableRemoteSignal(service.Name, memberName)
-			elseif t._sparkRemotePropertyMarker == true then
-				replacements[memberName] = createRemoteProperty(service.Name, memberName, t._default)
-			end
-		end
-	end
+    for memberName, value in clientTable do
+        if memberName == "Server" then
+            continue
+        end
 
-	for memberName, obj in replacements do
-		clientTable[memberName] = obj
-	end
+        if type(value) == "function" then
+            local remote: RemoteFunction = Network.GetRemoteFunction(service.Name, memberName)
+            local boundFn = value
+            remote.OnServerInvoke = function(player: Player, ...: any): ...any
+                return boundFn(clientTable, player, ...)
+            end
+        elseif type(value) == "table" then
+            local t = value :: { [string]: any }
+            if t._sparkRemoteSignalMarker == true then
+                replacements[memberName] = createRemoteSignal(service.Name, memberName)
+            elseif t._sparkUnreliableSignalMarker == true then
+                replacements[memberName] = createUnreliableRemoteSignal(service.Name, memberName)
+            elseif t._sparkRemotePropertyMarker == true then
+                replacements[memberName] = createRemoteProperty(service.Name, memberName, t._default)
+            end
+        end
+    end
+
+    for memberName, obj in replacements do
+        clientTable[memberName] = obj
+    end
 end
 
 function ServiceModule.CreateRemoteSignal(): any
-	return { _sparkRemoteSignalMarker = true }
+    return { _sparkRemoteSignalMarker = true }
 end
 
 function ServiceModule.CreateUnreliableRemoteSignal(): any
-	return { _sparkUnreliableSignalMarker = true }
+    return { _sparkUnreliableSignalMarker = true }
 end
 
 function ServiceModule.CreateRemoteProperty(defaultValue: any): any
-	return { _sparkRemotePropertyMarker = true, _default = defaultValue }
+    return { _sparkRemotePropertyMarker = true, _default = defaultValue }
 end
 
 return ServiceModule`,
 
         'Signal.luau': `--!strict
-
 export type Connection = {
-	Connected: boolean,
-	Disconnect: (self: Connection) -> (),
+    Connected: boolean,
+    Disconnect: (self: Connection) -> (),
 }
 
 type ConnectionInternal = {
-	Connected: boolean,
-	_signal: SignalInternal?,
-	_fn: ((...any) -> ())?,
-	_next: ConnectionInternal?,
-	Disconnect: (self: ConnectionInternal) -> (),
+    Connected: boolean,
+    _signal: SignalInternal?,
+    _fn: ((...any) -> ())?,
+    _next: ConnectionInternal?,
+    Disconnect: (self: ConnectionInternal) -> (),
 }
 
 type SignalInternal = {
-	_head: ConnectionInternal?,
-	_alive: boolean,
-	Connect: (self: SignalInternal, fn: (...any) -> ()) -> ConnectionInternal,
-	Once: (self: SignalInternal, fn: (...any) -> ()) -> ConnectionInternal,
-	Wait: (self: SignalInternal) -> ...any,
-	Fire: (self: SignalInternal, ...any) -> (),
-	DisconnectAll: (self: SignalInternal) -> (),
-	Destroy: (self: SignalInternal) -> (),
+    _head: ConnectionInternal?,
+    _alive: boolean,
+    Connect: (self: SignalInternal, fn: (...any) -> ()) -> ConnectionInternal,
+    Once: (self: SignalInternal, fn: (...any) -> ()) -> ConnectionInternal,
+    Wait: (self: SignalInternal) -> ...any,
+    Fire: (self: SignalInternal, ...any) -> (),
+    DisconnectAll: (self: SignalInternal) -> (),
+    Destroy: (self: SignalInternal) -> (),
 }
 
 export type Signal = {
-	Connect: (self: Signal, fn: (...any) -> ()) -> Connection,
-	Once: (self: Signal, fn: (...any) -> ()) -> Connection,
-	Wait: (self: Signal) -> ...any,
-	Fire: (self: Signal, ...any) -> (),
-	DisconnectAll: (self: Signal) -> (),
-	Destroy: (self: Signal) -> (),
+    Connect: (self: Signal, fn: (...any) -> ()) -> Connection,
+    Once: (self: Signal, fn: (...any) -> ()) -> Connection,
+    Wait: (self: Signal) -> ...any,
+    Fire: (self: Signal, ...any) -> (),
+    DisconnectAll: (self: Signal) -> (),
+    Destroy: (self: Signal) -> (),
 }
 
 local Connection = {}
 Connection.__index = Connection
 
 local function disconnect(self: ConnectionInternal): ()
-	if not self.Connected then
-		return
-	end
-	self.Connected = false
+    if not self.Connected then
+        return
+    end
+    self.Connected = false
 
-	local signal = self._signal
-	if signal == nil then
-		return
-	end
+    local signal = self._signal
+    if signal == nil then
+        return
+    end
 
-	if signal._head == self then
-		signal._head = self._next
-	else
-		local current = signal._head
-		while current ~= nil do
-			if current._next == self then
-				current._next = self._next
-				break
-			end
-			current = current._next
-		end
-	end
+    if signal._head == self then
+        signal._head = self._next
+    else
+        local current = signal._head
+        while current ~= nil do
+            if current._next == self then
+                current._next = self._next
+                break
+            end
+            current = current._next
+        end
+    end
 
-	self._signal = nil
-	self._fn = nil
-	self._next = nil
+    self._signal = nil
+    self._fn = nil
 end
 Connection.Disconnect = disconnect
 
@@ -5580,101 +5813,99 @@ local Signal = {}
 Signal.__index = Signal
 
 local function fire(self: SignalInternal, ...: any): ()
-	local current = self._head
-	while current ~= nil do
-		local nextConn = current._next
-		if current.Connected then
-			local fn = current._fn
-			if fn ~= nil then
-				task.spawn(fn, ...)
-			end
-		end
-		current = nextConn
-	end
+    local current = self._head
+    while current ~= nil do
+        local nextConn = current._next
+        if current.Connected then
+            local fn = current._fn
+            if fn ~= nil then
+                task.spawn(fn, ...)
+            end
+        end
+        current = nextConn
+    end
 end
 Signal.Fire = fire
 
 local function connect(self: SignalInternal, fn: (...any) -> ()): ConnectionInternal
-	assert(self._alive, "[Spark.Signal] Cannot connect to a destroyed Signal")
-	assert(type(fn) == "function", "[Spark.Signal] Connect expects a function")
+    assert(self._alive, "[Spark.Signal] Cannot connect to a destroyed Signal")
+    assert(type(fn) == "function", "[Spark.Signal] Connect expects a function")
 
-	local conn: ConnectionInternal = setmetatable({
-		Connected = true,
-		_signal = self,
-		_fn = fn,
-		_next = self._head,
-	}, Connection) :: any
+    local conn: ConnectionInternal = setmetatable({
+        Connected = true,
+        _signal = self,
+        _fn = fn,
+        _next = self._head,
+    }, Connection) :: any
 
-	self._head = conn
-	return conn
+    self._head = conn
+    return conn
 end
 Signal.Connect = connect
 
 local function once(self: SignalInternal, fn: (...any) -> ()): ConnectionInternal
-	local holder: { ref: ConnectionInternal? } = { ref = nil }
-	local conn: ConnectionInternal = connect(self, function(...: any)
-		local ref = holder.ref
-		if ref ~= nil then
-			disconnect(ref)
-		end
-		fn(...)
-	end)
-	holder.ref = conn
-	return conn
+    local holder: { ref: ConnectionInternal? } = { ref = nil }
+    local conn: ConnectionInternal = connect(self, function(...: any)
+        local ref = holder.ref
+        if ref ~= nil then
+            disconnect(ref)
+        end
+        fn(...)
+    end)
+    holder.ref = conn
+    return conn
 end
 Signal.Once = once
 
 local function wait(self: SignalInternal): ...any
-	local running: thread = coroutine.running()
-	local holder: { ref: ConnectionInternal? } = { ref = nil }
-	local conn: ConnectionInternal = connect(self, function(...: any)
-		local ref = holder.ref
-		if ref ~= nil then
-			disconnect(ref)
-		end
-		if coroutine.status(running) == "suspended" then
-			task.spawn(running, ...)
-		end
-	end)
-	holder.ref = conn
-	return coroutine.yield()
+    local running: thread = coroutine.running()
+    local holder: { ref: ConnectionInternal? } = { ref = nil }
+    local conn: ConnectionInternal = connect(self, function(...: any)
+        local ref = holder.ref
+        if ref ~= nil then
+            disconnect(ref)
+        end
+        if coroutine.status(running) == "suspended" then
+            task.spawn(running, ...)
+        end
+    end)
+    holder.ref = conn
+    return coroutine.yield()
 end
 Signal.Wait = wait
 
 local function disconnectAll(self: SignalInternal): ()
-	local current = self._head
-	while current ~= nil do
-		local nextConn = current._next
-		current.Connected = false
-		current._signal = nil
-		current._fn = nil
-		current._next = nil
-		current = nextConn
-	end
-	self._head = nil
+    local current = self._head
+    while current ~= nil do
+        local nextConn = current._next
+        current.Connected = false
+        current._signal = nil
+        current._fn = nil
+        current._next = nil
+        current = nextConn
+    end
+    self._head = nil
 end
 Signal.DisconnectAll = disconnectAll
 
 local function destroy(self: SignalInternal): ()
-	disconnectAll(self)
-	self._alive = false
+    disconnectAll(self)
+    self._alive = false
 end
 Signal.Destroy = destroy
 
 local SignalConstructor = {}
-
 function SignalConstructor.new(): Signal
-	local self: SignalInternal = setmetatable({
-		_head = nil,
-		_alive = true,
-	}, Signal) :: any
-	return self :: any
+    local self: SignalInternal = setmetatable({
+        _head = nil,
+        _alive = true,
+    }, Signal) :: any
+    return self :: any
 end
 
 return SignalConstructor`,
 
         'Spark.luau': `--!strict
-
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 
@@ -5697,22 +5928,21 @@ export type RemoteProperty = ServiceModule.RemoteProperty
 type SparkState = "Idle" | "Starting" | "Running"
 
 type ClientRemotePropertyProxy = {
-	Get: (self: ClientRemotePropertyProxy) -> any,
-	Observe: (self: ClientRemotePropertyProxy, fn: (value: any) -> ()) -> Signal.Connection,
-	Destroy: (self: ClientRemotePropertyProxy) -> (),
+    Get: (self: ClientRemotePropertyProxy) -> any,
+    Observe: (self: ClientRemotePropertyProxy, fn: (value: any) -> ()) -> Signal.Connection,
+    Destroy: (self: ClientRemotePropertyProxy) -> (),
 }
 
 type ClientServiceProxy = {
-	Name: string,
-	[string]: any,
+    Name: string,
+    [string]: any,
 }
 
 local Spark = {}
-
 Spark.Util = {
-	Signal = Signal,
-	Promise = Promise,
-	Network = Network,
+    Signal = Signal,
+    Promise = Promise,
+    Network = Network,
 }
 
 local state: SparkState = "Idle"
@@ -5726,269 +5956,302 @@ Spark.CreateUnreliableRemoteSignal = ServiceModule.CreateUnreliableRemoteSignal
 Spark.CreateRemoteProperty = ServiceModule.CreateRemoteProperty
 
 local function safeRequire(module: ModuleScript): ()
-	local ok: boolean, err: any = pcall(require, module)
-	if not ok then
-		warn("[Spark] Failed to require '" .. module:GetFullName() .. "': " .. tostring(err))
-	end
+    local ok: boolean, err: any = pcall(require, module)
+    if not ok then
+        warn("[Spark] Failed to require '" .. module:GetFullName() .. "': " .. tostring(err))
+    end
 end
 
 function Spark.AddModules(parent: Instance): ()
-	assert(state == "Idle", "[Spark] AddModules must be called before Spark.Start()")
-	for _, descendant in parent:GetDescendants() do
-		if descendant:IsA("ModuleScript") then
-			safeRequire(descendant)
-		end
-	end
+    assert(state == "Idle", "[Spark] AddModules must be called before Spark.Start()")
+    for _, descendant in parent:GetDescendants() do
+        if descendant:IsA("ModuleScript") then
+            safeRequire(descendant)
+        end
+    end
 end
 
 local function runLifecycleStage(objects: { [string]: any }, methodName: string): any
-	return Promise.new(function(resolve: (...any) -> (), reject: (...any) -> ())
-		local toRun: { any } = {}
-		for _, object in objects do
-			if type(object[methodName]) == "function" then
-				table.insert(toRun, object)
-			end
-		end
+    return Promise.new(function(resolve: (...any) -> (), reject: (...any) -> ())
+        local toRun: { any } = {}
+        for _, object in objects do
+            if type(object[methodName]) == "function" then
+                table.insert(toRun, object)
+            end
+        end
 
-		local total: number = #toRun
-		if total == 0 then
-			resolve()
-			return
-		end
+        local total: number = #toRun
+        if total == 0 then
+            resolve()
+            return
+        end
 
-		local completed: number = 0
-		local settled: boolean = false
+        local completed: number = 0
+        local settled: boolean = false
 
-		for _, object in toRun do
-			task.spawn(function()
-				local ok: boolean, err: any = pcall(object[methodName] :: (any) -> (), object)
-				if settled then return end
-				if not ok then
-					settled = true
-					reject("[Spark] " .. methodName .. " error in '" .. tostring(object.Name) .. "': " .. tostring(err))
-					return
-				end
-				completed += 1
-				if completed == total then
-					settled = true
-					resolve()
-				end
-			end)
-		end
-	end)
+        for _, object in toRun do
+            task.spawn(function()
+                local ok: boolean, result: any = pcall(object[methodName] :: (any) -> any, object)
+                if settled then
+                    return
+                end
+
+                if not ok then
+                    settled = true
+                    reject("[Spark] " .. methodName .. " error in '" .. tostring(object.Name) .. "': " .. tostring(result))
+                    return
+                end
+
+                if Promise.is(result) then
+                    result:andThen(function()
+                        if settled then
+                            return
+                        end
+                        completed += 1
+                        if completed == total then
+                            settled = true
+                            resolve()
+                        end
+                    end):catch(function(err: any)
+                        if settled then
+                            return
+                        end
+                        settled = true
+                        reject("[Spark] " .. methodName .. " error in '" .. tostring(object.Name) .. "': " .. tostring(err))
+                    end)
+                else
+                    completed += 1
+                    if completed == total then
+                        settled = true
+                        resolve()
+                    end
+                end
+            end)
+        end
+    end)
 end
 
 local function startServer(): any
-	local services = ServiceModule._getAll()
+    local services = ServiceModule._getAll()
+    for _, service in services do
+        ServiceModule._bindClient(service)
+    end
 
-	for _, service in services do
-		ServiceModule._bindClient(service)
-	end
+    Network.CreateReadyMarker()
 
-	Network.CreateReadyMarker()
+    Players.PlayerRemoving:Connect(function(player: Player)
+        for _, service in services do
+            local handler = service.OnPlayerRemoving
+            if type(handler) == "function" then
+                task.spawn(handler :: (any, Player) -> (), service, player)
+            end
+        end
+    end)
 
-	Players.PlayerRemoving:Connect(function(player: Player)
-		for _, service in services do
-			local handler = service.OnPlayerRemoving
-			if type(handler) == "function" then
-				task.spawn(handler :: (any, Player) -> (), service, player)
-			end
-		end
-	end)
-
-	return runLifecycleStage(services, "OnInit"):andThen(function()
-		return runLifecycleStage(services, "OnStart")
-	end)
+    return runLifecycleStage(services, "OnInit"):andThen(function()
+        return runLifecycleStage(services, "OnStart")
+    end)
 end
 
 local function createClientRemotePropertyProxy(
-	updateEvent: RemoteEvent,
-	initFunc: RemoteFunction
+    updateEvent: RemoteEvent,
+    initFunc: RemoteFunction
 ): ClientRemotePropertyProxy
-	local localSignal: Signal.Signal = Signal.new()
-	local currentValue: any = nil
-	local loaded: boolean = false
+    local localSignal: Signal.Signal = Signal.new()
+    local currentValue: any = nil
+    local loaded: boolean = false
 
-	updateEvent.OnClientEvent:Connect(function(value: any)
-		currentValue = value
-		loaded = true
-		localSignal:Fire(value)
-	end)
+    local updateConn = updateEvent.OnClientEvent:Connect(function(value: any)
+        currentValue = value
+        loaded = true
+        localSignal:Fire(value)
+    end)
 
-	task.spawn(function()
-		local ok: boolean, value: any = pcall(function(): any
-			return initFunc:InvokeServer()
-		end)
-		if ok and not loaded then
-			currentValue = value
-			loaded = true
-			localSignal:Fire(value)
-		end
-	end)
+    task.spawn(function()
+        local ok: boolean, value: any = pcall(function(): any
+            return initFunc:InvokeServer()
+        end)
+        if ok and not loaded then
+            currentValue = value
+            loaded = true
+            localSignal:Fire(value)
+        end
+    end)
 
-	local proxy: ClientRemotePropertyProxy = {
-		Get = function(_self: ClientRemotePropertyProxy): any
-			if not loaded then
-				localSignal:Wait()
-			end
-			return currentValue
-		end,
-		Observe = function(_self: ClientRemotePropertyProxy, fn: (value: any) -> ()): Signal.Connection
-			local conn: Signal.Connection = localSignal:Connect(fn)
-			if loaded then
-				task.spawn(fn, currentValue)
-			end
-			return conn
-		end,
-		Destroy = function(_self: ClientRemotePropertyProxy): ()
-			localSignal:Destroy()
-		end,
-	}
+    local proxy: ClientRemotePropertyProxy = {
+        Get = function(_self: ClientRemotePropertyProxy): any
+            if not loaded then
+                localSignal:Wait()
+            end
+            return currentValue
+        end,
+        Observe = function(_self: ClientRemotePropertyProxy, fn: (value: any) -> ()): Signal.Connection
+            local conn: Signal.Connection = localSignal:Connect(fn)
+            if loaded then
+                task.spawn(fn, currentValue)
+            end
+            return conn
+        end,
+        Destroy = function(_self: ClientRemotePropertyProxy): ()
+            updateConn:Disconnect()
+            localSignal:Destroy()
+        end,
+    }
 
-	return proxy
+    return proxy
 end
 
 local function buildClientServiceProxy(serviceName: string): ClientServiceProxy
-	local proxy: ClientServiceProxy = { Name = serviceName }
-	local ReplicatedStorage = game:GetService("ReplicatedStorage")
-	local folder = ReplicatedStorage:FindFirstChild("SparkRemotes")
+    local proxy: ClientServiceProxy = { Name = serviceName }
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local folder = ReplicatedStorage:FindFirstChild("SparkRemotes")
 
-	if folder == nil or not folder:IsA("Folder") then
-		return proxy
-	end
+    if folder == nil or not folder:IsA("Folder") then
+        return proxy
+    end
 
-	local f: Folder = folder :: Folder
-	local pendingRPE: { [string]: RemoteEvent } = {}
+    local f: Folder = folder :: Folder
+    local pendingRPE: { [string]: RemoteEvent } = {}
 
-	for _, child in f:GetChildren() do
-		local parts: { string } = string.split(child.Name, "/")
-		if #parts ~= 3 or parts[1] ~= serviceName then
-			continue
-		end
+    for _, child in f:GetChildren() do
+        local parts: { string } = string.split(child.Name, "/")
+        if #parts ~= 3 or parts[1] ~= serviceName then
+            continue
+        end
 
-		local memberName: string = parts[2]
-		local kind: string = parts[3]
+        local memberName: string = parts[2]
+        local kind: string = parts[3]
 
-		if kind == "RF" and child:IsA("RemoteFunction") then
-			local remoteFunction: RemoteFunction = child :: RemoteFunction
-			proxy[memberName] = function(_self: ClientServiceProxy, ...: any): any
-				local argCount: number = select("#", ...)
-				local argList: { any } = { ... }
-				return Promise.new(function(resolve: (...any) -> (), reject: (...any) -> ())
-					local ok: boolean, result: any = pcall(function(): any
-						return remoteFunction:InvokeServer(table.unpack(argList, 1, argCount))
-					end)
-					if ok then resolve(result) else reject(result) end
-				end)
-			end
-		elseif kind == "RE" and child:IsA("RemoteEvent") then
-			local remoteEvent: RemoteEvent = child :: RemoteEvent
-			local localSignal: Signal.Signal = Signal.new()
-			remoteEvent.OnClientEvent:Connect(function(...: any)
-				localSignal:Fire(...)
-			end)
-			proxy[memberName] = {
-				Connect = function(_self: any, fn: (...any) -> ()): Signal.Connection
-					return localSignal:Connect(fn)
-				end,
-				Fire = function(_self: any, ...: any): ()
-					remoteEvent:FireServer(...)
-				end,
-			}
-		elseif kind == "URE" and child:IsA("UnreliableRemoteEvent") then
-			local remoteEvent: UnreliableRemoteEvent = child :: UnreliableRemoteEvent
-			local localSignal: Signal.Signal = Signal.new()
-			remoteEvent.OnClientEvent:Connect(function(...: any)
-				localSignal:Fire(...)
-			end)
-			proxy[memberName] = {
-				Connect = function(_self: any, fn: (...any) -> ()): Signal.Connection
-					return localSignal:Connect(fn)
-				end,
-				Fire = function(_self: any, ...: any): ()
-					remoteEvent:FireServer(...)
-				end,
-			}
-		elseif kind == "RPE" and child:IsA("RemoteEvent") then
-			pendingRPE[memberName] = child :: RemoteEvent
-		end
-	end
+        if kind == "RF" and child:IsA("RemoteFunction") then
+            local remoteFunction: RemoteFunction = child :: RemoteFunction
+            proxy[memberName] = function(_self: ClientServiceProxy, ...: any): any
+                local argCount: number = select("#", ...)
+                local argList: { any } = { ... }
+                return Promise.new(function(resolve: (...any) -> (), reject: (...any) -> ())
+                    local results = table.pack(pcall(function(): ...any
+                        return remoteFunction:InvokeServer(table.unpack(argList, 1, argCount))
+                    end))
+                    local ok = results[1]
+                    if ok then
+                        resolve(table.unpack(results, 2, results.n))
+                    else
+                        reject(results[2])
+                    end
+                end)
+            end
+        elseif kind == "RE" and child:IsA("RemoteEvent") then
+            local remoteEvent: RemoteEvent = child :: RemoteEvent
+            local localSignal: Signal.Signal = Signal.new()
+            remoteEvent.OnClientEvent:Connect(function(...: any)
+                localSignal:Fire(...)
+            end)
+            proxy[memberName] = {
+                Connect = function(_self: any, fn: (...any) -> ()): Signal.Connection
+                    return localSignal:Connect(fn)
+                end,
+                Fire = function(_self: any, ...: any): ()
+                    remoteEvent:FireServer(...)
+                end,
+            }
+        elseif kind == "URE" and child:IsA("UnreliableRemoteEvent") then
+            local remoteEvent: UnreliableRemoteEvent = child :: UnreliableRemoteEvent
+            local localSignal: Signal.Signal = Signal.new()
+            remoteEvent.OnClientEvent:Connect(function(...: any)
+                localSignal:Fire(...)
+            end)
+            proxy[memberName] = {
+                Connect = function(_self: any, fn: (...any) -> ()): Signal.Connection
+                    return localSignal:Connect(fn)
+                end,
+                Fire = function(_self: any, ...: any): ()
+                    remoteEvent:FireServer(...)
+                end,
+            }
+        elseif kind == "RPE" and child:IsA("RemoteEvent") then
+            pendingRPE[memberName] = child :: RemoteEvent
+        end
+    end
 
-	for memberName, updateEvent in pendingRPE do
-		local rpfKey: string = serviceName .. "/" .. memberName .. "/RPF"
-		local rfChild = f:FindFirstChild(rpfKey)
-		if rfChild ~= nil and rfChild:IsA("RemoteFunction") then
-			proxy[memberName] = createClientRemotePropertyProxy(updateEvent, rfChild :: RemoteFunction)
-		end
-	end
+    for memberName, updateEvent in pendingRPE do
+        local rpfKey: string = serviceName .. "/" .. memberName .. "/RPF"
+        local rfChild = f:FindFirstChild(rpfKey)
+        if rfChild ~= nil and rfChild:IsA("RemoteFunction") then
+            proxy[memberName] = createClientRemotePropertyProxy(updateEvent, rfChild :: RemoteFunction)
+        end
+    end
 
-	return proxy
+    return proxy
 end
 
 function Spark.GetService(serviceName: string): ClientServiceProxy
-	assert(IS_CLIENT, "[Spark] GetService can only be called on the client")
-	assert(state ~= "Idle", "[Spark] GetService can only be called after Spark.Start()")
-	local cached = clientServiceCache[serviceName]
-	if cached ~= nil then return cached end
-	local proxy = buildClientServiceProxy(serviceName)
-	clientServiceCache[serviceName] = proxy
-	return proxy
+    assert(IS_CLIENT, "[Spark] GetService can only be called on the client")
+    assert(state ~= "Idle", "[Spark] GetService can only be called after Spark.Start()")
+
+    local cached = clientServiceCache[serviceName]
+    if cached ~= nil then
+        return cached
+    end
+
+    local proxy = buildClientServiceProxy(serviceName)
+    clientServiceCache[serviceName] = proxy
+    return proxy
 end
 
 function Spark.GetController(controllerName: string): Controller
-	assert(IS_CLIENT, "[Spark] GetController can only be called on the client")
-	local controller = ControllerModule._getAll()[controllerName]
-	assert(controller ~= nil, "[Spark] Controller not found: " .. controllerName)
-	return controller
+    assert(IS_CLIENT, "[Spark] GetController can only be called on the client")
+    local controller = ControllerModule._getAll()[controllerName]
+    assert(controller ~= nil, "[Spark] Controller not found: " .. controllerName)
+    return controller
 end
 
 function Spark.GetServerService(serviceName: string): Service
-	assert(IS_SERVER, "[Spark] GetServerService can only be called on the server")
-	local service = ServiceModule._getAll()[serviceName]
-	assert(service ~= nil, "[Spark] Service not found: " .. serviceName)
-	return service
+    assert(IS_SERVER, "[Spark] GetServerService can only be called on the server")
+    local service = ServiceModule._getAll()[serviceName]
+    assert(service ~= nil, "[Spark] Service not found: " .. serviceName)
+    return service
 end
 
 local function startClient(): any
-	return Promise.new(function(resolve: (...any) -> (), _reject: (...any) -> ())
-		Network.WaitForReady()
-		resolve()
-	end):andThen(function()
-		local controllers = ControllerModule._getAll()
-		return runLifecycleStage(controllers, "OnInit")
-	end):andThen(function()
-		local controllers = ControllerModule._getAll()
-		return runLifecycleStage(controllers, "OnStart")
-	end)
+    return Promise.new(function(resolve: (...any) -> (), _reject: (...any) -> ())
+        Network.WaitForReady()
+        resolve()
+    end):andThen(function()
+        local controllers = ControllerModule._getAll()
+        return runLifecycleStage(controllers, "OnInit")
+    end):andThen(function()
+        local controllers = ControllerModule._getAll()
+        return runLifecycleStage(controllers, "OnStart")
+    end)
 end
 
 function Spark.Start(): any
-	if startPromise ~= nil then
-		return startPromise
-	end
-	assert(state == "Idle", "[Spark] Spark.Start() can only be called once")
-	state = "Starting"
+    if startPromise ~= nil then
+        return startPromise
+    end
 
-	ServiceModule._lock()
-	ControllerModule._lock()
+    assert(state == "Idle", "[Spark] Spark.Start() can only be called once")
+    state = "Starting"
 
-	local runner: any = if IS_SERVER then startServer() else startClient()
+    ServiceModule._lock()
+    ControllerModule._lock()
 
-	startPromise = runner:andThen(function()
-		state = "Running"
-	end):catch(function(err: any)
-		warn("[Spark] Startup failed: " .. tostring(err))
-		return Promise.reject(err)
-	end)
+    local runner: any = if IS_SERVER then startServer() else startClient()
 
-	return startPromise
+    startPromise = runner:andThen(function()
+        state = "Running"
+    end):catch(function(err: any)
+        warn("[Spark] Startup failed: " .. tostring(err))
+        return Promise.reject(err)
+    end)
+
+    return startPromise
 end
 
 function Spark.OnStart(): any
-	if startPromise ~= nil then
-		return startPromise
-	end
-	return Promise.reject("[Spark] Spark.Start() has not been called yet")
+    if startPromise ~= nil then
+        return startPromise
+    end
+    return Promise.reject("[Spark] Spark.Start() has not been called yet")
 end
 
 return Spark`
