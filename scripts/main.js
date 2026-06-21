@@ -6256,6 +6256,340 @@ end
 
 return Spark`
       }
+    },
+
+    m1: {
+      name: 'M1 System',
+      files: {
+        'AnimationController.luau': `--!strict
+local AnimationController = {}
+AnimationController.__index = AnimationController
+
+type TrackMap = {[string]: AnimationTrack}
+
+export type AnimationController = typeof(setmetatable({} :: {
+	_tracks: TrackMap,
+	_current: string,
+}, AnimationController))
+
+local PRIORITIES: {[string]: Enum.AnimationPriority} = {
+	idle = Enum.AnimationPriority.Idle,
+	walk = Enum.AnimationPriority.Movement,
+	run = Enum.AnimationPriority.Movement,
+	m1 = Enum.AnimationPriority.Action,
+	m2 = Enum.AnimationPriority.Action,
+}
+
+local LOOPED: {[string]: boolean} = {
+	idle = true,
+	walk = true,
+	run = true,
+	m1 = false,
+	m2 = false,
+}
+
+function AnimationController.new(animator: Animator, ids: {[string]: string}): AnimationController
+	local tracks: TrackMap = {}
+
+	for key: string, id: string in pairs(ids) do
+		local name: string = string.lower(key)
+		local anim: Animation = Instance.new("Animation")
+		anim.AnimationId = id
+		local track: AnimationTrack = animator:LoadAnimation(anim)
+		anim:Destroy()
+
+		if PRIORITIES[name] then
+			track.Priority = PRIORITIES[name]
+		end
+		if LOOPED[name] ~= nil then
+			track.Looped = LOOPED[name]
+		end
+
+		tracks[name] = track
+	end
+
+	return setmetatable({
+		_tracks = tracks,
+		_current = "",
+	}, AnimationController)
+end
+
+function AnimationController.PlayTrack(self: AnimationController, name: string, blendTime: number?): ()
+	local track: AnimationTrack? = self._tracks[name]
+	if not track then return end
+
+	if self._current ~= "" then
+		local prev: AnimationTrack? = self._tracks[self._current]
+		if prev and prev.IsPlaying then
+			prev:Stop(blendTime or 0.2)
+		end
+	end
+
+	self._current = name
+	track:Play(blendTime or 0.2)
+end
+
+function AnimationController.StopCurrent(self: AnimationController, blendTime: number?): ()
+	if self._current == "" then return end
+	local track: AnimationTrack? = self._tracks[self._current]
+	if track and track.IsPlaying then
+		track:Stop(blendTime or 0.2)
+	end
+end
+
+function AnimationController.GetTrack(self: AnimationController, name: string): AnimationTrack?
+	return self._tracks[name]
+end
+
+function AnimationController.GetCurrentName(self: AnimationController): string
+	return self._current
+end
+
+function AnimationController.Destroy(self: AnimationController): ()
+	for _, track: AnimationTrack in pairs(self._tracks) do
+		if track.IsPlaying then
+			track:Stop(0)
+		end
+		track:Destroy()
+	end
+	table.clear(self._tracks)
+	self._current = ""
+end
+
+return table.freeze(AnimationController)`,
+        'CombatController.luau': `--!strict
+local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService: UserInputService = game:GetService("UserInputService")
+
+local Shared: Folder = ReplicatedStorage:WaitForChild("Shared") :: Folder
+local GameConfig = require(Shared:WaitForChild("GameConfig") :: ModuleScript)
+local Maid = require(Shared:WaitForChild("Maid") :: ModuleScript)
+local AnimationController = require(Shared:WaitForChild("AnimationController") :: ModuleScript)
+
+local character: Model = script.Parent :: Model
+local humanoid: Humanoid = character:WaitForChild("Humanoid") :: Humanoid
+local animator: Animator = humanoid:WaitForChild("Animator") :: Animator
+local combatEvent: RemoteEvent = ReplicatedStorage:WaitForChild("CombatEvent") :: RemoteEvent
+
+humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
+
+local maid: Maid.Maid = Maid.new()
+local attackMaid: Maid.Maid = Maid.new()
+
+local animController: AnimationController.AnimationController = AnimationController.new(animator, GameConfig.Animations)
+
+local running: boolean = false
+local attacking: boolean = false
+local airborne: boolean = false
+local isDestroyed: boolean = false
+
+humanoid.WalkSpeed = GameConfig.Speed.WALK
+animController:PlayTrack("idle", 0.1)
+
+local function updateState(blendTime: number?): ()
+	if attacking or airborne or isDestroyed then return end
+
+	local target: string = "idle"
+	if humanoid.MoveDirection.Magnitude > 0 then
+		target = if running then "run" else "walk"
+	end
+
+	if animController:GetCurrentName() ~= target then
+		animController:PlayTrack(target, blendTime or 0.2)
+	end
+end
+
+local function executeAttack(actionName: string): ()
+	if attacking or isDestroyed or humanoid.Health <= 0 then return end
+
+	attacking = true
+	humanoid.WalkSpeed = GameConfig.Speed.ATTACK
+
+	local trackName: string = string.lower(actionName)
+	animController:PlayTrack(trackName, 0.1)
+
+	combatEvent:FireServer(actionName, running)
+
+	attackMaid:DoCleaning()
+
+	local track: AnimationTrack? = animController:GetTrack(trackName)
+	if track then
+		attackMaid:GiveTask(track.Stopped:Once(function(): ()
+			attackMaid:DoCleaning()
+			if isDestroyed then return end
+
+			attacking = false
+			if humanoid.Health > 0 then
+				humanoid.WalkSpeed = if running then GameConfig.Speed.RUN else GameConfig.Speed.WALK
+				updateState(0.1)
+			end
+		end))
+	end
+end
+
+maid:GiveTask(humanoid:GetPropertyChangedSignal("MoveDirection"):Connect(function(): ()
+	updateState()
+end))
+
+maid:GiveTask(humanoid.StateChanged:Connect(function(_: Enum.HumanoidStateType, newState: Enum.HumanoidStateType): ()
+	airborne = (newState == Enum.HumanoidStateType.Freefall or newState == Enum.HumanoidStateType.Jumping)
+	if airborne then
+		animController:StopCurrent(0.2)
+	else
+		updateState(0.1)
+	end
+end))
+
+maid:GiveTask(UserInputService.InputBegan:Connect(function(input: InputObject, gp: boolean): ()
+	if gp or humanoid.Health <= 0 or isDestroyed then return end
+
+	if input.KeyCode == Enum.KeyCode.LeftShift then
+		running = true
+		if not attacking then
+			humanoid.WalkSpeed = GameConfig.Speed.RUN
+			updateState()
+		end
+	elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
+		executeAttack("M1")
+	elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
+		executeAttack("M2")
+	end
+end))
+
+maid:GiveTask(UserInputService.InputEnded:Connect(function(input: InputObject): ()
+	if isDestroyed then return end
+
+	if input.KeyCode == Enum.KeyCode.LeftShift then
+		running = false
+		if not attacking then
+			humanoid.WalkSpeed = GameConfig.Speed.WALK
+			updateState()
+		end
+	end
+end))
+
+local function destroy(): ()
+	if isDestroyed then return end
+	isDestroyed = true
+	attackMaid:DoCleaning()
+	maid:DoCleaning()
+	animController:Destroy()
+end
+
+maid:GiveTask(humanoid.Died:Connect(destroy))
+maid:GiveTask(character.Destroying:Connect(destroy))`,
+        'CombatHandler.luau': `--!strict
+local Players: Players = game:GetService("Players")
+local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared: Folder = ReplicatedStorage:WaitForChild("Shared") :: Folder
+local GameConfig = require(Shared:WaitForChild("GameConfig") :: ModuleScript)
+local HitboxSystem = require(script.Parent:WaitForChild("HitboxSystem") :: ModuleScript)
+local VFXSystem = require(script.Parent:WaitForChild("VFXSystem") :: ModuleScript)
+
+local combatEvent: RemoteEvent = Instance.new("RemoteEvent")
+combatEvent.Name = "CombatEvent"
+combatEvent.Parent = ReplicatedStorage
+
+local cooldowns: {[Player]: number} = {}
+
+Players.PlayerRemoving:Connect(function(player: Player): ()
+	cooldowns[player] = nil
+end)
+
+combatEvent.OnServerEvent:Connect(function(player: Player, action: unknown, isRunning: unknown): ()
+	if type(action) ~= "string" or type(isRunning) ~= "boolean" then return end
+	if action ~= "M1" and action ~= "M2" then return end
+
+	local now: number = os.clock()
+	local last: number = cooldowns[player] or 0
+	if now - last < GameConfig.Combat.COOLDOWN then return end
+
+	local character: Model? = player.Character
+	if not character then return end
+
+	local humanoid: Humanoid? = character:FindFirstChildOfClass("Humanoid")
+	local rootPart: BasePart? = character:FindFirstChild("HumanoidRootPart") :: BasePart?
+
+	if not humanoid or not rootPart then return end
+	if humanoid.Health <= 0 then return end
+
+	cooldowns[player] = now
+
+	local isM1: boolean = (action == "M1")
+	local runBonus: boolean = isRunning :: boolean
+
+	local capturedChar: Model = character :: Model
+	local capturedHum: Humanoid = humanoid :: Humanoid
+	local capturedRoot: BasePart = rootPart :: BasePart
+
+	task.delay(GameConfig.Combat.VFX_DELAY, function(): ()
+		if not capturedChar.Parent then return end
+		if not capturedRoot.Parent then return end
+		if capturedHum.Health <= 0 then return end
+
+		VFXSystem.PlayComboVFX(capturedRoot, isM1)
+		HitboxSystem.CreateHitbox(capturedChar, capturedRoot, runBonus)
+	end)
+end)`,
+        'HitboxSystem.luau': `--!strict
+local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Debris: Debris = game:GetService("Debris")
+
+local Shared: Folder = ReplicatedStorage:WaitForChild("Shared") :: Folder
+local GameConfig = require(Shared:WaitForChild("GameConfig") :: ModuleScript)
+local VFXSystem = require(script.Parent:WaitForChild("VFXSystem") :: ModuleScript)
+
+local hitboxTemplate: BasePart = ReplicatedStorage:WaitForChild("Hitbox") :: BasePart
+
+local HitboxSystem = {}
+
+function HitboxSystem.CreateHitbox(attackerChar: Model, attackerRoot: BasePart, runBonus: boolean): ()
+	local hitbox: BasePart = hitboxTemplate:Clone() :: BasePart
+	hitbox.CanQuery = false
+	hitbox.CanTouch = true
+
+	local weld: Weld = Instance.new("Weld")
+	weld.Part0 = attackerRoot
+	weld.Part1 = hitbox
+	weld.C1 = CFrame.new(0, 0, 3)
+	weld.Parent = hitbox
+
+	hitbox.Parent = attackerRoot
+	Debris:AddItem(hitbox, GameConfig.Combat.HITBOX_LIFETIME)
+
+	local hitList: {[Humanoid]: boolean} = {}
+	local conn: RBXScriptConnection
+
+	conn = hitbox.Touched:Connect(function(hit: BasePart): ()
+		local enemyChar: Model? = hit.Parent :: Model?
+		if not enemyChar or enemyChar == attackerChar then return end
+
+		local eHum: Humanoid? = enemyChar:FindFirstChildOfClass("Humanoid")
+		local eRoot: BasePart? = enemyChar:FindFirstChild("HumanoidRootPart") :: BasePart?
+
+		if not eHum or not eRoot then return end
+		if eHum.Health <= 0 then return end
+		if hitList[eHum] then return end
+		hitList[eHum] = true
+
+		local dmg: number = if runBonus then GameConfig.Combat.DAMAGE * GameConfig.Combat.RUN_DAMAGE_MULT else GameConfig.Combat.DAMAGE
+		local kb: number = if runBonus then GameConfig.Combat.KNOCKBACK * GameConfig.Combat.RUN_KNOCKBACK_MULT else GameConfig.Combat.KNOCKBACK
+
+		eHum:TakeDamage(dmg)
+		VFXSystem.PlayHitVFX(enemyChar)
+		VFXSystem.ApplyKnockback(attackerRoot, eRoot, kb)
+	end)
+
+	task.delay(GameConfig.Combat.HITBOX_ACTIVE, function(): ()
+		if conn.Connected then
+			conn:Disconnect()
+		end
+	end)
+end
+
+return table.freeze(HitboxSystem)`,
+      }
     }
   };
 
