@@ -51,7 +51,8 @@
       </div>
     </section>
 
-    <section id="skills" class="section skills" aria-label="Skills">
+    <div class="portfolio-showcase">
+      <section id="skills" class="section skills" aria-label="Skills">
       <div class="section__container">
         <h2 class="section__title reveal">What I Do</h2>
         <div class="filter-tags" role="group" aria-label="Filter skills by category">
@@ -309,25 +310,97 @@
       <div class="section__container">
         <h2 class="section__title reveal">Demos</h2>
         <div class="demos-grid">
-          <div class="demo-card glass-panel reveal">
-            <div class="demo-card__video"><iframe src="https://streamable.com/o/nl37p6" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe></div>
-            <p class="demo-card__label">Basic Plot System</p>
-          </div>
-          <div class="demo-card glass-panel reveal">
-            <div class="demo-card__video"><iframe src="https://streamable.com/o/bdoe39" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe></div>
-            <p class="demo-card__label">Notification System</p>
-          </div>
-          <div class="demo-card glass-panel reveal">
-            <div class="demo-card__video"><iframe src="https://streamable.com/o/wqxnn2" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe></div>
-            <p class="demo-card__label">Dead Rails — Drag, Weight &amp; Throw</p>
-          </div>
-          <div class="demo-card glass-panel reveal">
-            <div class="demo-card__video"><iframe src="https://streamable.com/o/8mtol1" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe></div>
-            <p class="demo-card__label">M1 Combat Articulation</p>
-          </div>
+          <article class="demo-card glass-panel reveal">
+            <div class="demo-card__device">
+              <div class="demo-card__notch"></div>
+              <div class="demo-card__video">
+                <iframe src="https://streamable.com/o/nl37p6" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe>
+              </div>
+            </div>
+            <div class="demo-card__content">
+              <h3 class="demo-card__title">Basic Plot System</h3>
+              <p class="demo-card__desc">Server-side Luau tycoon plot system featuring strict type safety, per-player debounce protection, automatic plot release on disconnect, and real-time visual feedback.</p>
+              <a href="#projects" class="demo-card__explore">
+                Explore Project
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+              </a>
+              <div class="demo-card__tags">
+                <span class="tag">System</span>
+                <span class="tag">Tycoon</span>
+                <span class="tag">Luau</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="demo-card glass-panel reveal">
+            <div class="demo-card__device">
+              <div class="demo-card__notch"></div>
+              <div class="demo-card__video">
+                <iframe src="https://streamable.com/o/bdoe39" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe>
+              </div>
+            </div>
+            <div class="demo-card__content">
+              <h3 class="demo-card__title">Notification System</h3>
+              <p class="demo-card__desc">Queue controller with tween-based animations, destroyed-instance protection, per-coroutine cancellation flags, safe yield checkpoints. Handles Gamepass and shop purchase events.</p>
+              <a href="#projects" class="demo-card__explore">
+                Explore Project
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+              </a>
+              <div class="demo-card__tags">
+                <span class="tag">System</span>
+                <span class="tag">UI</span>
+                <span class="tag">Animation</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="demo-card glass-panel reveal">
+            <div class="demo-card__device">
+              <div class="demo-card__notch"></div>
+              <div class="demo-card__video">
+                <iframe src="https://streamable.com/o/wqxnn2" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe>
+              </div>
+            </div>
+            <div class="demo-card__content">
+              <h3 class="demo-card__title">Dead Rails — Drag, Weight &amp; Throw</h3>
+              <p class="demo-card__desc">Multiplayer first-person drag, weight, and throw system in --!strict Luau. Parts carry a Weight attribute — heavier parts reduce AlignPosition responsiveness proportionally. SelectionBox outline interpolates between light and heavy colours for instant visual feedback. Throw velocity computed from a sliding time-window of DragAttachment.WorldPosition deltas, scaled and capped by weight server-side.</p>
+              <a href="#projects" class="demo-card__explore">
+                Explore Project
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+              </a>
+              <div class="demo-card__tags">
+                <span class="tag">Multiplayer Mechanics</span>
+                <span class="tag">Physics</span>
+                <span class="tag">First-Person</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="demo-card glass-panel reveal">
+            <div class="demo-card__device">
+              <div class="demo-card__notch"></div>
+              <div class="demo-card__video">
+                <iframe src="https://streamable.com/o/8mtol1" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe>
+              </div>
+            </div>
+            <div class="demo-card__content">
+              <h3 class="demo-card__title">M1 Combat Articulation</h3>
+              <p class="demo-card__desc">Fully typed M1 combat articulation with animation graph integration, hitbox system, and VFX pipeline. Built strictly with --!strict Luau throughout.</p>
+              <a href="#projects" class="demo-card__explore">
+                Explore Project
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+              </a>
+              <div class="demo-card__tags">
+                <span class="tag">Combat System</span>
+                <span class="tag">VFX</span>
+                <span class="tag">Animation</span>
+              </div>
+            </div>
+          </article>
         </div>
       </div>
     </section>
+    </div>
 
     <section id="about" class="section" aria-label="About">
       <div class="section__container">
