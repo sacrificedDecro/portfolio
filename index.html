@@ -3,26 +3,34 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Ray — Roblox Developer & Luau Scripter. Available for commissions and team roles.">
-  <title>Ray · Roblox Developer</title>
+  <meta name="description" content="Decro — Roblox Developer & Luau Scripter. Available for commissions and team roles.">
+  <title>Decro · Roblox Developer</title>
   <link rel="stylesheet" href="styles/main.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
   <link rel="icon" type="image/png" href="assets/Dimage.png">
   <link rel="apple-touch-icon" href="assets/Dimage.png">
 </head>
 <body>
 
+  <div id="scrollProgress"></div>
+
+  <div class="bg-orbs" aria-hidden="true">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+
   <nav class="nav" id="nav" role="navigation" aria-label="Main navigation">
     <div class="nav__container">
-      <a href="#hero" class="nav__logo">PORTFOLIO</a>
+      <a href="#hero" class="nav__logo">x90xcs</a>
       <ul class="nav__links" role="list">
         <li><a href="#skills"   class="nav__link">Skills</a></li>
         <li><a href="#projects" class="nav__link">Projects</a></li>
         <li><a href="#demos"    class="nav__link">Demos</a></li>
         <li><a href="#about"    class="nav__link">About</a></li>
-        <li><a href="#contact"  class="nav__link">Contact</a></li>
+        <li><a href="#contact"  class="nav__link contact-cta">Contact</a></li>
       </ul>
     </div>
   </nav>
@@ -31,32 +39,21 @@
 
     <section id="hero" class="section hero" aria-label="Introduction">
       <div class="hero__content">
-
         <div class="hero__badges">
-          <span class="badge badge--open">Open for Work</span>
+          <span class="badge badge--open"><span class="badge__dot"></span>Open for Work</span>
         </div>
-
-        <h1 class="hero__heading">
-          Hello.<br>I'm <span class="hero__name">Ray</span>.
-        </h1>
-
+        <h1 class="hero__heading">Hello.<br>I'm <span class="hero__name">Decro</span>.</h1>
         <p class="hero__subline">Roblox Developer · Luau Scripting</p>
-
         <div class="hero__buttons">
-          <a href="#projects" class="btn btn--outline">See My Work</a>
-          <a href="#contact"  class="btn btn--outline">Contact</a>
+          <a href="#projects" class="btn btn--primary">See My Work</a>
+          <a href="#contact"  class="btn btn--ghost">Hire Me</a>
         </div>
-
       </div>
     </section>
 
-    <div class="divider-wrapper"><hr class="section-divider"></div>
-
     <section id="skills" class="section skills" aria-label="Skills">
       <div class="section__container">
-
         <h2 class="section__title reveal">What I Do</h2>
-
         <div class="filter-tags" role="group" aria-label="Filter skills by category">
           <button class="filter-tag active" data-filter="all"      aria-pressed="true">All</button>
           <button class="filter-tag"        data-filter="backend"  aria-pressed="false">Backend</button>
@@ -64,41 +61,58 @@
           <button class="filter-tag"        data-filter="ui"       aria-pressed="false">UI</button>
           <button class="filter-tag"        data-filter="economy"  aria-pressed="false">Economy</button>
         </div>
-
         <div class="skills__grid" id="skillsGrid">
 
           <div class="skill-card glass-panel reveal" data-category="backend">
-            <span class="skill-card__icon" aria-hidden="true"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5.5" width="22" height="17" rx="1.5"/><path d="M7 12 L10 14.5 L7 17"/><line x1="13" y1="17" x2="20" y2="17"/></svg></span>
+            <div class="skill-card__top">
+              <div class="skill-card__icon" aria-hidden="true"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5.5" width="22" height="17" rx="1.5"/><path d="M7 12 L10 14.5 L7 17"/><line x1="13" y1="17" x2="20" y2="17"/></svg></div>
+              <span class="skill-card__category">Backend</span>
+            </div>
             <h3 class="skill-card__title">Luau Scripting</h3>
             <p class="skill-card__desc">Clean, optimized Luau code. Server/client architecture, remote events, and modular design patterns for scalable games.</p>
           </div>
 
           <div class="skill-card glass-panel reveal" data-category="gameplay">
-            <span class="skill-card__icon" aria-hidden="true"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="8" r="2.5"/><circle cx="21" cy="8" r="2.5"/><circle cx="14" cy="21" r="2.5"/><line x1="9.5" y1="8" x2="18.5" y2="8"/><line x1="8.3" y1="10.3" x2="12.6" y2="18.6"/><line x1="19.7" y1="10.3" x2="15.4" y2="18.6"/></svg></span>
+            <div class="skill-card__top">
+              <div class="skill-card__icon" aria-hidden="true"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="8" r="2.5"/><circle cx="21" cy="8" r="2.5"/><circle cx="14" cy="21" r="2.5"/><line x1="9.5" y1="8" x2="18.5" y2="8"/><line x1="8.3" y1="10.3" x2="12.6" y2="18.6"/><line x1="19.7" y1="10.3" x2="15.4" y2="18.6"/></svg></div>
+              <span class="skill-card__category">Gameplay</span>
+            </div>
             <h3 class="skill-card__title">Game Systems</h3>
             <p class="skill-card__desc">Combat loops, stat systems, round managers, and core gameplay mechanics built from scratch with performance in mind.</p>
           </div>
 
           <div class="skill-card glass-panel reveal" data-category="ui">
-            <span class="skill-card__icon" aria-hidden="true"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="21" height="18" rx="1.5"/><line x1="3.5" y1="9.5" x2="24.5" y2="9.5"/><rect x="6.5" y="12" width="8" height="8" rx="0.6"/><line x1="17" y1="13" x2="22" y2="13"/><line x1="17" y1="16" x2="22" y2="16"/><line x1="17" y1="19" x2="20" y2="19"/></svg></span>
+            <div class="skill-card__top">
+              <div class="skill-card__icon" aria-hidden="true"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="21" height="18" rx="1.5"/><line x1="3.5" y1="9.5" x2="24.5" y2="9.5"/><rect x="6.5" y="12" width="8" height="8" rx="0.6"/><line x1="17" y1="13" x2="22" y2="13"/><line x1="17" y1="16" x2="22" y2="16"/><line x1="17" y1="19" x2="20" y2="19"/></svg></div>
+              <span class="skill-card__category">UI</span>
+            </div>
             <h3 class="skill-card__title">UI Design</h3>
-            <p class="skill-card__desc">Full understanding of Roblox GUI architecture — I program interfaces from scratch: layouts, tweens, state logic, screen-size handling, and dynamic element behavior.</p>
+            <p class="skill-card__desc">Full understanding of Roblox GUI architecture — interfaces from scratch: layouts, tweens, state logic, screen-size handling, and dynamic element behavior.</p>
           </div>
 
           <div class="skill-card glass-panel reveal" data-category="economy">
-            <span class="skill-card__icon" aria-hidden="true"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="14" y1="5" x2="14" y2="22"/><line x1="5" y1="9" x2="23" y2="9"/><line x1="7" y1="9" x2="7" y2="12"/><line x1="21" y1="9" x2="21" y2="12"/><path d="M3 16 L7 12 L11 16"/><path d="M17 16 L21 12 L25 16"/><line x1="10" y1="22" x2="18" y2="22"/></svg></span>
+            <div class="skill-card__top">
+              <div class="skill-card__icon" aria-hidden="true"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="14" y1="5" x2="14" y2="22"/><line x1="5" y1="9" x2="23" y2="9"/><line x1="7" y1="9" x2="7" y2="12"/><line x1="21" y1="9" x2="21" y2="12"/><path d="M3 16 L7 12 L11 16"/><path d="M17 16 L21 12 L25 16"/><line x1="10" y1="22" x2="18" y2="22"/></svg></div>
+              <span class="skill-card__category">Economy</span>
+            </div>
             <h3 class="skill-card__title">Economy Logic</h3>
             <p class="skill-card__desc">Currency systems, shop frameworks, pricing logic, and anti-exploit item validation that keeps economies balanced.</p>
           </div>
 
           <div class="skill-card glass-panel reveal" data-category="backend">
-            <span class="skill-card__icon" aria-hidden="true"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="14" cy="6.5" rx="8.5" ry="2.2"/><path d="M5.5 6.5 V11.5 C5.5 12.7 9.3 13.7 14 13.7 C18.7 13.7 22.5 12.7 22.5 11.5 V6.5"/><path d="M5.5 13 V17.5 C5.5 18.7 9.3 19.7 14 19.7 C18.7 19.7 22.5 18.7 22.5 17.5 V13"/><path d="M5.5 19 V22.5 C5.5 23.7 9.3 24.5 14 24.5 C18.7 24.5 22.5 23.7 22.5 22.5 V19"/></svg></span>
+            <div class="skill-card__top">
+              <div class="skill-card__icon" aria-hidden="true"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="14" cy="6.5" rx="8.5" ry="2.2"/><path d="M5.5 6.5 V11.5 C5.5 12.7 9.3 13.7 14 13.7 C18.7 13.7 22.5 12.7 22.5 11.5 V6.5"/><path d="M5.5 13 V17.5 C5.5 18.7 9.3 19.7 14 19.7 C18.7 19.7 22.5 18.7 22.5 17.5 V13"/><path d="M5.5 19 V22.5 C5.5 23.7 9.3 24.5 14 24.5 C18.7 24.5 22.5 23.7 22.5 22.5 V19"/></svg></div>
+              <span class="skill-card__category">Backend</span>
+            </div>
             <h3 class="skill-card__title">DataStores</h3>
             <p class="skill-card__desc">Persistent player data with retry logic, session locking, and ProfileService or DataStore2 integration.</p>
           </div>
 
           <div class="skill-card glass-panel reveal" data-category="economy">
-            <span class="skill-card__icon" aria-hidden="true"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,22 9,17 14,19 19,12"/><polygon points="19,7 22.5,12 19,17 15.5,12"/></svg></span>
+            <div class="skill-card__top">
+              <div class="skill-card__icon" aria-hidden="true"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,22 9,17 14,19 19,12"/><polygon points="19,7 22.5,12 19,17 15.5,12"/></svg></div>
+              <span class="skill-card__category">Economy</span>
+            </div>
             <h3 class="skill-card__title">Monetization</h3>
             <p class="skill-card__desc">Robux pass handling, developer product pipelines, and full monetization flow design that maximises conversion.</p>
           </div>
@@ -109,260 +123,291 @@
 
     <section id="projects" class="section projects" aria-label="Projects">
       <div class="section__container">
-
         <h2 class="section__title reveal">Projects</h2>
-
         <div class="cards-grid">
 
-          <div class="project-card glass-panel reveal">
-            <div class="project-card__header">
-              <span class="role-badge">
-                <a href="https://gist.github.com/sacrificedDecro/7eb59ec4697bad413cd20cc461dd9d01" target="_blank" rel="noopener noreferrer">EXPLORE THE STRUCTURE</a>
-              </span>
-              <button class="preview-btn" data-project="round" aria-label="Preview Round System code">PREVIEW</button>
-            </div>
+          <article class="project-card glass-panel reveal">
+            <div class="project-card__label">System</div>
             <h3 class="project-card__title">Round System</h3>
-            <p class="project-card__desc">A server-authoritative round-based PvP system for Roblox in --!strict Luau. RoundManager drives a four-state machine (Lobby → Intermission → InGame → Cleanup), without memory leaks and backdoors, fully scripted by me.</p>
-          </div>
-
-          <div class="project-card glass-panel reveal">
-            <div class="project-card__header">
-              <span class="role-badge">
-                <a href="https://gist.github.com/sacrificedDecro/3f80a350e6a4511e2817621df8eac588" target="_blank" rel="noopener noreferrer">EXPLORE THE STRUCTURE</a>
-              </span>
-              <button class="preview-btn" data-project="plot" aria-label="Preview Basic Plot System code">PREVIEW</button>
+            <p class="project-card__desc">A server-authoritative round-based PvP system in --!strict Luau. RoundManager drives a four-state machine (Lobby → Intermission → InGame → Cleanup), without memory leaks and backdoors.</p>
+            <div class="project-card__footer">
+              <button class="project-card__preview preview-btn" data-project="round" aria-label="Preview Round System code">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                Preview
+              </button>
+              <a href="https://gist.github.com/sacrificedDecro/7eb59ec4697bad413cd20cc461dd9d01" target="_blank" rel="noopener noreferrer" class="project-card__gist">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                Gist
+              </a>
             </div>
+          </article>
+
+          <article class="project-card glass-panel reveal">
+            <div class="project-card__label">System</div>
             <h3 class="project-card__title">Basic Plot System</h3>
-            <p class="project-card__desc">Server-side Luau tycoon plot system featuring strict type safety, per-player debounce protection, automatic plot release on disconnect, and real-time visual feedback through dynamic sign text and pad color updates.</p>
-          </div>
-
-          <div class="project-card glass-panel reveal">
-            <div class="project-card__header">
-              <span class="role-badge">
-                <a href="https://gist.github.com/sacrificedDecro/ac9bc9d842d4a33aef86f86a40dcf044" target="_blank" rel="noopener noreferrer">EXPLORE THE STRUCTURE</a>
-              </span>
-              <button class="preview-btn" data-project="notify" aria-label="Preview Notification System code">PREVIEW</button>
+            <p class="project-card__desc">Server-side Luau tycoon plot system featuring strict type safety, per-player debounce protection, automatic plot release on disconnect, and real-time visual feedback.</p>
+            <div class="project-card__footer">
+              <button class="project-card__preview preview-btn" data-project="plot" aria-label="Preview Basic Plot System code">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                Preview
+              </button>
+              <a href="https://gist.github.com/sacrificedDecro/3f80a350e6a4511e2817621df8eac588" target="_blank" rel="noopener noreferrer" class="project-card__gist">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                Gist
+              </a>
             </div>
+          </article>
+
+          <article class="project-card glass-panel reveal">
+            <div class="project-card__label">System</div>
             <h3 class="project-card__title">Notification System</h3>
-            <p class="project-card__desc">Notification queue controller with tween-based animations, destroyed-instance protection, per-coroutine cancellation flags, safe yield checkpoints, and correct text propagation to nested GUI descendants. Handles Gamepass and shop purchase events — reads what was bought and fires a contextual in-game notification.</p>
-          </div>
-
-          <div class="project-card glass-panel reveal">
-            <div class="project-card__header">
-              <span class="role-badge">
-                <a href="https://gist.github.com/sacrificedDecro/42ada689bc15c418644a2b7e1ce0173a" target="_blank" rel="noopener noreferrer">EXPLORE THE STRUCTURE</a>
-              </span>
-              <button class="preview-btn" data-project="cooking" aria-label="Preview Cooking System code">PREVIEW</button>
+            <p class="project-card__desc">Queue controller with tween-based animations, destroyed-instance protection, per-coroutine cancellation flags, safe yield checkpoints. Handles Gamepass and shop purchase events.</p>
+            <div class="project-card__footer">
+              <button class="project-card__preview preview-btn" data-project="notify" aria-label="Preview Notification System code">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                Preview
+              </button>
+              <a href="https://gist.github.com/sacrificedDecro/ac9bc9d842d4a33aef86f86a40dcf044" target="_blank" rel="noopener noreferrer" class="project-card__gist">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                Gist
+              </a>
             </div>
+          </article>
+
+          <article class="project-card glass-panel reveal">
+            <div class="project-card__label">System</div>
             <h3 class="project-card__title">Cooking System</h3>
-            <p class="project-card__desc">Server-side crafting chain built in --!strict Luau. Players collect world props — MixingPot, TabBinder, EnergyExtract — via ProximityPrompt interactions, place the pot on a table slot, then add both ingredients sequentially. Per-player CraftState tracks every step. Tween-based fade animations handle prop spawning and removal. Tool inventory persists across character death via a pendingTools queue restored on CharacterAdded. All constants centralised in a typed GameConfig module.</p>
-          </div>
-
-          <div class="project-card project-card--span2 glass-panel reveal">
-            <div class="project-card__header">
-              <span class="role-badge">
-                <a href="https://gist.github.com/sacrificedDecro/20b67d9f3e166fccc1449c2b63b5a0cd" target="_blank" rel="noopener noreferrer">EXPLORE THE STRUCTURE</a>
-              </span>
-              <button class="preview-btn" data-project="drag-throw" aria-label="Preview Drag System with throw code">PREVIEW</button>
+            <p class="project-card__desc">Server-side crafting chain in --!strict Luau. ProximityPrompt interactions, per-player CraftState, tween-based fade animations, pendingTools queue restored on CharacterAdded.</p>
+            <div class="project-card__footer">
+              <button class="project-card__preview preview-btn" data-project="cooking" aria-label="Preview Cooking System code">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                Preview
+              </button>
+              <a href="https://gist.github.com/sacrificedDecro/42ada689bc15c418644a2b7e1ce0173a" target="_blank" rel="noopener noreferrer" class="project-card__gist">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                Gist
+              </a>
             </div>
-            <h3 class="project-card__title">Dead Rails Drag System + Throw and Weight ( multiplayer )</h3>
-            <p class="project-card__desc">A multiplayer first-person drag, weight, and throw system written in full --!strict Luau with a centralised GameConfig ModuleScript as the single source of truth for all constants and shared utilities. Parts carry a Weight attribute initialised per-object by the server; heavier parts reduce AlignPosition responsiveness and max velocity proportionally, creating authentic physical resistance during drag. The SelectionBox outline interpolates between configurable light and heavy colours, giving instant visual weight feedback before the player even grabs an object. On release, the client computes throw velocity from a sliding time-window sample of DragAttachment.WorldPosition deltas, sends it to the server, which scales and caps it by weight before applying AssemblyLinearVelocity.</p>
-          </div>
+          </article>
 
-          <div class="project-card project-card--wide glass-panel reveal">
-            <div class="project-card__header">
-              <span class="role-badge">
-                <a href="https://gist.github.com/sacrificedDecro/7195e6ca69e56347a1506a33294cb57a" target="_blank" rel="noopener noreferrer">EXPLORE THE STRUCTURE</a>
-              </span>
-              <button class="preview-btn" data-project="tink" aria-label="Preview Tink framework code">PREVIEW</button>
+          <article class="project-card project-card--span2 glass-panel reveal">
+            <div class="project-card__label">Multiplayer Mechanics</div>
+            <h3 class="project-card__title">Dead Rails — Drag, Weight &amp; Throw</h3>
+            <p class="project-card__desc">Multiplayer first-person drag, weight, and throw system in --!strict Luau. Parts carry a Weight attribute — heavier parts reduce AlignPosition responsiveness proportionally. SelectionBox outline interpolates between light and heavy colours for instant visual feedback. Throw velocity computed from a sliding time-window of DragAttachment.WorldPosition deltas, scaled and capped by weight server-side.</p>
+            <div class="project-card__footer">
+              <button class="project-card__preview preview-btn" data-project="drag-throw" aria-label="Preview Drag System code">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                Preview
+              </button>
+              <a href="https://gist.github.com/sacrificedDecro/20b67d9f3e166fccc1449c2b63b5a0cd" target="_blank" rel="noopener noreferrer" class="project-card__gist">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                Gist
+              </a>
             </div>
-            <h3 class="project-card__title">Tink</h3>
-            <p class="project-card__desc">Strictly-typed Roblox game framework — a modern replacement for the archived Knit. Built with --!strict throughout. Supports Services, Controllers, RemoteSignals, UnreliableRemoteSignals, and RemoteProperties out of the box. No archived dependencies.</p>
-            <pre class="tink-tree"><code>ReplicatedStorage/
-└── Spark/
-    ├── Spark
-    ├── Signal
-    ├── Network
-    ├── Service
-    ├── Controller
-    └── Promise
+          </article>
 
-ReplicatedStorage/
-└── Controllers/
+          <article class="project-card project-card--wide glass-panel reveal">
+            <div class="project-card__wide-inner">
+              <div class="project-card__wide-text">
+                <div class="project-card__label">Framework</div>
+                <h3 class="project-card__title">Tink</h3>
+                <p class="project-card__desc">Strictly-typed Roblox game framework — a modern replacement for the archived Knit. Built with --!strict throughout. Supports Services, Controllers, RemoteSignals, UnreliableRemoteSignals, and RemoteProperties out of the box.</p>
+                <div class="project-card__footer">
+                  <button class="project-card__preview preview-btn" data-project="tink" aria-label="Preview Tink framework code">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                    Preview
+                  </button>
+                  <a href="https://gist.github.com/sacrificedDecro/7195e6ca69e56347a1506a33294cb57a" target="_blank" rel="noopener noreferrer" class="project-card__gist">
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                    Gist
+                  </a>
+                </div>
+              </div>
+              <div class="file-tree">
+                <div class="file-tree__bar">
+                  <span class="file-tree__bar-dot"></span>
+                  <span class="file-tree__bar-dot"></span>
+                  <span class="file-tree__bar-dot"></span>
+                  <span class="file-tree__bar-title">structure</span>
+                </div>
+                <pre class="file-tree__body"><code><span class="ft-dir">ReplicatedStorage/</span>
+└── <span class="ft-dir">Spark/</span>
+    ├── <span class="ft-mod">Spark</span>
+    ├── <span class="ft-mod">Signal</span>
+    ├── <span class="ft-mod">Network</span>
+    ├── <span class="ft-mod">Service</span>
+    ├── <span class="ft-mod">Controller</span>
+    └── <span class="ft-mod">Promise</span>
 
-ServerScriptService/
-├── Server
-└── Services/
+<span class="ft-dir">ReplicatedStorage/</span>
+└── <span class="ft-dir">Controllers/</span>
 
-StarterPlayer/
-└── StarterPlayerScripts/
-    └── Client</code></pre>
-          </div>
+<span class="ft-dir">ServerScriptService/</span>
+├── <span class="ft-script">Server</span>
+└── <span class="ft-dir">Services/</span>
 
-          <div class="project-card project-card--wide glass-panel reveal">
-            <div class="project-card__header">
-              <span class="role-badge">
-                <a href="https://gist.github.com/sacrificedDecro/e9d4bbaf3840596210cce41dcdb298d8" target="_blank" rel="noopener noreferrer">EXPLORE THE STRUCTURE</a>
-              </span>
-              <button class="preview-btn" data-project="m1" aria-label="Preview M1 System code">PREVIEW</button>
+<span class="ft-dir">StarterPlayer/</span>
+└── <span class="ft-dir">StarterPlayerScripts/</span>
+    └── <span class="ft-local">Client</span></code></pre>
+              </div>
             </div>
-            <h3 class="project-card__title">M1 System</h3>
-            <p class="project-card__desc">strong and fully strongly typed articulation for M1</p>
-            <pre class="tink-tree"><code>ReplicatedStorage/
-├── AnimationGraphEditor/
-├── Shared/
-│   ├── AnimationController       ← ModuleScript
-│   ├── GameConfig                ← ModuleScript
-│   └── Maid                      ← ModuleScript
-├── combo1                        ← RemoteEvent
-├── combo2                        ← RemoteEvent
-└── Hitbox                        ← Part
+          </article>
 
-ServerScriptService/
-├── CombatHandler                 ← Script
-├── HitboxSystem                  ← ModuleScript
-└── VFXSystem                     ← ModuleScript
+          <article class="project-card project-card--wide glass-panel reveal">
+            <div class="project-card__wide-inner">
+              <div class="project-card__wide-text">
+                <div class="project-card__label">Combat System</div>
+                <h3 class="project-card__title">M1 System</h3>
+                <p class="project-card__desc">Fully typed M1 combat articulation with animation graph integration, hitbox system, and VFX pipeline. Built strictly with --!strict Luau throughout.</p>
+                <div class="project-card__footer">
+                  <button class="project-card__preview preview-btn" data-project="m1" aria-label="Preview M1 System code">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                    Preview
+                  </button>
+                  <a href="https://gist.github.com/sacrificedDecro/e9d4bbaf3840596210cce41dcdb298d8" target="_blank" rel="noopener noreferrer" class="project-card__gist">
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                    Gist
+                  </a>
+                </div>
+              </div>
+              <div class="file-tree">
+                <div class="file-tree__bar">
+                  <span class="file-tree__bar-dot"></span>
+                  <span class="file-tree__bar-dot"></span>
+                  <span class="file-tree__bar-dot"></span>
+                  <span class="file-tree__bar-title">structure</span>
+                </div>
+                <pre class="file-tree__body"><code><span class="ft-dir">ReplicatedStorage/</span>
+├── <span class="ft-dir">AnimationGraphEditor/</span>
+├── <span class="ft-dir">Shared/</span>
+│   ├── <span class="ft-mod">AnimationController</span>  <span class="ft-type">← ModuleScript</span>
+│   ├── <span class="ft-mod">GameConfig</span>           <span class="ft-type">← ModuleScript</span>
+│   └── <span class="ft-mod">Maid</span>                 <span class="ft-type">← ModuleScript</span>
+├── <span class="ft-remote">combo1</span>                   <span class="ft-type">← RemoteEvent</span>
+├── <span class="ft-remote">combo2</span>                   <span class="ft-type">← RemoteEvent</span>
+└── <span class="ft-part">Hitbox</span>                   <span class="ft-type">← Part</span>
 
-StarterPlayer/
-├── StarterCharacter/
-├── StarterCharacterScripts/
-│   ├── Animate                   ← LocalScript
-│   └── CombatController          ← LocalScript
-└── StarterPlayerScripts/</code></pre>
-          </div>
+<span class="ft-dir">ServerScriptService/</span>
+├── <span class="ft-script">CombatHandler</span>            <span class="ft-type">← Script</span>
+├── <span class="ft-mod">HitboxSystem</span>             <span class="ft-type">← ModuleScript</span>
+└── <span class="ft-mod">VFXSystem</span>                <span class="ft-type">← ModuleScript</span>
+
+<span class="ft-dir">StarterPlayer/</span>
+├── <span class="ft-dir">StarterCharacterScripts/</span>
+│   ├── <span class="ft-local">Animate</span>              <span class="ft-type">← LocalScript</span>
+│   └── <span class="ft-local">CombatController</span>     <span class="ft-type">← LocalScript</span>
+└── <span class="ft-dir">StarterPlayerScripts/</span></code></pre>
+              </div>
+            </div>
+          </article>
 
         </div>
       </div>
     </section>
-
-    <div class="divider-wrapper"><hr class="section-divider"></div>
 
     <section id="demos" class="section demos" aria-label="Demos">
       <div class="section__container">
-
         <h2 class="section__title reveal">Demos</h2>
-
         <div class="demos-grid">
-
           <div class="demo-card glass-panel reveal">
-            <div class="demo-card__video">
-              <iframe src="https://streamable.com/o/nl37p6" frameborder="0" allowfullscreen allow="autoplay"></iframe>
-            </div>
+            <div class="demo-card__video"><iframe src="https://streamable.com/o/nl37p6" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe></div>
             <p class="demo-card__label">Basic Plot System</p>
           </div>
-
           <div class="demo-card glass-panel reveal">
-            <div class="demo-card__video">
-              <iframe src="https://streamable.com/o/bdoe39" frameborder="0" allowfullscreen allow="autoplay"></iframe>
-            </div>
+            <div class="demo-card__video"><iframe src="https://streamable.com/o/bdoe39" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe></div>
             <p class="demo-card__label">Notification System</p>
           </div>
-
           <div class="demo-card glass-panel reveal">
-            <div class="demo-card__video">
-              <iframe src="https://streamable.com/o/wqxnn2" frameborder="0" allowfullscreen allow="autoplay"></iframe>
-            </div>
-            <p class="demo-card__label">Dead Rails Drag System + Throw and Weight</p>
+            <div class="demo-card__video"><iframe src="https://streamable.com/o/wqxnn2" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe></div>
+            <p class="demo-card__label">Dead Rails — Drag, Weight &amp; Throw</p>
           </div>
-
           <div class="demo-card glass-panel reveal">
-            <div class="demo-card__video">
-              <iframe src="https://streamable.com/o/8mtol1" frameborder="0" allowfullscreen allow="autoplay"></iframe>
-            </div>
-            <p class="demo-card__label">fully strongly typed articulation for M1</p>
+            <div class="demo-card__video"><iframe src="https://streamable.com/o/8mtol1" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe></div>
+            <p class="demo-card__label">M1 Combat Articulation</p>
           </div>
-
         </div>
-
       </div>
     </section>
-
-    <div class="divider-wrapper"><hr class="section-divider"></div>
 
     <section id="about" class="section" aria-label="About">
       <div class="section__container">
-
         <h2 class="section__title reveal">About</h2>
-
-        <div class="about__panels">
-
-          <div class="about__panel-group reveal">
-            <span class="about__label">// WHO I AM</span>
-            <div class="glass-panel about__panel">
-              <p>My name is Ray, I am 19 years old, and I am seriously interested in programming. I've been developing on Luau and Roblox for 3+ years. Not superficially — seriously. For all these years, I have been rebuilding and rewriting entire other people's systems so that at the moment I can write my monolithic systems for you.</p>
+        <div class="about__grid">
+          <div class="about__panel glass-panel reveal">
+            <span class="about__label">Who I am</span>
+            <p>My name is Decro, I am 19 years old, seriously interested in programming. I've been developing on Luau and Roblox for 3+ years — not superficially, seriously. For all these years I've been rebuilding and rewriting other people's systems to reach the level where I can now write monolithic systems from scratch.</p>
+          </div>
+          <div class="about__panel glass-panel reveal">
+            <span class="about__label">My Work</span>
+            <p>What you see here is a portion of my recent work — systems I built over the past few months across different projects. There's more that isn't shown, because it's still in development or simply not uploaded yet.</p>
+          </div>
+          <div class="about__panel glass-panel reveal">
+            <span class="about__label">Availability &amp; Payment</span>
+            <p>Available daily from 18:00 to 1:00 (UTC+3). I accept Robux, crypto, or card-to-card. Payment structure: 50% upfront + 50% on delivery, full prepayment, or per-task — whatever suits the project.</p>
+            <div class="about__tags">
+              <span class="tag">Roblox</span>
+              <span class="tag">Luau</span>
+              <span class="tag">Open for Work</span>
             </div>
           </div>
-
-          <div class="about__panel-group reveal">
-            <span class="about__label">// MY WORK</span>
-            <div class="glass-panel about__panel">
-              <p>What you see here is a portion of my recent work — systems I built over the past few months across different projects. There's more that isn't shown, because it's still in development, or simply not uploaded yet.</p>
-            </div>
-          </div>
-
-          <div class="about__panel-group reveal">
-            <span class="about__label">// AVAILABILITY & PAYMENT</span>
-            <div class="glass-panel about__panel">
-              <p>I am available daily from 18:00 to 1:00 in the time zone (UTC+3). I accept Robux, crypto or card to card for payment. I accept 50% of the payment in advance and 50% upon completion, full prepayment or payment for each task, depending on what suits the project.</p>
-            </div>
-          </div>
-
         </div>
-
-        <div class="about__tags reveal">
-          <span class="tag">Roblox</span>
-          <span class="tag">Luau</span>
-          <span class="tag">Open for Work</span>
-        </div>
-
       </div>
     </section>
 
-    <div class="divider-wrapper"><hr class="section-divider"></div>
-
     <section id="contact" class="section contact" aria-label="Contact">
       <div class="section__container contact__inner">
-
         <h2 class="section__title reveal">Let's Build Something</h2>
-
-        <p class="contact__desc reveal">
-          Available for Roblox scripting work — commissions, full-time team roles, or collaboration.
-          I build clean, scalable systems and deliver on time.
-        </p>
-
+        <p class="contact__desc reveal">Available for commissions, full-time team roles, and collaboration. I build clean, scalable systems and deliver on time.</p>
         <div class="contact-buttons reveal">
-          <a href="https://github.com/sacrificedDecro" target="_blank" rel="noopener noreferrer" class="btn-secondary">GITHUB</a>
-          <a href="https://discord.com/users/958059672076713995" class="btn btn--outline btn--discord" aria-label="Contact on Discord" target="_blank" rel="noopener noreferrer">
+          <a href="https://github.com/sacrificedDecro" target="_blank" rel="noopener noreferrer" class="contact-btn">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+            GitHub
+          </a>
+          <a href="https://discord.com/users/958059672076713995" target="_blank" rel="noopener noreferrer" class="contact-btn contact-btn--discord" aria-label="Contact on Discord">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M20.317 4.492c-1.53-.69-3.17-1.2-4.885-1.49a.075.075 0 0 0-.079.036c-.21.369-.444.85-.608 1.23a18.566 18.566 0 0 0-5.487 0 12.36 12.36 0 0 0-.617-1.23A.077.077 0 0 0 8.562 3c-1.714.29-3.354.8-4.885 1.491a.07.07 0 0 0-.032.027C.533 9.093-.32 13.555.099 17.961a.08.08 0 0 0 .031.055 20.03 20.03 0 0 0 5.993 2.98.078.078 0 0 0 .084-.026c.462-.62.874-1.275 1.226-1.963.021-.04.001-.088-.041-.104a13.201 13.201 0 0 1-1.872-.878.075.075 0 0 1-.008-.125c.126-.093.252-.19.372-.287a.075.075 0 0 1 .078-.01c3.927 1.764 8.18 1.764 12.061 0a.075.075 0 0 1 .079.009c.12.098.245.195.372.288a.075.075 0 0 1-.006.125c-.598.344-1.22.635-1.873.877a.075.075 0 0 0-.041.105c.36.687.772 1.341 1.225 1.962a.077.077 0 0 0 .084.028 19.963 19.963 0 0 0 6.002-2.981.076.076 0 0 0 .032-.054c.5-5.094-.838-9.52-3.549-13.442a.06.06 0 0 0-.031-.028z"/></svg>
             Discord
           </a>
-          <a href="https://www.roblox.com/users/2669200504/profile" target="_blank" rel="noopener noreferrer" class="btn-secondary">ROBLOX</a>
+          <a href="https://www.roblox.com/users/2669200504/profile" target="_blank" rel="noopener noreferrer" class="contact-btn">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M3.025 6.6L6.55 20.975 20.975 17.4 17.4 3.025zm9.66 4.822l2.477-.649.65 2.477-2.478.649z"/></svg>
+            Roblox
+          </a>
         </div>
-
         <div class="contact__tags reveal">
           <span class="tag">Roblox</span>
           <span class="tag">Luau</span>
           <span class="tag">Game Systems</span>
           <span class="tag">UI Logic</span>
         </div>
-
       </div>
     </section>
 
   </main>
 
   <footer class="footer" role="contentinfo">
-    <p>Made by <span class="footer__name">Ray</span> · 2026</p>
+    <p>Made by <span class="footer__name">Decro</span> · 2026</p>
   </footer>
 
   <div class="code-modal-overlay" id="codeModalOverlay" aria-hidden="true">
-    <div class="code-modal">
+    <div class="code-modal" role="dialog" aria-modal="true">
       <div class="code-modal__topbar">
+        <div class="code-modal__mac-buttons">
+          <button class="mac-btn mac-btn--close" id="codeModalClose" aria-label="Close preview"></button>
+          <button class="mac-btn mac-btn--min" aria-hidden="true"></button>
+          <button class="mac-btn mac-btn--max" aria-hidden="true"></button>
+        </div>
+        <div class="code-modal__tabs" id="codeModalTabs"></div>
         <span class="code-modal__title" id="codeModalTitle"></span>
-        <button class="code-modal__close" id="codeModalClose" aria-label="Close preview">×</button>
       </div>
       <div class="code-modal__body">
-        <div class="code-modal__sidebar" id="codeModalSidebar"></div>
+        <div class="code-modal__sidebar" id="codeModalSidebar">
+          <div class="code-modal__sidebar-section">Explorer</div>
+        </div>
         <div class="code-modal__code-panel" id="codeModalCodePanel"></div>
+      </div>
+      <div class="code-modal__status-bar">
+        <div class="code-modal__status-item"><div class="code-modal__status-dot"></div>Luau</div>
+        <div class="code-modal__status-item">--!strict</div>
+        <div class="code-modal__status-item">UTF-8</div>
       </div>
     </div>
   </div>
