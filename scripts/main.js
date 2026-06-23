@@ -6594,23 +6594,11 @@ return table.freeze(HitboxSystem)`,
   };
 
   function initNav() {
-    const nav     = $('#nav');
-    const links   = $$('.nav__link');
-    const targets = $$('section[id]');
-    const OFFSET  = 140;
+    const nav = $('#nav');
+    if (!nav) return;
 
     const onScroll = () => {
       nav.classList.toggle('scrolled', window.scrollY > 28);
-
-      let current = '';
-      for (const sec of targets) {
-        if (window.scrollY >= sec.offsetTop - OFFSET) current = sec.id;
-      }
-
-      for (const link of links) {
-        const isActive = link.getAttribute('href') === '#' + current;
-        link.classList.toggle('active', isActive);
-      }
     };
 
     window.addEventListener('scroll', onScroll, { passive: true });
@@ -6618,16 +6606,20 @@ return table.freeze(HitboxSystem)`,
   }
 
   function initScrollReveal() {
-    const items  = $$('.reveal');
-    const groups = $$('.skills__grid, .cards-grid, .demos-grid, .hero__content, .contact__inner, .about__panels');
+    const items = $$('.reveal');
+    const grids = $$('.skills__grid, .cards-grid, .demos-grid, .about__grid');
 
-    groups.forEach(grid => {
-      const kids = $$('.reveal', grid);
-      const slow = grid.classList.contains('hero__content') || grid.classList.contains('contact__inner');
-      const step = slow ? 120 : 90;
-      kids.forEach((el, i) => {
-        el.style.transitionDelay = `${i * step}ms`;
+    grids.forEach(grid => {
+      $$('.reveal', grid).forEach((el, i) => {
+        el.style.transitionDelay = (i * 0.06) + 's';
       });
+    });
+
+    const slowItems = $$('.hero__content .reveal, .contact__inner .reveal');
+    slowItems.forEach((el, i) => {
+      if (!el.style.transitionDelay) {
+        el.style.transitionDelay = `${i * 120}ms`;
+      }
     });
 
     const io = new IntersectionObserver(entries => {
@@ -6685,8 +6677,9 @@ return table.freeze(HitboxSystem)`,
     const closeBtn = $('#codeModalClose');
     const sidebar  = $('#codeModalSidebar');
     const panel    = $('#codeModalCodePanel');
+    const tabsEl   = $('#codeModalTabs');
 
-    if (!overlay || !panel) return;
+    if (!overlay || !panel || !titleEl || !closeBtn || !sidebar) return;
 
     const KW = new Set([
       'and','break','do','else','elseif','end','false','for','function',
@@ -6803,6 +6796,14 @@ return table.freeze(HitboxSystem)`,
       panel.scrollTop = 0;
     }
 
+    function selectFile(items, tabs, idx, proj, names) {
+      items.forEach(el => el.classList.remove('active'));
+      tabs.forEach(el => el.classList.remove('active'));
+      if (items[idx]) items[idx].classList.add('active');
+      if (tabs[idx]) tabs[idx].classList.add('active');
+      renderFile(proj.files[names[idx]]);
+    }
+
     function openModal(key) {
       const proj = projectFiles[key];
       if (!proj) return;
@@ -6810,17 +6811,38 @@ return table.freeze(HitboxSystem)`,
       const names = Object.keys(proj.files);
       titleEl.textContent = proj.name;
 
-      sidebar.innerHTML = '';
+      sidebar.innerHTML = '<div class="code-modal__sidebar-section">Explorer</div>';
+      if (tabsEl) tabsEl.innerHTML = '';
+
+      const items = [];
+      const tabs  = [];
+
       names.forEach((name, idx) => {
         const item = document.createElement('div');
         item.className = 'code-modal__file-item' + (idx === 0 ? ' active' : '');
-        item.textContent = name;
-        item.addEventListener('click', () => {
-          $$('.code-modal__file-item').forEach(el => el.classList.remove('active'));
-          item.classList.add('active');
-          renderFile(proj.files[name]);
-        });
+
+        const icon = document.createElement('div');
+        icon.className = 'code-modal__file-icon';
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'code-modal__file-name';
+        nameSpan.textContent = name;
+        item.appendChild(icon);
+        item.appendChild(nameSpan);
+        item.addEventListener('click', () => selectFile(items, tabs, idx, proj, names));
         sidebar.appendChild(item);
+        items.push(item);
+
+        if (tabsEl) {
+          const tab = document.createElement('div');
+          tab.className = 'code-modal__tab' + (idx === 0 ? ' active' : '');
+          const dot = document.createElement('span');
+          dot.className = 'code-modal__tab-dot';
+          tab.appendChild(dot);
+          tab.appendChild(document.createTextNode(name));
+          tab.addEventListener('click', () => selectFile(items, tabs, idx, proj, names));
+          tabsEl.appendChild(tab);
+          tabs.push(tab);
+        }
       });
 
       renderFile(proj.files[names[0]]);
@@ -6850,9 +6872,40 @@ return table.freeze(HitboxSystem)`,
     });
   }
 
+  function initScrollProgress() {
+    const bar = document.getElementById('scrollProgress');
+    if (!bar) return;
+    const update = () => {
+      const scrolled = window.scrollY;
+      const total = document.documentElement.scrollHeight - window.innerHeight;
+      bar.style.width = (total > 0 ? (scrolled / total) * 100 : 0) + '%';
+    };
+    window.addEventListener('scroll', update, { passive: true });
+    update();
+  }
+
+  function initActiveNav() {
+    const sections = $$('section[id]');
+    const links = $$('.nav__link');
+    if (!sections.length || !links.length) return;
+    const obs = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const id = entry.target.id;
+          links.forEach(l => {
+            l.classList.toggle('active', l.getAttribute('href') === '#' + id);
+          });
+        }
+      });
+    }, { rootMargin: '-40% 0px -55% 0px', threshold: 0 });
+    sections.forEach(s => obs.observe(s));
+  }
+
   initNav();
   initScrollReveal();
   initSkillFilter();
   initHeroBadges();
   initCodePreview();
+  initScrollProgress();
+  initActiveNav();
 })();
