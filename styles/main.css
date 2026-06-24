@@ -68,7 +68,7 @@ main,nav,footer,.code-modal-overlay{position:relative;z-index:10}
 .section{padding:var(--section-pad) var(--pad)}
 .section__container{max-width:var(--max-w);margin:0 auto}
 .section__title{font-size:clamp(2.2rem,4.5vw,3.2rem);font-weight:700;letter-spacing:-0.025em;color:var(--text);margin-bottom:3.5rem}
-#skills .section__title,#projects .section__title,#demos .section__title{text-align:center}
+.portfolio-showcase .section__title{text-align:center}
 
 .portfolio-showcase{position:relative;display:flex;flex-direction:column;gap:clamp(3rem,6vw,5rem);padding:clamp(4rem,7vw,6rem) 0}
 .portfolio-showcase .section{padding-top:0;padding-bottom:0}
@@ -171,13 +171,16 @@ main,nav,footer,.code-modal-overlay{position:relative;z-index:10}
 .demo-card__explore:hover svg{transform:translateX(3px)}
 .demo-card__tags{display:flex;flex-wrap:wrap;gap:0.5rem;padding-top:1.5rem;border-top:1px solid var(--border)}
 
-#about .section__container{display:flex;flex-direction:column;max-width:860px}
 .about__grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem}
-.about__panel{padding:2rem;display:flex;flex-direction:column;gap:1rem;transition:transform var(--snap),background-color var(--snap),border-color var(--snap),opacity 0.5s var(--ease)}
-.about__panel:hover{background:var(--surface-hover);border-color:var(--border-hover);transform:translateY(-3px)}
-.about__label{font-size:0.72rem;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:var(--label)}
-.about__panel p{font-size:0.95rem;line-height:1.7;color:var(--text-muted)}
-.about__tags{display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.5rem}
+.about__panel{padding:2.5rem;display:flex;flex-direction:column;gap:1.25rem;transition:transform var(--snap),background-color var(--snap),border-color var(--snap),box-shadow var(--snap),opacity 0.5s var(--ease)}
+.about__panel:hover{background:var(--surface-hover);border-color:var(--accent-border);transform:translateY(-6px);box-shadow:0 12px 40px rgba(110,107,252,0.12)}
+.about__panel-top{display:flex;align-items:center;gap:1.2rem;margin-bottom:0.5rem}
+.about__icon{width:48px;height:48px;border-radius:12px;background:var(--accent-soft);border:1px solid var(--accent-border);display:flex;align-items:center;justify-content:center;color:var(--accent);flex-shrink:0;transition:transform var(--snap),background-color var(--snap)}
+.about__panel:hover .about__icon{transform:scale(1.08);background:rgba(110,107,252,0.25)}
+.about__icon svg{width:24px;height:24px}
+.about__label{font-size:1.2rem;font-weight:700;letter-spacing:-0.015em;color:var(--text);margin:0}
+.about__panel p{font-size:1rem;line-height:1.75;color:var(--text);opacity:0.85;flex:1}
+.about__tags{display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:auto;padding-top:1.5rem;border-top:1px solid var(--border)}
 .tag{font-size:0.8rem;font-weight:500;padding:0.35rem 0.85rem;border:1px solid var(--border);border-radius:100px;color:var(--text-muted);background:rgba(255,255,255,0.02)}
 
 .contact__inner{max-width:640px;margin:0 auto;text-align:center}
