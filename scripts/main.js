@@ -6597,26 +6597,62 @@ return table.freeze(HitboxSystem)`,
     const nav = $('#nav');
     if (!nav) return;
 
+    let ticking = false;
     const onScroll = () => {
       nav.classList.toggle('scrolled', window.scrollY > 28);
+      ticking = false;
     };
 
-    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('scroll', () => {
+      if (!ticking) {
+        requestAnimationFrame(onScroll);
+        ticking = true;
+      }
+    }, { passive: true });
     onScroll();
   }
 
-  function initScrollReveal() {
-    const items = $$('.reveal');
-    const grids = $$('.skills__grid, .cards-grid, .demos-grid, .about__grid');
+  function initDrawer() {
+    const menuBtn = $('#menuBtn');
+    const drawer = $('#drawer');
+    const overlay = $('#drawerOverlay');
+    const closeBtn = $('#drawerClose');
+    if (!menuBtn || !drawer || !overlay) return;
 
+    function openDrawer() {
+      drawer.classList.add('open');
+      overlay.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeDrawer() {
+      drawer.classList.remove('open');
+      overlay.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+
+    menuBtn.addEventListener('click', openDrawer);
+    if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
+    overlay.addEventListener('click', closeDrawer);
+
+    $$('.drawer__link').forEach(link => {
+      link.addEventListener('click', closeDrawer);
+    });
+  }
+
+  function initScrollReveal() {
+    const items = $$('.reveal-el');
+    if (!items.length) return;
+
+    const grids = $$('.sys-grid, .demos-grid, .sk-grid, .pay-grid, .info-grid, .scope-row');
     grids.forEach(grid => {
-      $$('.reveal', grid).forEach((el, i) => {
+      $$('.reveal-el', grid).forEach((el, i) => {
         el.style.transitionDelay = (i * 0.06) + 's';
       });
     });
 
-    const slowItems = $$('.hero__content .reveal, .contact__inner .reveal');
-    slowItems.forEach((el, i) => {
+    const heroItems = $$('.hero__inner .reveal-el');
+    heroItems.forEach((el, i) => {
       if (!el.style.transitionDelay) {
         el.style.transitionDelay = `${i * 120}ms`;
       }
@@ -6625,50 +6661,12 @@ return table.freeze(HitboxSystem)`,
     const io = new IntersectionObserver(entries => {
       for (const entry of entries) {
         if (!entry.isIntersecting) continue;
-        entry.target.classList.add('visible');
+        entry.target.classList.add('revealed');
         io.unobserve(entry.target);
       }
     }, { threshold: 0.08, rootMargin: '0px 0px -50px 0px' });
 
     items.forEach(el => io.observe(el));
-  }
-
-  function initSkillFilter() {
-    const tags  = $$('.filter-tag');
-    const cards = $$('.skill-card');
-    if (!tags.length) return;
-
-    tags.forEach(tag => {
-      tag.addEventListener('click', () => {
-        const want = tag.dataset.filter;
-
-        for (const t of tags) {
-          const on = t === tag;
-          t.classList.toggle('active', on);
-          t.setAttribute('aria-pressed', on ? 'true' : 'false');
-        }
-
-        for (let i = 0; i < cards.length; i++) {
-          const card = cards[i];
-          const ok = want === 'all' || card.dataset.category === want;
-          card.classList.toggle('hidden', !ok);
-        }
-      });
-    });
-  }
-
-  function initHeroBadges() {
-    const badges = $$('.hero__badges .badge');
-    if (!badges.length) return;
-
-    badges.forEach((b, i) => {
-      b.style.setProperty('--badge-delay', `${300 + i * 120}ms`);
-      b.classList.add('badge--hidden');
-    });
-
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      badges.forEach(b => b.classList.remove('badge--hidden'));
-    }));
   }
 
   function initCodePreview() {
@@ -6875,12 +6873,20 @@ return table.freeze(HitboxSystem)`,
   function initScrollProgress() {
     const bar = document.getElementById('scrollProgress');
     if (!bar) return;
+    let ticking = false;
     const update = () => {
       const scrolled = window.scrollY;
       const total = document.documentElement.scrollHeight - window.innerHeight;
-      bar.style.width = (total > 0 ? (scrolled / total) * 100 : 0) + '%';
+      const ratio = total > 0 ? scrolled / total : 0;
+      bar.style.transform = 'scaleX(' + ratio + ')';
+      ticking = false;
     };
-    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('scroll', () => {
+      if (!ticking) {
+        requestAnimationFrame(update);
+        ticking = true;
+      }
+    }, { passive: true });
     update();
   }
 
@@ -6901,11 +6907,37 @@ return table.freeze(HitboxSystem)`,
     sections.forEach(s => obs.observe(s));
   }
 
+  function initDiscordCopy() {
+    const btn = $('#discordBtn');
+    if (!btn) return;
+
+    let toast = document.querySelector('.toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.innerHTML = '<i class="fa-solid fa-check"></i> Discord copied to clipboard!';
+      document.body.appendChild(toast);
+    }
+
+    let tOut;
+    btn.addEventListener('click', () => {
+      navigator.clipboard.writeText('x90xcs').then(() => {
+        toast.classList.add('show');
+        if (tOut) clearTimeout(tOut);
+        tOut = setTimeout(() => {
+          toast.classList.remove('show');
+        }, 2500);
+      }).catch(err => {
+        console.error('Failed to copy: ', err);
+      });
+    });
+  }
+
   initNav();
+  initDrawer();
   initScrollReveal();
-  initSkillFilter();
-  initHeroBadges();
   initCodePreview();
   initScrollProgress();
   initActiveNav();
+  initDiscordCopy();
 })();
