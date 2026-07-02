@@ -5,6 +5,556 @@
   const $$ = (sel, ctx) => Array.from((ctx || document).querySelectorAll(sel));
 
   const projectFiles = {
+    inventory: {
+      name: "Inventory Slot System",
+      files: {
+        "InventoryClient.luau": `--!strict
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterGui = game:GetService("StarterGui")
+
+type Config = {
+	MAX_SLOTS: number,
+	DATASTORE_NAME: string,
+	DATASTORE_KEY_PREFIX: string,
+	DROP_OFFSET: number,
+	VALID_ITEMS: { [string]: boolean },
+}
+
+task.spawn(function()
+	local success: boolean = false
+	while not success do
+		success = pcall(function()
+			StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
+		end)
+		if not success then
+			task.wait(0.1)
+		end
+	end
+end)
+
+local configModule: ModuleScript = ReplicatedStorage:WaitForChild("InventoryConfig") :: ModuleScript
+local InventoryConfig = require(configModule) :: Config
+
+local player: Player = Players.LocalPlayer
+local playerGui: PlayerGui = player:WaitForChild("PlayerGui") :: PlayerGui
+
+local remoteFolder: Folder = ReplicatedStorage:WaitForChild("InventoryRemotes") :: Folder
+local equipEvent: RemoteEvent = remoteFolder:WaitForChild("EquipEvent") :: RemoteEvent
+local dropEvent: RemoteEvent = remoteFolder:WaitForChild("DropEvent") :: RemoteEvent
+local syncEvent: RemoteEvent = remoteFolder:WaitForChild("SyncInventory") :: RemoteEvent
+local equippedSync: RemoteEvent = remoteFolder:WaitForChild("EquippedSync") :: RemoteEvent
+
+local inventoryGui: ScreenGui = playerGui:WaitForChild("Inventory") :: ScreenGui
+local container: Frame = inventoryGui:WaitForChild("InventoryContainer") :: Frame
+
+local helpGui: ScreenGui = playerGui:WaitForChild("Help") :: ScreenGui
+local helpFrame: Frame = helpGui:WaitForChild("Frame") :: Frame
+
+local slots: { [number]: GuiObject } = {}
+local slotLabels: { [number]: TextLabel } = {}
+
+for i = 1, InventoryConfig.MAX_SLOTS do
+	local slot: GuiObject = container:WaitForChild("slot" .. tostring(i)) :: GuiObject
+	slots[i] = slot
+	slotLabels[i] = slot:WaitForChild("ItemName") :: TextLabel
+end
+
+local localInventory: { [number]: string? } = {}
+local equippedSlot: number? = nil
+
+local DEFAULT_SLOT_COLOR: Color3 = Color3.fromRGB(60, 60, 60)
+local EQUIPPED_SLOT_COLOR: Color3 = Color3.fromRGB(80, 180, 80)
+
+local function updateUI()
+	for i = 1, InventoryConfig.MAX_SLOTS do
+		local itemName: string? = localInventory[i]
+		if itemName and itemName ~= "" then
+			slotLabels[i].Text = itemName
+		else
+			slotLabels[i].Text = ""
+		end
+
+		if equippedSlot == i then
+			slots[i].BackgroundColor3 = EQUIPPED_SLOT_COLOR
+		else
+			slots[i].BackgroundColor3 = DEFAULT_SLOT_COLOR
+		end
+	end
+
+	helpFrame.Visible = (equippedSlot ~= nil)
+end
+
+syncEvent.OnClientEvent:Connect(function(data: any, serverEquipped: any)
+	if type(data) ~= "table" then return end
+	for i = 1, InventoryConfig.MAX_SLOTS do
+		local val: any = data[i] or data[tostring(i)]
+		localInventory[i] = if type(val) == "string" then val else nil
+	end
+	equippedSlot = if type(serverEquipped) == "number" then serverEquipped else nil
+	updateUI()
+end)
+
+equippedSync.OnClientEvent:Connect(function(slotIndex: any)
+	equippedSlot = if type(slotIndex) == "number" then slotIndex else nil
+	updateUI()
+end)
+
+local function onSlotClicked(slotIndex: number)
+	local itemName: string? = localInventory[slotIndex]
+	if not itemName or itemName == "" then return end
+	equipEvent:FireServer(slotIndex)
+end
+
+for i = 1, InventoryConfig.MAX_SLOTS do
+	local slot: GuiObject = slots[i]
+	if slot:IsA("GuiButton") then
+		(slot :: GuiButton).Activated:Connect(function()
+			onSlotClicked(i)
+		end)
+	else
+		slot.InputBegan:Connect(function(input: InputObject)
+			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+				onSlotClicked(i)
+			end
+		end)
+	end
+end
+
+local KEY_MAP: { [Enum.KeyCode]: number } = {
+	[Enum.KeyCode.One] = 1,
+	[Enum.KeyCode.Two] = 2,
+	[Enum.KeyCode.Three] = 3,
+}
+
+UserInputService.InputBegan:Connect(function(input: InputObject, gameProcessed: boolean)
+	if gameProcessed then return end
+
+	if input.KeyCode == Enum.KeyCode.Q then
+		if equippedSlot then
+			dropEvent:FireServer()
+		end
+		return
+	end
+
+	local slotNum: number? = KEY_MAP[input.KeyCode]
+	if slotNum then
+		onSlotClicked(slotNum)
+	end
+end)
+
+helpFrame.Visible = false
+updateUI()`,
+
+        "InventoryConfig.luau": `--!strict
+export type Config = {
+	MAX_SLOTS: number,
+	DATASTORE_NAME: string,
+	DATASTORE_KEY_PREFIX: string,
+	DROP_OFFSET: number,
+	VALID_ITEMS: { [string]: boolean },
+}
+
+local InventoryConfig: Config = {
+	MAX_SLOTS = 3,
+	DATASTORE_NAME = "PlayerInventory_v1",
+	DATASTORE_KEY_PREFIX = "inv_",
+	DROP_OFFSET = 5,
+	VALID_ITEMS = {
+		Item1 = true,
+		Item2 = true,
+		Item3 = true,
+	},
+}
+
+table.freeze(InventoryConfig.VALID_ITEMS)
+table.freeze(InventoryConfig)
+
+return InventoryConfig`,
+
+        "InventoryServer.luau": `--!strict
+local Players = game:GetService("Players")
+local DataStoreService = game:GetService("DataStoreService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CollectionService = game:GetService("CollectionService")
+
+local templatesFolder: Folder = ReplicatedStorage:WaitForChild("ItemTemplates") :: Folder
+
+type Config = {
+	MAX_SLOTS: number,
+	DATASTORE_NAME: string,
+	DATASTORE_KEY_PREFIX: string,
+	DROP_OFFSET: number,
+	VALID_ITEMS: { [string]: boolean },
+}
+
+local configModule: ModuleScript = ReplicatedStorage:WaitForChild("InventoryConfig") :: ModuleScript
+local InventoryConfig = require(configModule) :: Config
+
+local dataStore: GlobalDataStore = DataStoreService:GetDataStore(InventoryConfig.DATASTORE_NAME)
+
+local remoteFolder: Folder = Instance.new("Folder")
+remoteFolder.Name = "InventoryRemotes"
+remoteFolder.Parent = ReplicatedStorage
+
+local equipEvent: RemoteEvent = Instance.new("RemoteEvent")
+equipEvent.Name = "EquipEvent"
+equipEvent.Parent = remoteFolder
+
+local dropEvent: RemoteEvent = Instance.new("RemoteEvent")
+dropEvent.Name = "DropEvent"
+dropEvent.Parent = remoteFolder
+
+local syncEvent: RemoteEvent = Instance.new("RemoteEvent")
+syncEvent.Name = "SyncInventory"
+syncEvent.Parent = remoteFolder
+
+local equippedSync: RemoteEvent = Instance.new("RemoteEvent")
+equippedSync.Name = "EquippedSync"
+equippedSync.Parent = remoteFolder
+
+type Inventory = { [number]: string? }
+
+local playerCache: { [Player]: Inventory? } = {}
+local playerEquipped: { [Player]: number? } = {}
+local saveLock: { [number]: boolean } = {}
+local activeSaves: number = 0
+
+local function createEmptyInventory(): Inventory
+	local inv: Inventory = {}
+	return inv
+end
+
+local function loadData(player: Player): Inventory?
+	local userId: number = player.UserId
+	local key: string = InventoryConfig.DATASTORE_KEY_PREFIX .. tostring(userId)
+	local success: boolean, result: any = pcall(function(): any
+		return dataStore:GetAsync(key)
+	end)
+
+	if not success then
+		warn(\`[InventoryServer] Load failed for {userId}: {tostring(result)}\`)
+		return nil
+	end
+
+	local inv: Inventory = createEmptyInventory()
+	if type(result) == "table" then
+		for i = 1, InventoryConfig.MAX_SLOTS do
+			local val: any = result[tostring(i)] or result[i]
+			if type(val) == "string" and InventoryConfig.VALID_ITEMS[val] then
+				inv[i] = val
+			end
+		end
+	end
+	return inv
+end
+
+local function saveData(player: Player)
+	local userId: number = player.UserId
+	if saveLock[userId] then return end
+	saveLock[userId] = true
+	activeSaves += 1
+
+	local inv: Inventory? = playerCache[player]
+	if not inv then
+		saveLock[userId] = false
+		activeSaves -= 1
+		return
+	end
+
+	local key: string = InventoryConfig.DATASTORE_KEY_PREFIX .. tostring(userId)
+	local saveTable: { [string]: string } = {}
+	for i = 1, InventoryConfig.MAX_SLOTS do
+		if inv[i] then
+			saveTable[tostring(i)] = inv[i] :: string
+		end
+	end
+
+	local success: boolean, err: any = pcall(function()
+		dataStore:UpdateAsync(key, function(_oldValue: any): any
+			return saveTable
+		end)
+	end)
+
+	if not success then
+		warn(\`[InventoryServer] Save failed for {userId}: {tostring(err)}\`)
+	end
+
+	saveLock[userId] = false
+	activeSaves -= 1
+end
+
+local function findFreeSlot(inv: Inventory): number?
+	for i = 1, InventoryConfig.MAX_SLOTS do
+		if not inv[i] then
+			return i
+		end
+	end
+	return nil
+end
+
+local function sendSync(player: Player)
+	if not player:IsDescendantOf(Players) then return end
+	local inv: Inventory? = playerCache[player]
+	if not inv then return end
+
+	local data: { [number]: string } = {}
+	for i = 1, InventoryConfig.MAX_SLOTS do
+		data[i] = inv[i] or ""
+	end
+	syncEvent:FireClient(player, data, playerEquipped[player])
+end
+
+local function destroyEquippedTool(player: Player)
+	local character: Model? = player.Character
+	if character then
+		for _, child: Instance in character:GetChildren() do
+			if child:IsA("Tool") and child:GetAttribute("InventorySlot") then
+				child:Destroy()
+			end
+		end
+	end
+	local backpack: Instance? = player:FindFirstChildOfClass("Backpack")
+	if backpack then
+		for _, child: Instance in backpack:GetChildren() do
+			if child:IsA("Tool") and child:GetAttribute("InventorySlot") then
+				child:Destroy()
+			end
+		end
+	end
+end
+
+local function createToolForItem(player: Player, itemName: string, slotIndex: number)
+	local character: Model? = player.Character
+	if not character then return end
+	local humanoid: Humanoid? = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid or humanoid.Health <= 0 then return end
+
+	destroyEquippedTool(player)
+
+	local tool: Tool = Instance.new("Tool")
+	tool.Name = itemName
+	tool.CanBeDropped = false
+	tool:SetAttribute("InventorySlot", slotIndex)
+	tool:SetAttribute("ItemName", itemName)
+
+	local template: Instance? = templatesFolder:FindFirstChild(itemName)
+	local handle: BasePart
+	if template and template:IsA("BasePart") then
+		handle = template:Clone()
+		handle.Name = "Handle"
+		handle.Anchored = false
+		handle.CanCollide = false
+		handle.Massless = true
+		handle.Parent = tool
+	else
+		handle = Instance.new("Part")
+		handle.Name = "Handle"
+		handle.Size = Vector3.new(1, 1, 1)
+		handle.BrickColor = BrickColor.new("Bright blue")
+		handle.Anchored = false
+		handle.CanCollide = false
+		handle.Massless = true
+		handle.Parent = tool
+	end
+
+	humanoid:EquipTool(tool)
+
+	playerEquipped[player] = slotIndex
+	equippedSync:FireClient(player, slotIndex)
+end
+
+local function onPromptTriggered(player: Player, itemPart: Instance)
+	if not itemPart:IsDescendantOf(workspace) then return end
+	if itemPart:GetAttribute("BeingPickedUp") then return end
+	itemPart:SetAttribute("BeingPickedUp", true)
+
+	local itemName: string = itemPart.Name
+	if not InventoryConfig.VALID_ITEMS[itemName] then
+		itemPart:SetAttribute("BeingPickedUp", nil)
+		return
+	end
+
+	local inv: Inventory? = playerCache[player]
+	if not inv then
+		itemPart:SetAttribute("BeingPickedUp", nil)
+		return
+	end
+
+	local slot: number? = findFreeSlot(inv)
+	if not slot then
+		itemPart:SetAttribute("BeingPickedUp", nil)
+		return
+	end
+
+	inv[slot] = itemName
+	itemPart:Destroy()
+	sendSync(player)
+end
+
+local function spawnWorldItem(itemName: string, position: Vector3)
+	local template: Instance? = templatesFolder:FindFirstChild(itemName)
+	local part: BasePart
+	if template and template:IsA("BasePart") then
+		part = template:Clone()
+		part.Anchored = false
+		part.Position = position
+	else
+		part = Instance.new("Part")
+		part.Name = itemName
+		part.Size = Vector3.new(2, 2, 2)
+		part.Anchored = false
+		part.CanCollide = true
+		part.Position = position
+		part.BrickColor = BrickColor.new("Bright blue")
+	end
+
+	local prompt: ProximityPrompt = Instance.new("ProximityPrompt")
+	prompt.ObjectText = itemName
+	prompt.ActionText = "Pick up"
+	prompt.HoldDuration = 0.5
+	prompt.MaxActivationDistance = 8
+	prompt.Parent = part
+
+	prompt.Triggered:Connect(function(triggerPlayer: Player)
+		onPromptTriggered(triggerPlayer, part)
+	end)
+
+	part.Parent = workspace
+end
+
+local function setupWorkspaceItems()
+	for _, child: Instance in workspace:GetDescendants() do
+		if child:IsA("ProximityPrompt") then
+			local prompt: ProximityPrompt = child
+			local parent: Instance? = prompt.Parent
+			if parent and InventoryConfig.VALID_ITEMS[parent.Name] then
+				prompt.Triggered:Connect(function(triggerPlayer: Player)
+					onPromptTriggered(triggerPlayer, parent)
+				end)
+			end
+		end
+	end
+end
+
+equipEvent.OnServerEvent:Connect(function(player: Player, slotIndex: any)
+	if type(slotIndex) ~= "number" then return end
+	local slotNum: number = math.floor(slotIndex)
+	if slotNum < 1 or slotNum > InventoryConfig.MAX_SLOTS then return end
+
+	local inv: Inventory? = playerCache[player]
+	if not inv then return end
+
+	local itemName: string? = inv[slotNum]
+	if not itemName then return end
+
+	if playerEquipped[player] == slotNum then
+		destroyEquippedTool(player)
+		playerEquipped[player] = nil
+		equippedSync:FireClient(player, nil)
+		return
+	end
+
+	createToolForItem(player, itemName, slotNum)
+end)
+
+dropEvent.OnServerEvent:Connect(function(player: Player)
+	local equippedSlot: number? = playerEquipped[player]
+	if not equippedSlot then return end
+
+	local inv: Inventory? = playerCache[player]
+	if not inv then return end
+
+	local itemName: string? = inv[equippedSlot]
+	if not itemName then return end
+
+	local character: Model? = player.Character
+	if not character then return end
+	local rootPart: BasePart? = character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not rootPart then return end
+
+	inv[equippedSlot] = nil
+	playerEquipped[player] = nil
+	destroyEquippedTool(player)
+
+	local dropPos: Vector3 = rootPart.Position + rootPart.CFrame.LookVector * InventoryConfig.DROP_OFFSET
+	spawnWorldItem(itemName, dropPos)
+
+	sendSync(player)
+end)
+
+local function onPlayerAdded(player: Player)
+	local inv: Inventory? = loadData(player)
+
+	if not player:IsDescendantOf(Players) then return end
+	
+	if not inv then
+		player:Kick("Data failed to load. Please rejoin.")
+		return
+	end
+
+	playerCache[player] = inv
+	playerEquipped[player] = nil
+
+	player.CharacterAdded:Connect(function(character: Model)
+		playerEquipped[player] = nil
+
+		local humanoid: Humanoid = character:WaitForChild("Humanoid", 10) :: Humanoid
+		if not humanoid then return end
+
+		task.defer(function()
+			if player:IsDescendantOf(Players) then
+				sendSync(player)
+			end
+		end)
+
+		humanoid.Died:Connect(function()
+			destroyEquippedTool(player)
+			playerEquipped[player] = nil
+			if player:IsDescendantOf(Players) then
+				equippedSync:FireClient(player, nil)
+			end
+		end)
+	end)
+
+	if player.Character then
+		task.defer(function()
+			sendSync(player)
+		end)
+	end
+end
+
+local function onPlayerRemoving(player: Player)
+	if playerCache[player] then
+		saveData(player)
+	end
+	playerCache[player] = nil
+	playerEquipped[player] = nil
+end
+
+Players.PlayerAdded:Connect(onPlayerAdded)
+Players.PlayerRemoving:Connect(onPlayerRemoving)
+
+for _, player: Player in Players:GetPlayers() do
+	task.spawn(onPlayerAdded, player)
+end
+
+game:BindToClose(function()
+	for player: Player, _ in pairs(playerCache) do
+		task.spawn(saveData, player)
+	end
+	
+	local maxWait: number = tick() + 5
+	while activeSaves > 0 and tick() < maxWait do
+		task.wait(0.1)
+	end
+end)
+
+setupWorkspaceItems()`
+      }
+    },
+
     round: {
       name: 'Round System',
       files: {
