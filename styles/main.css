@@ -548,7 +548,7 @@ nav a.active { color: var(--tx); background: rgba(255,255,255,0.06) }
 }
 
 .sys--wide {
-  grid-column: 1 / -1;
+  grid-column: span 2;
 }
 
 .sys::before {
@@ -569,6 +569,7 @@ nav a.active { color: var(--tx); background: rgba(255,255,255,0.06) }
 .sys:nth-child(5)::before { background: linear-gradient(90deg, var(--rose), transparent) }
 .sys:nth-child(6)::before { background: linear-gradient(90deg, var(--sky), transparent) }
 .sys:nth-child(7)::before { background: linear-gradient(90deg, var(--coral), var(--lavender), transparent) }
+.sys:nth-child(8)::before { background: linear-gradient(90deg, var(--sage), transparent) }
 
 .sys:hover::before { opacity: 1 }
 
@@ -606,6 +607,7 @@ nav a.active { color: var(--tx); background: rgba(255,255,255,0.06) }
 .sys:nth-child(5) .sys__ico { background: var(--rose-soft); color: var(--rose) }
 .sys:nth-child(6) .sys__ico { background: var(--sky-soft); color: var(--sky) }
 .sys:nth-child(7) .sys__ico { background: var(--coral-soft); color: var(--coral) }
+.sys:nth-child(8) .sys__ico { background: var(--sage-soft); color: var(--sage) }
 
 .sys__name {
   font-size: 1rem;
@@ -681,6 +683,13 @@ nav a.active { color: var(--tx); background: rgba(255,255,255,0.06) }
   transform: translateY(-5px);
   border-color: var(--gb-h);
   box-shadow: var(--shadow);
+}
+
+.demo-card--wide {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: 100%;
+  max-width: 530px;
 }
 
 .demo-card__device {
@@ -1343,6 +1352,8 @@ footer a:hover { color: var(--tx) }
 @media (max-width: 640px) {
   .sys-grid { grid-template-columns: 1fr }
   .demos-grid { grid-template-columns: 1fr }
+  .demo-card--wide { max-width: 100%; }
+  .sys--wide { grid-column: 1 / -1; }
   .info-grid { grid-template-columns: 1fr }
   .sk-grid { grid-template-columns: 1fr }
   .w { padding: 0 20px }
