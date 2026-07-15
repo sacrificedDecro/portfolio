@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>(function(){try{if(localStorage.getItem('theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}})();</script>
   <title>Decro — Roblox Developer</title>
   <meta name="description" content="Decro — Roblox Developer & Luau Scripter. Available for commissions and team roles.">
   <meta name="theme-color" content="#ef7f5a">
@@ -19,22 +20,23 @@
 </head>
 <body>
 
-  <div class="progress" id="scrollProgress"></div>
-
   <header id="nav">
     <a href="#hero" class="logo"><i>D</i> Decro</a>
-    <nav>
-      <ul>
-        <li><a href="#about" class="nav__link">About</a></li>
-        <li><a href="#projects" class="nav__link">Projects</a></li>
-        <li><a href="#demos" class="nav__link">Demos</a></li>
-        <li><a href="#studios" class="nav__link">Studios</a></li>
-        <li><a href="#scope" class="nav__link">Scope</a></li>
-        <li><a href="#payment" class="nav__link">Payment</a></li>
-        <li><a href="#contact" class="nav__link">Contact</a></li>
-      </ul>
-    </nav>
-    <button class="menu-btn" id="menuBtn" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
+    <div class="header__right">
+      <nav>
+        <ul>
+          <li><a href="#about" class="nav__link">About</a></li>
+          <li><a href="#projects" class="nav__link">Projects</a></li>
+          <li><a href="#demos" class="nav__link">Demos</a></li>
+          <li><a href="#studios" class="nav__link">Studios</a></li>
+          <li><a href="#scope" class="nav__link">Scope</a></li>
+          <li><a href="#payment" class="nav__link">Payment</a></li>
+          <li><a href="#contact" class="nav__link">Contact</a></li>
+        </ul>
+      </nav>
+      <button class="theme-toggle" id="themeToggle" aria-label="Switch to dark theme" aria-pressed="false"><i class="fa-solid fa-moon"></i></button>
+      <button class="menu-btn" id="menuBtn" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
+    </div>
   </header>
 
   <div class="drawer-overlay" id="drawerOverlay"></div>
@@ -308,7 +310,7 @@
 
           <div class="studio-card reveal-el">
             <div class="studio-card__top">
-              <div class="studio-card__ico"><i class="fa-solid fa-chess-rook"></i></div>
+              <div class="studio-card__ico"><img src="assets/phazmas.png" alt="PHAZMAS logo" width="40" height="40" loading="lazy"></div>
               <div class="studio-card__name">PHAZMAS</div>
             </div>
             <div class="studio-card__stats">
@@ -321,25 +323,31 @@
                 <span class="studio-stat__label">Visits</span>
               </div>
             </div>
-            <div class="studio-card__role"><i class="fa-solid fa-code"></i> Scripter</div>
+            <div class="studio-card__foot">
+              <div class="studio-card__role"><i class="fa-solid fa-code"></i> Scripter</div>
+              <a href="https://www.roblox.com/communities/35271588/PHAZMAS#!/about" target="_blank" rel="noopener noreferrer" class="studio-card__explore">Explore <i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+            </div>
           </div>
 
           <div class="studio-card reveal-el">
             <div class="studio-card__top">
-              <div class="studio-card__ico"><i class="fa-solid fa-broom"></i></div>
+              <div class="studio-card__ico"><img src="assets/tidyverse.png" alt="Tidyverse logo" width="40" height="40" loading="lazy"></div>
               <div class="studio-card__name">Tidyverse</div>
             </div>
             <div class="studio-card__stats">
               <div class="studio-stat">
-                <span class="studio-stat__num">280,000+</span>
+                <span class="studio-stat__num">320,000+</span>
                 <span class="studio-stat__label">Members</span>
               </div>
               <div class="studio-stat">
-                <span class="studio-stat__num">35M+</span>
+                <span class="studio-stat__num">40M+</span>
                 <span class="studio-stat__label">Visits</span>
               </div>
             </div>
-            <div class="studio-card__role"><i class="fa-solid fa-code"></i> Scripter</div>
+            <div class="studio-card__foot">
+              <div class="studio-card__role"><i class="fa-solid fa-code"></i> Scripter</div>
+              <a href="https://www.roblox.com/communities/685069423/Tidyverse#!/about" target="_blank" rel="noopener noreferrer" class="studio-card__explore">Explore <i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+            </div>
           </div>
 
         </div>
