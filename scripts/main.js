@@ -7420,26 +7420,6 @@ return table.freeze(HitboxSystem)`,
     });
   }
 
-  function initScrollProgress() {
-    const bar = document.getElementById('scrollProgress');
-    if (!bar) return;
-    let ticking = false;
-    const update = () => {
-      const scrolled = window.scrollY;
-      const total = document.documentElement.scrollHeight - window.innerHeight;
-      const ratio = total > 0 ? scrolled / total : 0;
-      bar.style.transform = 'scaleX(' + ratio + ')';
-      ticking = false;
-    };
-    window.addEventListener('scroll', () => {
-      if (!ticking) {
-        requestAnimationFrame(update);
-        ticking = true;
-      }
-    }, { passive: true });
-    update();
-  }
-
   function initActiveNav() {
     const sections = $$('section[id]');
     const links = $$('.nav__link');
@@ -7455,6 +7435,35 @@ return table.freeze(HitboxSystem)`,
       });
     }, { rootMargin: '-40% 0px -55% 0px', threshold: 0 });
     sections.forEach(s => obs.observe(s));
+  }
+
+  function initThemeToggle() {
+    const btn = $('#themeToggle');
+    if (!btn) return;
+    const icon = $('i', btn);
+    const root = document.documentElement;
+    const STORAGE_KEY = 'theme';
+
+    function applyState(theme) {
+      if (icon) icon.className = theme === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+      btn.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
+      btn.setAttribute('aria-label', theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme');
+    }
+
+    applyState(root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
+
+    btn.addEventListener('click', () => {
+      const next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      if (next === 'dark') {
+        root.setAttribute('data-theme', 'dark');
+      } else {
+        root.removeAttribute('data-theme');
+      }
+      try {
+        localStorage.setItem(STORAGE_KEY, next);
+      } catch (e) {}
+      applyState(next);
+    });
   }
 
   function initDiscordCopy() {
@@ -7487,7 +7496,7 @@ return table.freeze(HitboxSystem)`,
   initDrawer();
   initScrollReveal();
   initCodePreview();
-  initScrollProgress();
   initActiveNav();
+  initThemeToggle();
   initDiscordCopy();
 })();
