@@ -61,13 +61,13 @@
     <section id="hero" class="hero">
       <div class="w">
         <div class="hero__inner">
-          <div class="hero__badge reveal-el"><b></b> Open for Commissions</div>
+          <div class="hero__badge reveal-el"><b></b> Open for commissions</div>
           <h1 class="hero__h1 reveal-el">I'm <span class="gr">Decro</span></h1>
           <div class="hero__label reveal-el">Roblox Developer · Luau Scripting</div>
           <p class="hero__sub reveal-el">I focus on individual systems, not full games. Shops, NPCs, save systems, UIs, anything that size and self-contained.</p>
           <div class="hero__btns reveal-el">
-            <a href="#projects" class="btn btn--main"><i class="fa-solid fa-code"></i> <span>See My Work</span></a>
-            <a href="#contact" class="btn btn--sec"><i class="fa-regular fa-envelope"></i> Hire Me</a>
+            <a href="#projects" class="btn btn--main"><i class="fa-solid fa-code"></i> <span>See my work</span></a>
+            <a href="#contact" class="btn btn--sec"><i class="fa-regular fa-envelope"></i> Hire me</a>
           </div>
         </div>
       </div>
@@ -76,7 +76,7 @@
     <section id="about" class="sect sect--alt">
       <div class="w">
         <div class="tag reveal-el">About</div>
-        <h2 class="sect-h reveal-el">Who I Am</h2>
+        <h2 class="sect-h reveal-el">Who I am</h2>
         <div class="about-lay">
           <div class="about-p reveal-el">
             <p>I'm <strong>Decro</strong>, a Roblox scripter building clean, reliable systems.</p>
@@ -99,13 +99,13 @@
     <section id="projects" class="sect">
       <div class="w">
         <div class="tag reveal-el">Projects</div>
-        <h2 class="sect-h reveal-el">What I've Built</h2>
+        <h2 class="sect-h reveal-el">What I've built</h2>
         <div class="sys-grid">
 
           <div class="sys reveal-el">
             <div class="sys__body">
               <div class="sys__ico"><i class="fa-solid fa-rotate"></i></div>
-              <div class="sys__name">Round System</div>
+              <div class="sys__name">Round system</div>
               <div class="sys__desc">A server-authoritative round-based PvP system in --!strict Luau. RoundManager drives a four-state machine (Lobby → Intermission → InGame → Cleanup), without memory leaks and backdoors.</div>
               <div class="sys__actions">
                 <button class="sys__link preview-btn" data-project="round"><i class="fa-solid fa-code"></i> Preview</button>
@@ -117,8 +117,8 @@
           <div class="sys reveal-el">
             <div class="sys__body">
               <div class="sys__ico"><i class="fa-solid fa-map"></i></div>
-              <div class="sys__name">Basic Plot System</div>
-              <div class="sys__desc">Server-side Luau tycoon plot system featuring strict type safety, per-player debounce protection, automatic plot release on disconnect, and real-time visual feedback.</div>
+              <div class="sys__name">Basic plot system</div>
+              <div class="sys__desc">Server-side Luau tycoon plot system in --!strict Luau. Touch-to-claim pads show a live billboard with the owner's name, guarded by per-player debounce, with automatic release on disconnect and runtime plot registration via folder watchers.</div>
               <div class="sys__actions">
                 <button class="sys__link preview-btn" data-project="plot"><i class="fa-solid fa-code"></i> Preview</button>
                 <a href="https://gist.github.com/sacrificedDecro/3f80a350e6a4511e2817621df8eac588" target="_blank" rel="noopener noreferrer" class="sys__link sys__link--gist"><i class="fa-brands fa-github"></i> Gist</a>
@@ -129,7 +129,7 @@
           <div class="sys reveal-el">
             <div class="sys__body">
               <div class="sys__ico"><i class="fa-solid fa-bell"></i></div>
-              <div class="sys__name">Notification System</div>
+              <div class="sys__name">Notification system</div>
               <div class="sys__desc">Queue controller with tween-based animations, destroyed-instance protection, per-coroutine cancellation flags, safe yield checkpoints. Handles Gamepass and shop purchase events.</div>
               <div class="sys__actions">
                 <button class="sys__link preview-btn" data-project="notify"><i class="fa-solid fa-code"></i> Preview</button>
@@ -141,8 +141,8 @@
           <div class="sys reveal-el">
             <div class="sys__body">
               <div class="sys__ico"><i class="fa-solid fa-fire-burner"></i></div>
-              <div class="sys__name">Cooking System</div>
-              <div class="sys__desc">Server-side crafting chain in --!strict Luau. ProximityPrompt interactions, per-player CraftState, tween-based fade animations, pendingTools queue restored on CharacterAdded.</div>
+              <div class="sys__name">Cooking system</div>
+              <div class="sys__desc">Server-side crafting chain in --!strict Luau. A multi-step recipe flow — place the pot, add ingredients through context-aware prompts, collect the result — backed by pre-warmed prop respawns, weak-referenced tween cleanup, and multiplayer-safe shared-station logic.</div>
               <div class="sys__actions">
                 <button class="sys__link preview-btn" data-project="cooking"><i class="fa-solid fa-code"></i> Preview</button>
                 <a href="https://gist.github.com/sacrificedDecro/42ada689bc15c418644a2b7e1ce0173a" target="_blank" rel="noopener noreferrer" class="sys__link sys__link--gist"><i class="fa-brands fa-github"></i> Gist</a>
@@ -153,8 +153,8 @@
           <div class="sys reveal-el">
             <div class="sys__body">
               <div class="sys__ico"><i class="fa-solid fa-hand"></i></div>
-              <div class="sys__name">Dead Rails — Drag, Weight &amp; Throw</div>
-              <div class="sys__desc">Multiplayer first-person drag, weight, and throw system in --!strict Luau. Parts carry a Weight attribute — heavier parts reduce AlignPosition responsiveness proportionally.</div>
+              <div class="sys__name">Dead Rails — drag, weight &amp; throw</div>
+              <div class="sys__desc">Multiplayer first-person drag, weight, and throw system in --!strict Luau. Objects highlight green-to-red by weight, throws are computed from a rolling velocity sample with a speed cap, and drags release safely on death, destruction, or contested ownership.</div>
               <div class="sys__actions">
                 <button class="sys__link preview-btn" data-project="drag-throw"><i class="fa-solid fa-code"></i> Preview</button>
                 <a href="https://gist.github.com/sacrificedDecro/20b67d9f3e166fccc1449c2b63b5a0cd" target="_blank" rel="noopener noreferrer" class="sys__link sys__link--gist"><i class="fa-brands fa-github"></i> Gist</a>
@@ -165,8 +165,8 @@
           <div class="sys reveal-el">
             <div class="sys__body">
               <div class="sys__ico"><i class="fa-solid fa-fist-raised"></i></div>
-              <div class="sys__name">M1 Combat Articulation</div>
-              <div class="sys__desc">Fully typed M1 combat articulation with animation graph integration, hitbox system, and VFX pipeline. Built strictly with --!strict Luau throughout.</div>
+              <div class="sys__name">M1 combat articulation</div>
+              <div class="sys__desc">Fully typed M1 combat articulation in --!strict Luau. An alternating M1/M2 combo chain with a reset window, sprint-attack damage and knockback bonuses, distinct VFX per hit, and an Immortal-attribute safeguard for essential NPCs.</div>
               <div class="sys__actions">
                 <button class="sys__link preview-btn" data-project="m1"><i class="fa-solid fa-code"></i> Preview</button>
                 <a href="https://gist.github.com/sacrificedDecro/e9d4bbaf3840596210cce41dcdb298d8" target="_blank" rel="noopener noreferrer" class="sys__link sys__link--gist"><i class="fa-brands fa-github"></i> Gist</a>
@@ -177,7 +177,7 @@
           <div class="sys sys--wide reveal-el">
             <div class="sys__body">
               <div class="sys__ico"><i class="fa-solid fa-cubes"></i></div>
-              <div class="sys__name">Tink — Game Framework</div>
+              <div class="sys__name">Tink — game framework</div>
               <div class="sys__desc">Strictly-typed Roblox game framework — a modern replacement for the archived Knit. Built with --!strict throughout. Supports Services, Controllers, RemoteSignals, and RemoteProperties.</div>
               <div class="sys__actions">
                 <button class="sys__link preview-btn" data-project="tink"><i class="fa-solid fa-code"></i> Preview</button>
@@ -189,8 +189,8 @@
           <div class="sys reveal-el">
             <div class="sys__body">
               <div class="sys__ico"><i class="fa-solid fa-box-open"></i></div>
-              <div class="sys__name">Inventory slot system</div>
-              <div class="sys__desc">Server-authoritative inventory system in --!strict Luau. Features slot management, secure Datastore saving, equipped item replication, and physical item dropping via ProximityPrompts.</div>
+              <div class="sys__name">Custom inventory slot + custom interact system</div>
+              <div class="sys__desc">Server-authoritative inventory system in --!strict Luau. A custom CollectionService-based interact system replaces ProximityPrompt, with exploit-resistant pickup validation, DataStore saves guarded by BindToClose, and physical drop-and-repickup in the world.</div>
               <div class="sys__actions">
                 <button class="sys__link preview-btn" data-project="inventory"><i class="fa-solid fa-code"></i> Preview</button>
                 <a href="https://gist.github.com/sacrificedDecro/6efa8427d5a0e625de0174540d6203a0" target="_blank" rel="noopener noreferrer" class="sys__link sys__link--gist"><i class="fa-brands fa-github"></i> Gist</a>
@@ -205,36 +205,17 @@
     <section id="demos" class="sect sect--alt">
       <div class="w">
         <div class="tag reveal-el">Demos</div>
-        <h2 class="sect-h reveal-el">In Action</h2>
+        <h2 class="sect-h reveal-el">In action</h2>
         <div class="demos-grid">
 
           <div class="demo-card reveal-el">
             <div class="demo-card__device">
-              <div class="demo-card__notch"></div>
               <div class="demo-card__video">
-                <iframe src="https://streamable.com/o/nl37p6" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe>
+                <iframe src="https://streamable.com/o/jsyudz" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe>
               </div>
             </div>
             <div class="demo-card__body">
-              <div class="demo-card__title">Basic Plot System</div>
-              <div class="demo-card__desc">Server-side Luau tycoon plot system featuring strict type safety, per-player debounce protection, automatic plot release on disconnect.</div>
-              <div class="demo-card__tags">
-                <span class="pill">System</span>
-                <span class="pill">Tycoon</span>
-                <span class="pill">Luau</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="demo-card reveal-el">
-            <div class="demo-card__device">
-              <div class="demo-card__notch"></div>
-              <div class="demo-card__video">
-                <iframe src="https://streamable.com/o/bdoe39" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe>
-              </div>
-            </div>
-            <div class="demo-card__body">
-              <div class="demo-card__title">Shop System</div>
+              <div class="demo-card__title">Shop + playtime rewards system</div>
               <div class="demo-card__desc">Queue controller with tween-based animations, destroyed-instance protection, per-coroutine cancellation flags, safe yield checkpoints.</div>
               <div class="demo-card__tags">
                 <span class="pill">System</span>
@@ -246,13 +227,12 @@
 
           <div class="demo-card reveal-el">
             <div class="demo-card__device">
-              <div class="demo-card__notch"></div>
               <div class="demo-card__video">
-                <iframe src="https://streamable.com/o/wqxnn2" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe>
+                <iframe src="https://streamable.com/o/b4b3f0" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe>
               </div>
             </div>
             <div class="demo-card__body">
-              <div class="demo-card__title">Dead Rails — Drag, Weight &amp; Throw</div>
+              <div class="demo-card__title">Dead Rails — drag, weight &amp; throw</div>
               <div class="demo-card__desc">Multiplayer first-person drag, weight, and throw system. Parts carry a Weight attribute — heavier parts reduce AlignPosition responsiveness.</div>
               <div class="demo-card__tags">
                 <span class="pill">Multiplayer</span>
@@ -264,13 +244,12 @@
 
           <div class="demo-card reveal-el">
             <div class="demo-card__device">
-              <div class="demo-card__notch"></div>
               <div class="demo-card__video">
-                <iframe src="https://streamable.com/o/yjuyhz" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe>
+                <iframe src="https://streamable.com/o/3xmd55" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe>
               </div>
             </div>
             <div class="demo-card__body">
-              <div class="demo-card__title">M1 + Movement animations</div>
+              <div class="demo-card__title">M1 system</div>
               <div class="demo-card__desc">Fully typed M1 combat articulation with animation graph integration, hitbox system, and VFX pipeline.</div>
               <div class="demo-card__tags">
                 <span class="pill">Combat</span>
@@ -280,15 +259,14 @@
             </div>
           </div>
 
-          <div class="demo-card demo-card--wide reveal-el">
+          <div class="demo-card reveal-el">
             <div class="demo-card__device">
-              <div class="demo-card__notch"></div>
               <div class="demo-card__video">
-                <iframe src="https://streamable.com/o/8l61ui" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe>
+                <iframe src="https://streamable.com/o/kq97wc" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe>
               </div>
             </div>
             <div class="demo-card__body">
-              <div class="demo-card__title">Inventory slot system</div>
+              <div class="demo-card__title">Custom inventory slot + custom interact system</div>
               <div class="demo-card__desc">Fully typed secure inventory drop and slot system.</div>
               <div class="demo-card__tags">
                 <span class="pill">Inventory</span>
@@ -305,7 +283,7 @@
     <section id="studios" class="sect">
       <div class="w">
         <div class="tag reveal-el">Studios</div>
-        <h2 class="sect-h reveal-el">Which I Worked For</h2>
+        <h2 class="sect-h reveal-el">Which I worked for</h2>
         <div class="studio-grid">
 
           <div class="studio-card reveal-el">
@@ -340,7 +318,7 @@
                 <span class="studio-stat__label">Members</span>
               </div>
               <div class="studio-stat">
-                <span class="studio-stat__num">40M+</span>
+                <span class="studio-stat__num">45M+</span>
                 <span class="studio-stat__label">Visits</span>
               </div>
             </div>
@@ -358,7 +336,7 @@
       <div class="w">
         <div class="scope-intro reveal-el">
           <div class="tag">Scope</div>
-          <h2 class="sect-h">What I Take On</h2>
+          <h2 class="sect-h">What I take on</h2>
           <p>I work feature by feature, sometimes a small bundle of features that need each other (shop + inventory + save, combat + UI). Whole games and oversized asks are out of scope.</p>
         </div>
         <div class="scope-row">
@@ -404,7 +382,7 @@
     <section id="payment" class="sect sect--tint">
       <div class="w">
         <div class="tag reveal-el">Payment</div>
-        <h2 class="sect-h reveal-el">How I Work</h2>
+        <h2 class="sect-h reveal-el">How I work</h2>
         <p class="pay-intro reveal-el">Pay per task by default. Each commission gets broken into small pieces and you pay for each one as it's delivered. If you'd rather do a simple 50/50 (upfront and on delivery), that works too. No rev-share, no "pay when the game ships." Gift cards and crypto aren't accepted; ask if you have something else in mind.</p>
 
         <div class="info-grid">
@@ -444,7 +422,7 @@
 
     <section id="contact" class="cta">
       <div class="w">
-        <h2 class="cta-h reveal-el">Let's Build Something</h2>
+        <h2 class="cta-h reveal-el">Let's build something</h2>
         <p class="cta-p reveal-el">Available for commissions, full-time team roles, and collaboration. I build clean, scalable systems and deliver on time.</p>
         <div class="cta-btns reveal-el">
           <a href="https://github.com/sacrificedDecro" target="_blank" rel="noopener noreferrer" class="btn btn--sec"><i class="fa-brands fa-github"></i> GitHub</a>
