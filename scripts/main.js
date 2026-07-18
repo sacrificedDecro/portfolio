@@ -6,193 +6,26 @@
 
   const projectFiles = {
     inventory: {
-      name: "Inventory Slot System",
+      name: 'Custom inventory slot + custom interact system',
       files: {
-        "InventoryClient.luau": `--!strict
-local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local StarterGui = game:GetService("StarterGui")
-
-type Config = {
-	MAX_SLOTS: number,
-	DATASTORE_NAME: string,
-	DATASTORE_KEY_PREFIX: string,
-	DROP_OFFSET: number,
-	VALID_ITEMS: { [string]: boolean },
-}
-
-task.spawn(function()
-	local success: boolean = false
-	while not success do
-		success = pcall(function()
-			StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
-		end)
-		if not success then
-			task.wait(0.1)
-		end
-	end
-end)
-
-local configModule: ModuleScript = ReplicatedStorage:WaitForChild("InventoryConfig") :: ModuleScript
-local InventoryConfig = require(configModule) :: Config
-
-local player: Player = Players.LocalPlayer
-local playerGui: PlayerGui = player:WaitForChild("PlayerGui") :: PlayerGui
-
-local remoteFolder: Folder = ReplicatedStorage:WaitForChild("InventoryRemotes") :: Folder
-local equipEvent: RemoteEvent = remoteFolder:WaitForChild("EquipEvent") :: RemoteEvent
-local dropEvent: RemoteEvent = remoteFolder:WaitForChild("DropEvent") :: RemoteEvent
-local syncEvent: RemoteEvent = remoteFolder:WaitForChild("SyncInventory") :: RemoteEvent
-local equippedSync: RemoteEvent = remoteFolder:WaitForChild("EquippedSync") :: RemoteEvent
-
-local inventoryGui: ScreenGui = playerGui:WaitForChild("Inventory") :: ScreenGui
-local container: Frame = inventoryGui:WaitForChild("InventoryContainer") :: Frame
-
-local helpGui: ScreenGui = playerGui:WaitForChild("Help") :: ScreenGui
-local helpFrame: Frame = helpGui:WaitForChild("Frame") :: Frame
-
-local slots: { [number]: GuiObject } = {}
-local slotLabels: { [number]: TextLabel } = {}
-
-for i = 1, InventoryConfig.MAX_SLOTS do
-	local slot: GuiObject = container:WaitForChild("slot" .. tostring(i)) :: GuiObject
-	slots[i] = slot
-	slotLabels[i] = slot:WaitForChild("ItemName") :: TextLabel
-end
-
-local localInventory: { [number]: string? } = {}
-local equippedSlot: number? = nil
-
-local DEFAULT_SLOT_COLOR: Color3 = Color3.fromRGB(60, 60, 60)
-local EQUIPPED_SLOT_COLOR: Color3 = Color3.fromRGB(80, 180, 80)
-
-local function updateUI()
-	for i = 1, InventoryConfig.MAX_SLOTS do
-		local itemName: string? = localInventory[i]
-		if itemName and itemName ~= "" then
-			slotLabels[i].Text = itemName
-		else
-			slotLabels[i].Text = ""
-		end
-
-		if equippedSlot == i then
-			slots[i].BackgroundColor3 = EQUIPPED_SLOT_COLOR
-		else
-			slots[i].BackgroundColor3 = DEFAULT_SLOT_COLOR
-		end
-	end
-
-	helpFrame.Visible = (equippedSlot ~= nil)
-end
-
-syncEvent.OnClientEvent:Connect(function(data: any, serverEquipped: any)
-	if type(data) ~= "table" then return end
-	for i = 1, InventoryConfig.MAX_SLOTS do
-		local val: any = data[i] or data[tostring(i)]
-		localInventory[i] = if type(val) == "string" then val else nil
-	end
-	equippedSlot = if type(serverEquipped) == "number" then serverEquipped else nil
-	updateUI()
-end)
-
-equippedSync.OnClientEvent:Connect(function(slotIndex: any)
-	equippedSlot = if type(slotIndex) == "number" then slotIndex else nil
-	updateUI()
-end)
-
-local function onSlotClicked(slotIndex: number)
-	local itemName: string? = localInventory[slotIndex]
-	if not itemName or itemName == "" then return end
-	equipEvent:FireServer(slotIndex)
-end
-
-for i = 1, InventoryConfig.MAX_SLOTS do
-	local slot: GuiObject = slots[i]
-	if slot:IsA("GuiButton") then
-		(slot :: GuiButton).Activated:Connect(function()
-			onSlotClicked(i)
-		end)
-	else
-		slot.InputBegan:Connect(function(input: InputObject)
-			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-				onSlotClicked(i)
-			end
-		end)
-	end
-end
-
-local KEY_MAP: { [Enum.KeyCode]: number } = {
-	[Enum.KeyCode.One] = 1,
-	[Enum.KeyCode.Two] = 2,
-	[Enum.KeyCode.Three] = 3,
-}
-
-UserInputService.InputBegan:Connect(function(input: InputObject, gameProcessed: boolean)
-	if gameProcessed then return end
-
-	if input.KeyCode == Enum.KeyCode.Q then
-		if equippedSlot then
-			dropEvent:FireServer()
-		end
-		return
-	end
-
-	local slotNum: number? = KEY_MAP[input.KeyCode]
-	if slotNum then
-		onSlotClicked(slotNum)
-	end
-end)
-
-helpFrame.Visible = false
-updateUI()`,
-
-        "InventoryConfig.luau": `--!strict
-export type Config = {
-	MAX_SLOTS: number,
-	DATASTORE_NAME: string,
-	DATASTORE_KEY_PREFIX: string,
-	DROP_OFFSET: number,
-	VALID_ITEMS: { [string]: boolean },
-}
-
-local InventoryConfig: Config = {
-	MAX_SLOTS = 3,
-	DATASTORE_NAME = "PlayerInventory_v1",
-	DATASTORE_KEY_PREFIX = "inv_",
-	DROP_OFFSET = 5,
-	VALID_ITEMS = {
-		Item1 = true,
-		Item2 = true,
-		Item3 = true,
-	},
-}
-
-table.freeze(InventoryConfig.VALID_ITEMS)
-table.freeze(InventoryConfig)
-
-return InventoryConfig`,
-
-        "InventoryServer.luau": `--!strict
+        'InventoryServer.lua': `--!strict
 local Players = game:GetService("Players")
 local DataStoreService = game:GetService("DataStoreService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
 local CollectionService = game:GetService("CollectionService")
 
-local templatesFolder: Folder = ReplicatedStorage:WaitForChild("ItemTemplates") :: Folder
+local SERVER_DISTANCE_TOLERANCE = 5
+local PICKUP_COOLDOWN_SECONDS = 0.1
 
-type Config = {
-	MAX_SLOTS: number,
-	DATASTORE_NAME: string,
-	DATASTORE_KEY_PREFIX: string,
-	DROP_OFFSET: number,
-	VALID_ITEMS: { [string]: boolean },
-}
+local configModule: ModuleScript = ReplicatedStorage:WaitForChild("GameConfig") :: ModuleScript
+local GameConfig = require(configModule)
 
-local configModule: ModuleScript = ReplicatedStorage:WaitForChild("InventoryConfig") :: ModuleScript
-local InventoryConfig = require(configModule) :: Config
+local dataStore: GlobalDataStore = DataStoreService:GetDataStore(GameConfig.DATASTORE_NAME)
 
-local dataStore: GlobalDataStore = DataStoreService:GetDataStore(InventoryConfig.DATASTORE_NAME)
+local mastersFolder: Folder = Instance.new("Folder")
+mastersFolder.Name = "ItemMasters"
+mastersFolder.Parent = ServerStorage
 
 local remoteFolder: Folder = Instance.new("Folder")
 remoteFolder.Name = "InventoryRemotes"
@@ -214,12 +47,19 @@ local equippedSync: RemoteEvent = Instance.new("RemoteEvent")
 equippedSync.Name = "EquippedSync"
 equippedSync.Parent = remoteFolder
 
+local pickupEvent: RemoteEvent = Instance.new("RemoteEvent")
+pickupEvent.Name = "PickupEvent"
+pickupEvent.Parent = remoteFolder
+
 type Inventory = { [number]: string? }
 
 local playerCache: { [Player]: Inventory? } = {}
 local playerEquipped: { [Player]: number? } = {}
 local saveLock: { [number]: boolean } = {}
 local activeSaves: number = 0
+local itemMasters: { [string]: Instance } = {}
+local validItems: { [string]: boolean } = {}
+local pickupCooldown: { [Player]: number } = {}
 
 local function createEmptyInventory(): Inventory
 	local inv: Inventory = {}
@@ -228,7 +68,7 @@ end
 
 local function loadData(player: Player): Inventory?
 	local userId: number = player.UserId
-	local key: string = InventoryConfig.DATASTORE_KEY_PREFIX .. tostring(userId)
+	local key: string = GameConfig.DATASTORE_KEY_PREFIX .. tostring(userId)
 	local success: boolean, result: any = pcall(function(): any
 		return dataStore:GetAsync(key)
 	end)
@@ -240,9 +80,9 @@ local function loadData(player: Player): Inventory?
 
 	local inv: Inventory = createEmptyInventory()
 	if type(result) == "table" then
-		for i = 1, InventoryConfig.MAX_SLOTS do
+		for i = 1, GameConfig.MAX_SLOTS do
 			local val: any = result[tostring(i)] or result[i]
-			if type(val) == "string" and InventoryConfig.VALID_ITEMS[val] then
+			if type(val) == "string" and validItems[val] then
 				inv[i] = val
 			end
 		end
@@ -263,9 +103,9 @@ local function saveData(player: Player)
 		return
 	end
 
-	local key: string = InventoryConfig.DATASTORE_KEY_PREFIX .. tostring(userId)
+	local key: string = GameConfig.DATASTORE_KEY_PREFIX .. tostring(userId)
 	local saveTable: { [string]: string } = {}
-	for i = 1, InventoryConfig.MAX_SLOTS do
+	for i = 1, GameConfig.MAX_SLOTS do
 		if inv[i] then
 			saveTable[tostring(i)] = inv[i] :: string
 		end
@@ -286,12 +126,21 @@ local function saveData(player: Player)
 end
 
 local function findFreeSlot(inv: Inventory): number?
-	for i = 1, InventoryConfig.MAX_SLOTS do
+	for i = 1, GameConfig.MAX_SLOTS do
 		if not inv[i] then
 			return i
 		end
 	end
 	return nil
+end
+
+local function ownsItem(inv: Inventory, itemName: string): boolean
+	for i = 1, GameConfig.MAX_SLOTS do
+		if inv[i] == itemName then
+			return true
+		end
+	end
+	return false
 end
 
 local function sendSync(player: Player)
@@ -300,7 +149,7 @@ local function sendSync(player: Player)
 	if not inv then return end
 
 	local data: { [number]: string } = {}
-	for i = 1, InventoryConfig.MAX_SLOTS do
+	for i = 1, GameConfig.MAX_SLOTS do
 		data[i] = inv[i] or ""
 	end
 	syncEvent:FireClient(player, data, playerEquipped[player])
@@ -325,6 +174,14 @@ local function destroyEquippedTool(player: Player)
 	end
 end
 
+local function createHandleFromMaster(master: Instance): BasePart?
+	local basePart: BasePart? = GameConfig.resolveBasePart(master)
+	if not basePart then return nil end
+	local handle: BasePart = basePart:Clone()
+	handle.Name = "Handle"
+	return handle
+end
+
 local function createToolForItem(player: Player, itemName: string, slotIndex: number)
 	local character: Model? = player.Character
 	if not character then return end
@@ -339,25 +196,19 @@ local function createToolForItem(player: Player, itemName: string, slotIndex: nu
 	tool:SetAttribute("InventorySlot", slotIndex)
 	tool:SetAttribute("ItemName", itemName)
 
-	local template: Instance? = templatesFolder:FindFirstChild(itemName)
-	local handle: BasePart
-	if template and template:IsA("BasePart") then
-		handle = template:Clone()
-		handle.Name = "Handle"
-		handle.Anchored = false
-		handle.CanCollide = false
-		handle.Massless = true
-		handle.Parent = tool
-	else
+	local master: Instance? = itemMasters[itemName]
+	local handle: BasePart? = master and createHandleFromMaster(master)
+	if not handle then
 		handle = Instance.new("Part")
 		handle.Name = "Handle"
 		handle.Size = Vector3.new(1, 1, 1)
 		handle.BrickColor = BrickColor.new("Bright blue")
-		handle.Anchored = false
-		handle.CanCollide = false
-		handle.Massless = true
-		handle.Parent = tool
 	end
+
+	handle.Anchored = false
+	handle.CanCollide = false
+	handle.Massless = true
+	handle.Parent = tool
 
 	humanoid:EquipTool(tool)
 
@@ -365,19 +216,66 @@ local function createToolForItem(player: Player, itemName: string, slotIndex: nu
 	equippedSync:FireClient(player, slotIndex)
 end
 
-local function onPromptTriggered(player: Player, itemPart: Instance)
+local function captureMaster(itemName: string, itemInstance: Instance)
+	local master: Instance = itemInstance:Clone()
+	local masterPrompt: ProximityPrompt? = master:FindFirstChildOfClass("ProximityPrompt")
+	if masterPrompt then
+		masterPrompt:Destroy()
+	end
+	master:SetAttribute("BeingPickedUp", nil)
+	master.Name = itemName
+	master.Parent = mastersFolder
+	itemMasters[itemName] = master
+end
+
+local function attemptPickup(player: Player, itemPartArg: any)
+	if typeof(itemPartArg) ~= "Instance" then return end
+	local itemPart: Instance = itemPartArg
+
 	if not itemPart:IsDescendantOf(workspace) then return end
+	if not CollectionService:HasTag(itemPart, GameConfig.INTERACTABLE_TAG) then return end
 	if itemPart:GetAttribute("BeingPickedUp") then return end
 	itemPart:SetAttribute("BeingPickedUp", true)
 
 	local itemName: string = itemPart.Name
-	if not InventoryConfig.VALID_ITEMS[itemName] then
+	if not validItems[itemName] then
 		itemPart:SetAttribute("BeingPickedUp", nil)
 		return
 	end
 
+	local character: Model? = player.Character
+	local rootPart: BasePart? = character and (character:FindFirstChild("HumanoidRootPart") :: BasePart?)
+	local targetPart: BasePart? = GameConfig.resolveBasePart(itemPart)
+	if not character or not rootPart or not targetPart then
+		itemPart:SetAttribute("BeingPickedUp", nil)
+		return
+	end
+
+	local distance: number = (targetPart.Position - rootPart.Position).Magnitude
+	if distance > GameConfig.INTERACTION.MaxDistance + SERVER_DISTANCE_TOLERANCE then
+		itemPart:SetAttribute("BeingPickedUp", nil)
+		return
+	end
+
+	if GameConfig.INTERACTION.RequiresLineOfSight then
+		local ignoreList: { Instance } = { character }
+		for _, taggedInstance in CollectionService:GetTagged(GameConfig.INTERACTABLE_TAG) do
+			table.insert(ignoreList, taggedInstance)
+		end
+		local clear: boolean = GameConfig.hasLineOfSight(rootPart.Position, targetPart, ignoreList)
+		if not clear then
+			itemPart:SetAttribute("BeingPickedUp", nil)
+			return
+		end
+	end
+
 	local inv: Inventory? = playerCache[player]
 	if not inv then
+		itemPart:SetAttribute("BeingPickedUp", nil)
+		return
+	end
+
+	if ownsItem(inv, itemName) then
 		itemPart:SetAttribute("BeingPickedUp", nil)
 		return
 	end
@@ -394,54 +292,58 @@ local function onPromptTriggered(player: Player, itemPart: Instance)
 end
 
 local function spawnWorldItem(itemName: string, position: Vector3)
-	local template: Instance? = templatesFolder:FindFirstChild(itemName)
-	local part: BasePart
-	if template and template:IsA("BasePart") then
-		part = template:Clone()
-		part.Anchored = false
-		part.Position = position
+	local master: Instance? = itemMasters[itemName]
+	local masterPart: BasePart? = master and GameConfig.resolveBasePart(master)
+	local worldPart: BasePart
+	if masterPart then
+		worldPart = masterPart:Clone()
 	else
-		part = Instance.new("Part")
-		part.Name = itemName
-		part.Size = Vector3.new(2, 2, 2)
-		part.Anchored = false
-		part.CanCollide = true
-		part.Position = position
-		part.BrickColor = BrickColor.new("Bright blue")
+		worldPart = Instance.new("Part")
+		worldPart.Name = itemName
+		worldPart.Size = Vector3.new(2, 2, 2)
+		worldPart.CanCollide = true
+		worldPart.BrickColor = BrickColor.new("Bright blue")
 	end
 
-	local prompt: ProximityPrompt = Instance.new("ProximityPrompt")
-	prompt.ObjectText = itemName
-	prompt.ActionText = "Pick up"
-	prompt.HoldDuration = 0.5
-	prompt.MaxActivationDistance = 8
-	prompt.Parent = part
+	worldPart.Anchored = false
+	worldPart.Position = position
 
-	prompt.Triggered:Connect(function(triggerPlayer: Player)
-		onPromptTriggered(triggerPlayer, part)
-	end)
+	CollectionService:AddTag(worldPart, GameConfig.INTERACTABLE_TAG)
 
-	part.Parent = workspace
+	worldPart.Parent = workspace
 end
 
-local function setupWorkspaceItems()
-	for _, child: Instance in workspace:GetDescendants() do
-		if child:IsA("ProximityPrompt") then
-			local prompt: ProximityPrompt = child
-			local parent: Instance? = prompt.Parent
-			if parent and InventoryConfig.VALID_ITEMS[parent.Name] then
-				prompt.Triggered:Connect(function(triggerPlayer: Player)
-					onPromptTriggered(triggerPlayer, parent)
-				end)
-			end
+local function initializeItems()
+	local itemsFolder: Folder = GameConfig.getItemsFolder()
+	local itemNames: { string } = GameConfig.discoverItemNames(itemsFolder)
+
+	for _, itemName in itemNames do
+		local itemInstance: Instance? = itemsFolder:FindFirstChild(itemName)
+		local basePart: BasePart? = itemInstance and GameConfig.resolveBasePart(itemInstance)
+		if not itemInstance or not basePart then
+			continue
 		end
+
+		validItems[itemName] = true
+		captureMaster(itemName, itemInstance)
+
+		local oldPrompt: ProximityPrompt? = basePart:FindFirstChildOfClass("ProximityPrompt")
+		if oldPrompt then
+			oldPrompt:Destroy()
+		end
+
+		CollectionService:AddTag(itemInstance, GameConfig.INTERACTABLE_TAG)
 	end
+
+	table.freeze(validItems)
 end
+
+initializeItems()
 
 equipEvent.OnServerEvent:Connect(function(player: Player, slotIndex: any)
 	if type(slotIndex) ~= "number" then return end
 	local slotNum: number = math.floor(slotIndex)
-	if slotNum < 1 or slotNum > InventoryConfig.MAX_SLOTS then return end
+	if slotNum < 1 or slotNum > GameConfig.MAX_SLOTS then return end
 
 	local inv: Inventory? = playerCache[player]
 	if not inv then return end
@@ -457,6 +359,16 @@ equipEvent.OnServerEvent:Connect(function(player: Player, slotIndex: any)
 	end
 
 	createToolForItem(player, itemName, slotNum)
+end)
+
+pickupEvent.OnServerEvent:Connect(function(player: Player, itemPartArg: any)
+	local now: number = time()
+	local last: number? = pickupCooldown[player]
+	if last and now - last < PICKUP_COOLDOWN_SECONDS then
+		return
+	end
+	pickupCooldown[player] = now
+	attemptPickup(player, itemPartArg)
 end)
 
 dropEvent.OnServerEvent:Connect(function(player: Player)
@@ -478,7 +390,7 @@ dropEvent.OnServerEvent:Connect(function(player: Player)
 	playerEquipped[player] = nil
 	destroyEquippedTool(player)
 
-	local dropPos: Vector3 = rootPart.Position + rootPart.CFrame.LookVector * InventoryConfig.DROP_OFFSET
+	local dropPos: Vector3 = rootPart.Position + rootPart.CFrame.LookVector * GameConfig.DROP_OFFSET
 	spawnWorldItem(itemName, dropPos)
 
 	sendSync(player)
@@ -488,7 +400,7 @@ local function onPlayerAdded(player: Player)
 	local inv: Inventory? = loadData(player)
 
 	if not player:IsDescendantOf(Players) then return end
-	
+
 	if not inv then
 		player:Kick("Data failed to load. Please rejoin.")
 		return
@@ -531,6 +443,7 @@ local function onPlayerRemoving(player: Player)
 	end
 	playerCache[player] = nil
 	playerEquipped[player] = nil
+	pickupCooldown[player] = nil
 end
 
 Players.PlayerAdded:Connect(onPlayerAdded)
@@ -544,19 +457,377 @@ game:BindToClose(function()
 	for player: Player, _ in pairs(playerCache) do
 		task.spawn(saveData, player)
 	end
-	
+
 	local maxWait: number = tick() + 5
 	while activeSaves > 0 and tick() < maxWait do
 		task.wait(0.1)
 	end
+end)`,
+
+        'InventoryClient.lua': `--!strict
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterGui = game:GetService("StarterGui")
+
+task.spawn(function()
+	local success: boolean = false
+	while not success do
+		success = pcall(function()
+			StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
+		end)
+		if not success then
+			task.wait(0.1)
+		end
+	end
 end)
 
-setupWorkspaceItems()`
+local configModule: ModuleScript = ReplicatedStorage:WaitForChild("GameConfig") :: ModuleScript
+local GameConfig = require(configModule)
+
+local player: Player = Players.LocalPlayer
+local playerGui: PlayerGui = player:WaitForChild("PlayerGui") :: PlayerGui
+
+local remoteFolder: Folder = ReplicatedStorage:WaitForChild("InventoryRemotes") :: Folder
+local equipEvent: RemoteEvent = remoteFolder:WaitForChild("EquipEvent") :: RemoteEvent
+local dropEvent: RemoteEvent = remoteFolder:WaitForChild("DropEvent") :: RemoteEvent
+local syncEvent: RemoteEvent = remoteFolder:WaitForChild("SyncInventory") :: RemoteEvent
+local equippedSync: RemoteEvent = remoteFolder:WaitForChild("EquippedSync") :: RemoteEvent
+
+local inventoryGui: ScreenGui = playerGui:WaitForChild("Inventory") :: ScreenGui
+local container: Frame = inventoryGui:WaitForChild("InventoryContainer") :: Frame
+
+local helpGui: ScreenGui = playerGui:WaitForChild("Help") :: ScreenGui
+local helpFrame: Frame = helpGui:WaitForChild("Frame") :: Frame
+
+local slots: { [number]: GuiObject } = {}
+local slotLabels: { [number]: TextLabel } = {}
+
+for i = 1, GameConfig.MAX_SLOTS do
+	local slot: GuiObject = container:WaitForChild("slot" .. tostring(i)) :: GuiObject
+	slots[i] = slot
+	slotLabels[i] = slot:WaitForChild("ItemName") :: TextLabel
+end
+
+local localInventory: { [number]: string? } = {}
+local equippedSlot: number? = nil
+
+local DEFAULT_SLOT_COLOR: Color3 = Color3.fromRGB(60, 60, 60)
+local EQUIPPED_SLOT_COLOR: Color3 = Color3.fromRGB(80, 180, 80)
+
+local function updateUI()
+	for i = 1, GameConfig.MAX_SLOTS do
+		local itemName: string? = localInventory[i]
+		if itemName and itemName ~= "" then
+			slotLabels[i].Text = itemName
+		else
+			slotLabels[i].Text = ""
+		end
+
+		if equippedSlot == i then
+			slots[i].BackgroundColor3 = EQUIPPED_SLOT_COLOR
+		else
+			slots[i].BackgroundColor3 = DEFAULT_SLOT_COLOR
+		end
+	end
+
+	helpFrame.Visible = (equippedSlot ~= nil)
+end
+
+syncEvent.OnClientEvent:Connect(function(data: any, serverEquipped: any)
+	if type(data) ~= "table" then return end
+	for i = 1, GameConfig.MAX_SLOTS do
+		local val: any = data[i] or data[tostring(i)]
+		localInventory[i] = if type(val) == "string" then val else nil
+	end
+	equippedSlot = if type(serverEquipped) == "number" then serverEquipped else nil
+	updateUI()
+end)
+
+equippedSync.OnClientEvent:Connect(function(slotIndex: any)
+	equippedSlot = if type(slotIndex) == "number" then slotIndex else nil
+	updateUI()
+end)
+
+local function onSlotClicked(slotIndex: number)
+	local itemName: string? = localInventory[slotIndex]
+	if not itemName or itemName == "" then return end
+	equipEvent:FireServer(slotIndex)
+end
+
+for i = 1, GameConfig.MAX_SLOTS do
+	local slot: GuiObject = slots[i]
+	if slot:IsA("GuiButton") then
+		(slot :: GuiButton).Activated:Connect(function()
+			onSlotClicked(i)
+		end)
+	else
+		slot.InputBegan:Connect(function(input: InputObject)
+			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+				onSlotClicked(i)
+			end
+		end)
+	end
+end
+
+local KEY_MAP: { [Enum.KeyCode]: number } = {
+	[Enum.KeyCode.One] = 1,
+	[Enum.KeyCode.Two] = 2,
+	[Enum.KeyCode.Three] = 3,
+}
+
+UserInputService.InputBegan:Connect(function(input: InputObject, gameProcessed: boolean)
+	if gameProcessed then return end
+
+	if input.KeyCode == Enum.KeyCode.Q then
+		if equippedSlot then
+			dropEvent:FireServer()
+		end
+		return
+	end
+
+	local slotNum: number? = KEY_MAP[input.KeyCode]
+	if slotNum then
+		onSlotClicked(slotNum)
+	end
+end)
+
+helpFrame.Visible = false
+updateUI()`,
+
+        'InteractionClient.lua': `--!strict
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local CollectionService = game:GetService("CollectionService")
+local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local configModule: ModuleScript = ReplicatedStorage:WaitForChild("GameConfig") :: ModuleScript
+local GameConfig = require(configModule)
+
+local player: Player = Players.LocalPlayer
+local playerGui: PlayerGui = player:WaitForChild("PlayerGui") :: PlayerGui
+
+local remoteFolder: Folder = ReplicatedStorage:WaitForChild("InventoryRemotes") :: Folder
+local pickupEvent: RemoteEvent = remoteFolder:WaitForChild("PickupEvent") :: RemoteEvent
+
+local promptGui: ScreenGui = playerGui:WaitForChild("CustomPromt") :: ScreenGui
+local promptFrame: Frame = promptGui:WaitForChild("Frame") :: Frame
+promptFrame.Visible = false
+
+local candidates: { [Instance]: BasePart } = {}
+local currentTarget: Instance? = nil
+local currentHighlight: Highlight? = nil
+
+local function clearTarget()
+	if currentHighlight then
+		currentHighlight:Destroy()
+		currentHighlight = nil
+	end
+	currentTarget = nil
+	promptFrame.Visible = false
+end
+
+local function setTarget(target: Instance)
+	if currentHighlight then
+		currentHighlight:Destroy()
+	end
+
+	local highlight: Highlight = Instance.new("Highlight")
+	highlight.Name = "InteractHighlight"
+	highlight.FillTransparency = 1
+	highlight.OutlineColor = Color3.new(1, 1, 1)
+	highlight.OutlineTransparency = 0
+	highlight.DepthMode = Enum.HighlightDepthMode.Occluded
+	highlight.Parent = target
+
+	currentHighlight = highlight
+	currentTarget = target
+	promptFrame.Visible = true
+end
+
+local function trackCandidate(instance: Instance)
+	local basePart: BasePart? = GameConfig.resolveBasePart(instance)
+	if basePart then
+		candidates[instance] = basePart
+	end
+end
+
+for _, instance in CollectionService:GetTagged(GameConfig.INTERACTABLE_TAG) do
+	trackCandidate(instance)
+end
+
+CollectionService:GetInstanceAddedSignal(GameConfig.INTERACTABLE_TAG):Connect(trackCandidate)
+
+CollectionService:GetInstanceRemovedSignal(GameConfig.INTERACTABLE_TAG):Connect(function(instance: Instance)
+	candidates[instance] = nil
+	if instance == currentTarget then
+		clearTarget()
+	end
+end)
+
+RunService.Heartbeat:Connect(function()
+	local character: Model? = player.Character
+	if not character then
+		if currentTarget then
+			clearTarget()
+		end
+		return
+	end
+
+	local rootPart: BasePart? = character:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not rootPart then
+		if currentTarget then
+			clearTarget()
+		end
+		return
+	end
+
+	local closestInstance: Instance? = nil
+	local closestPart: BasePart? = nil
+	local closestDistance: number = GameConfig.INTERACTION.MaxDistance
+
+	for instance, basePart in candidates do
+		if basePart.Parent then
+			local distance: number = (basePart.Position - rootPart.Position).Magnitude
+			if distance < closestDistance then
+				closestInstance = instance
+				closestPart = basePart
+				closestDistance = distance
+			end
+		end
+	end
+
+	if closestInstance and closestPart and GameConfig.INTERACTION.RequiresLineOfSight then
+		local ignoreList: { Instance } = { character }
+		for instance in candidates do
+			table.insert(ignoreList, instance)
+		end
+		local clear: boolean = GameConfig.hasLineOfSight(rootPart.Position, closestPart, ignoreList)
+		if not clear then
+			closestInstance = nil
+		end
+	end
+
+	if closestInstance ~= currentTarget then
+		if closestInstance then
+			setTarget(closestInstance)
+		else
+			clearTarget()
+		end
+	end
+end)
+
+UserInputService.InputBegan:Connect(function(input: InputObject, gameProcessed: boolean)
+	if gameProcessed then return end
+	if input.KeyCode ~= Enum.KeyCode.E then return end
+	if not currentTarget then return end
+	pickupEvent:FireServer(currentTarget)
+end)
+`,
+
+        'GameConfig.lua': `--!strict
+
+local ITEMS_FOLDER_NAME = "Items"
+local INTERACTABLE_TAG = "PickupItem"
+
+export type InteractionSettings = {
+	MaxDistance: number,
+	RequiresLineOfSight: boolean,
+}
+
+export type Config = {
+	MAX_SLOTS: number,
+	DATASTORE_NAME: string,
+	DATASTORE_KEY_PREFIX: string,
+	DROP_OFFSET: number,
+	ITEMS_FOLDER_NAME: string,
+	INTERACTABLE_TAG: string,
+	INTERACTION: InteractionSettings,
+	resolveBasePart: (instance: Instance) -> BasePart?,
+	getItemsFolder: () -> Folder,
+	discoverItemNames: (itemsFolder: Folder) -> { string },
+	hasLineOfSight: (origin: Vector3, targetPart: BasePart, ignoreInstances: { Instance }) -> boolean,
+}
+
+local function resolveBasePart(instance: Instance): BasePart?
+	if instance:IsA("BasePart") then
+		return instance
+	elseif instance:IsA("Model") then
+		return instance.PrimaryPart
+	end
+	return nil
+end
+
+local function getItemsFolder(): Folder
+	return workspace:WaitForChild(ITEMS_FOLDER_NAME) :: Folder
+end
+
+local function discoverItemNames(itemsFolder: Folder): { string }
+	local seen: { [string]: boolean } = {}
+	local names: { string } = {}
+	for _, child in itemsFolder:GetChildren() do
+		if not resolveBasePart(child) then
+			warn(\`[GameConfig] Skipping "{child:GetFullName()}": no BasePart to use as item appearance\`)
+			continue
+		end
+		if seen[child.Name] then
+			warn(\`[GameConfig] Duplicate item name "{child.Name}" in {itemsFolder:GetFullName()}, ignoring extra copy\`)
+			continue
+		end
+		seen[child.Name] = true
+		table.insert(names, child.Name)
+	end
+	return names
+end
+
+local function hasLineOfSight(origin: Vector3, targetPart: BasePart, ignoreInstances: { Instance }): boolean
+	local raycastParams = RaycastParams.new()
+	raycastParams.ExcludeInstances = ignoreInstances
+	local raycastResult = workspace:Raycast(origin, targetPart.Position - origin, raycastParams)
+	return raycastResult == nil
+end
+
+local GameConfig: Config = {
+	MAX_SLOTS = 3,
+	DATASTORE_NAME = "PlayerInventory_v1",
+	DATASTORE_KEY_PREFIX = "inv_",
+	DROP_OFFSET = 5,
+	ITEMS_FOLDER_NAME = ITEMS_FOLDER_NAME,
+	INTERACTABLE_TAG = INTERACTABLE_TAG,
+	INTERACTION = {
+		MaxDistance = 10,
+		RequiresLineOfSight = true,
+	},
+	resolveBasePart = resolveBasePart,
+	getItemsFolder = getItemsFolder,
+	discoverItemNames = discoverItemNames,
+	hasLineOfSight = hasLineOfSight,
+}
+
+table.freeze(GameConfig.INTERACTION)
+table.freeze(GameConfig)
+
+return GameConfig
+`,
+
+        'readme.md': `# 📁 Project Structure
+
+\`\`\`
+ReplicatedStorage/
+└─ GameConfig               ← ModuleScript
+
+ServerScriptService/
+└─ InventoryServer          ← Script
+
+StarterPlayerScripts/
+└─ InventoryClient          ← LocalScript
+└─ InteractionClient        ← LocalScript
+\`\`\``
       }
     },
-
     round: {
-      name: 'Round System',
+      name: 'Round system',
       files: {
         'ClientMain.luau': `--!strict
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -1515,148 +1786,243 @@ StarterPlayer/
     },
 
     plot: {
-      name: 'Basic Plot System',
+      name: 'Basic plot system',
       files: {
         'PlotClaimSystem.lua': `--!strict
+
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
+local ServerScriptService = game:GetService("ServerScriptService")
 
-local PLOTS_FOLDER = "Plots"
-local CLAIM_PAD_NAME = "ClaimPad"
-local SIGN_NAME = "Sign"
-local UNCLAIMED_TEXT = "Unclaimed Brainrot Base"
-local CLAIMED_TEXT_FORMAT = "%s's Brainrot Base"
-local UNCLAIMED_COLOR = Color3.fromRGB(0, 255, 0)
-local CLAIMED_COLOR = Color3.fromRGB(255, 0, 0)
-local DEBOUNCE_TIME = 0.5
+local GameConfig = require(ServerScriptService.GameConfig)
 
-local playerDebounce: { [number]: number } = {}
+type PlotRecord = {
+	pad: BasePart,
+	gui: BillboardGui,
+	label: TextLabel,
+	owner: Player?,
+	touchConnection: RBXScriptConnection,
+}
 
-local function findPlotByOwner(ownerName: string): Model?
-	local plotsFolder = Workspace:FindFirstChild(PLOTS_FOLDER)
-	if not plotsFolder then
-		return nil
+local plots: {[Instance]: PlotRecord} = {}
+local ownerToPlot: {[Player]: Instance} = {}
+local touchDebounce: {[Player]: boolean} = {}
+
+local function createOwnerDisplay(pad: BasePart): (BillboardGui, TextLabel)
+	local config = GameConfig.OwnerDisplay
+
+	local gui = Instance.new("BillboardGui")
+	gui.Name = config.Name
+	gui.Adornee = pad
+	gui.Size = config.Size
+	gui.StudsOffsetWorldSpace = Vector3.new(0, pad.Size.Y / 2 + config.VerticalMargin, 0)
+	gui.AlwaysOnTop = config.AlwaysOnTop
+	gui.MaxDistance = config.MaxDistance
+	gui.LightInfluence = config.LightInfluence
+	gui.Enabled = false
+
+	local label = Instance.new("TextLabel")
+	label.Name = "OwnerLabel"
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Font = config.Font
+	label.TextScaled = true
+	label.TextColor3 = config.TextColor
+	label.TextStrokeColor3 = config.TextStrokeColor
+	label.TextStrokeTransparency = config.TextStrokeTransparency
+	label.Text = ""
+	label.Parent = gui
+
+	gui.Parent = pad
+	return gui, label
+end
+
+local function claimPlot(plot: Instance, record: PlotRecord, player: Player): ()
+	record.owner = player
+	ownerToPlot[player] = plot
+	plot:SetAttribute("Owner", player.Name)
+	record.label.Text = string.format(GameConfig.OwnerDisplay.TextFormat, player.DisplayName)
+	record.gui.Enabled = true
+end
+
+local function releasePlot(plot: Instance, record: PlotRecord): ()
+	local owner = record.owner
+	if not owner then
+		return
+	end
+	record.owner = nil
+	ownerToPlot[owner] = nil
+	plot:SetAttribute("Owner", "")
+	record.label.Text = ""
+	record.gui.Enabled = false
+end
+
+local function onPadTouched(plot: Instance, record: PlotRecord, otherPart: BasePart): ()
+	local rawParent = otherPart.Parent
+	if not rawParent or not rawParent:IsA("Model") then
+		return
+	end
+	local character = rawParent :: Model
+
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid or humanoid.Health <= 0 then
+		return
 	end
 
-	for _, child in plotsFolder:GetChildren() do
-		if child:IsA("Model") then
-			local owner = child:GetAttribute("Owner")
-			if type(owner) == "string" and owner == ownerName then
-				return child
-			end
-		end
+	local player = Players:GetPlayerFromCharacter(character)
+	if not player then
+		return
+	end
+
+	if touchDebounce[player] then
+		return
+	end
+	touchDebounce[player] = true
+	task.delay(GameConfig.Claiming.TouchDebounceSeconds, function()
+		touchDebounce[player] = nil
+	end)
+
+	if record.owner ~= nil or ownerToPlot[player] ~= nil then
+		return
+	end
+
+	claimPlot(plot, record, player)
+end
+
+local function resolvePad(plot: Instance): BasePart?
+	if plot:IsA("BasePart") then
+		return plot
+	end
+	local rawPad = plot:FindFirstChild(GameConfig.Plots.ClaimPadName)
+	if rawPad and rawPad:IsA("BasePart") then
+		return rawPad
 	end
 	return nil
 end
 
-local function playerOwnsPlot(playerName: string): boolean
-	return findPlotByOwner(playerName) ~= nil
-end
-
-local function updatePlotVisuals(plot: Model, isClaimed: boolean, ownerName: string)
-	local pad = plot:FindFirstChild(CLAIM_PAD_NAME)
-	if pad and pad:IsA("BasePart") then
-		pad.Color = if isClaimed then CLAIMED_COLOR else UNCLAIMED_COLOR
-	end
-
-	local sign = plot:FindFirstChild(SIGN_NAME)
-	if sign and sign:IsA("BasePart") then
-		local gui = sign:FindFirstChild("SurfaceGui")
-		if gui and gui:IsA("SurfaceGui") then
-			local label = gui:FindFirstChild("TextLabel")
-			if label and label:IsA("TextLabel") then
-				label.Text = if isClaimed then string.format(CLAIMED_TEXT_FORMAT, ownerName) else UNCLAIMED_TEXT
-			end
-		end
-	end
-end
-
-local function claimPlot(plot: Model, player: Player)
-	plot:SetAttribute("Owner", player.Name)
-	updatePlotVisuals(plot, true, player.Name)
-	playerDebounce[player.UserId] = os.clock()
-end
-
-local function releasePlot(plot: Model)
-	plot:SetAttribute("Owner", "")
-	updatePlotVisuals(plot, false, "")
-end
-
-local function onPlayerRemoving(player: Player)
-	local ownedPlot = findPlotByOwner(player.Name)
-	if ownedPlot then
-		releasePlot(ownedPlot)
-	end
-	playerDebounce[player.UserId] = nil
-end
-
-local function initializePlots()
-	local plotsFolder = Workspace:FindFirstChild(PLOTS_FOLDER)
-	if not plotsFolder then
+local function setupPlot(plot: Instance): ()
+	if plots[plot] then
 		return
 	end
 
-	for _, child in plotsFolder:GetChildren() do
-		if not child:IsA("Model") then
-			continue
-		end
+	local pad = resolvePad(plot)
+	if not pad then
+		warn(string.format("[PlotClaimSystem] '%s' has no usable ClaimPad, skipping.", plot:GetFullName()))
+		return
+	end
 
-		child:SetAttribute("Owner", "")
-		updatePlotVisuals(child, false, "")
+	plot:SetAttribute("Owner", "")
+	local gui, label = createOwnerDisplay(pad)
 
-		local pad = child:FindFirstChild(CLAIM_PAD_NAME)
-		if not pad or not pad:IsA("BasePart") then
-			continue
-		end
+	local record: PlotRecord = {
+		pad = pad,
+		gui = gui,
+		label = label,
+		owner = nil,
+		touchConnection = nil :: any,
+	}
 
-		pad.Touched:Connect(function(otherPart: BasePart)
-			local parent = otherPart.Parent
-			if not parent or not parent:IsA("Model") then
-				return
+	record.touchConnection = pad.Touched:Connect(function(otherPart: BasePart)
+		onPadTouched(plot, record, otherPart)
+	end)
+
+	plots[plot] = record
+	GameConfig.Plots.Registered[plot] = pad
+end
+
+local function teardownPlot(plot: Instance): ()
+	local record = plots[plot]
+	if not record then
+		return
+	end
+
+	GameConfig.Plots.Registered[plot] = nil
+
+	if record.owner then
+		ownerToPlot[record.owner] = nil
+	end
+
+	record.touchConnection:Disconnect()
+	record.gui:Destroy()
+	plots[plot] = nil
+end
+
+local function onPlayerRemoving(player: Player): ()
+	touchDebounce[player] = nil
+	local plot = ownerToPlot[player]
+	if not plot then
+		return
+	end
+	local record = plots[plot]
+	if not record then
+		return
+	end
+	releasePlot(plot, record)
+end
+
+local function initializePlots(): ()
+	local plotsFolder = Workspace:WaitForChild(GameConfig.Plots.FolderName)
+
+	plotsFolder.ChildAdded:Connect(function(child: Instance)
+		task.defer(function()
+			if child.Parent == plotsFolder then
+				setupPlot(child)
 			end
-
-			local humanoid = parent:FindFirstChildOfClass("Humanoid")
-			if not humanoid then
-				return
-			end
-
-			local player = Players:GetPlayerFromCharacter(parent)
-			if not player then
-				return
-			end
-
-			local lastTouch = playerDebounce[player.UserId] or 0
-			if os.clock() - lastTouch < DEBOUNCE_TIME then
-				return
-			end
-
-			local currentOwner = child:GetAttribute("Owner")
-			if type(currentOwner) == "string" and currentOwner ~= "" then
-				return
-			end
-
-			if playerOwnsPlot(player.Name) then
-				return
-			end
-
-			claimPlot(child, player)
 		end)
+	end)
+
+	plotsFolder.ChildRemoved:Connect(teardownPlot)
+
+	for _, child in plotsFolder:GetChildren() do
+		setupPlot(child)
 	end
 end
 
 Players.PlayerRemoving:Connect(onPlayerRemoving)
 initializePlots()`,
 
+        'GameConfig.lua': `--!strict
+
+local GameConfig = {}
+
+GameConfig.Plots = {
+	FolderName = "Plots",
+	ClaimPadName = "ClaimPad",
+	Registered = {} :: {[Instance]: BasePart},
+}
+
+GameConfig.OwnerDisplay = {
+	Name = "OwnerDisplay",
+	TextFormat = "%s's Plot",
+	VerticalMargin = 12,
+	Size = UDim2.fromOffset(200, 50),
+	MaxDistance = 120,
+	AlwaysOnTop = true,
+	LightInfluence = 0,
+	Font = Enum.Font.GothamBold,
+	TextColor = Color3.fromRGB(255, 255, 255),
+	TextStrokeColor = Color3.fromRGB(0, 0, 0),
+	TextStrokeTransparency = 0.2,
+}
+
+GameConfig.Claiming = {
+	TouchDebounceSeconds = 1,
+}
+
+return GameConfig`,
+
         'readme.md': `## 📁 Project Structure
 
 \`\`\`
 ServerScriptService/
-└── PlotClaimSystem             ← Script`
+└── PlotClaimSystem             ← Script
+└── GameConfig                  ← Module script
+\`\`\``
       }
     },
 
     notify: {
-      name: 'Notification System',
+      name: 'Notification system',
       files: {
         'ImportantNotificationBootstrap.lua': `--!strict
 local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -2176,13 +2542,25 @@ ServerScriptService/
     },
 
     cooking: {
-      name: 'Cooking System',
+      name: 'Cooking system',
       files: {
-        'CraftingHandler.luau': `--!strict
+        'CraftingHandler.lua': `--!strict
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+
+local activeTweens: {[Instance]: {Tween}} = setmetatable({}, {__mode = "k"}) :: any
+
+local function cancelActiveTweens(inst: Instance)
+	local existing = activeTweens[inst]
+	if existing then
+		for _, tw in existing do
+			tw:Cancel()
+		end
+	end
+	activeTweens[inst] = nil
+end
 
 type ConfigType = {
 	DEBOUNCE_DURATION: number,
@@ -2320,10 +2698,10 @@ local function setAllTransparency(inst: Instance, t: number)
 end
 
 local function fadeIn(inst: Instance)
+	cancelActiveTweens(inst)
 	local info = TweenInfo.new(Config.FADE_IN_TIME, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-	setAllTransparency(inst, 1)
 	local tweens: {Tween} = {}
-	
+
 	local function applyTween(obj: Instance)
 		if obj:IsA("BasePart") or obj:IsA("Decal") or obj:IsA("Texture") then
 			local tw = TweenService:Create(obj :: any, info, { Transparency = 0 })
@@ -2337,35 +2715,36 @@ local function fadeIn(inst: Instance)
 		applyTween(desc)
 	end
 
+	activeTweens[inst] = tweens
 	task.delay(Config.FADE_IN_TIME + Config.FADE_BUFFER, function()
+		if activeTweens[inst] == tweens then activeTweens[inst] = nil end
 		for _, tw in tweens do tw:Destroy() end
 	end)
 end
 
 local function fadeOutAndDestroy(inst: Instance)
+	cancelActiveTweens(inst)
 	local info = TweenInfo.new(Config.FADE_OUT_TIME, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-	for _, desc in inst:GetDescendants() do
-		if desc:IsA("ProximityPrompt") then
-			desc.Enabled = false
-		end
-	end
-	
 	local tweens: {Tween} = {}
-	
-	local function applyTween(obj: Instance)
-		if obj:IsA("BasePart") or obj:IsA("Decal") or obj:IsA("Texture") then
+
+	local function process(obj: Instance)
+		if obj:IsA("ProximityPrompt") then
+			obj.Enabled = false
+		elseif obj:IsA("BasePart") or obj:IsA("Decal") or obj:IsA("Texture") then
 			local tw = TweenService:Create(obj :: any, info, { Transparency = 1 })
 			table.insert(tweens, tw)
 			tw:Play()
 		end
 	end
 
-	applyTween(inst)
+	process(inst)
 	for _, desc in inst:GetDescendants() do
-		applyTween(desc)
+		process(desc)
 	end
 
+	activeTweens[inst] = tweens
 	task.delay(Config.FADE_OUT_TIME + Config.FADE_BUFFER, function()
+		if activeTweens[inst] == tweens then activeTweens[inst] = nil end
 		for _, tw in tweens do tw:Destroy() end
 		if inst.Parent then inst:Destroy() end
 	end)
@@ -2375,7 +2754,10 @@ local toolsFolder = requireFolder(ReplicatedStorage, Config.TOOLS_FOLDER_NAME)
 
 local function giveTool(player: Player, name: string)
 	local tmpl = toolsFolder:FindFirstChild(name)
-	if not tmpl or not tmpl:IsA("Tool") then return end
+	if not tmpl or not tmpl:IsA("Tool") then
+		warn("CraftingHandler: tool template missing for '" .. name .. "'")
+		return
+	end
 	local bp = player:FindFirstChildOfClass("Backpack")
 	if not bp then return end
 	local clone = tmpl:Clone()
@@ -2531,6 +2913,21 @@ function spawnProp(toolName: string)
 	fadeIn(newInst)
 end
 
+local function prewarmProp(entry: PropEntry)
+	task.spawn(function()
+		local clone = entry.template:Clone()
+		if clone:IsA("Model") then
+			ensurePrimaryPart(clone)
+		end
+		anchorDescendants(clone)
+		setAllTransparency(clone, 1)
+		clone.Parent = workspace
+		placeInstance(clone, CFrame.new(0, -500, 0))
+		task.wait()
+		clone:Destroy()
+	end)
+end
+
 local function registerProp(inst: Instance, toolName: string)
 	if inst:IsA("Model") then ensurePrimaryPart(inst) end
 	local cf = getInstanceCFrame(inst)
@@ -2545,6 +2942,7 @@ local function registerProp(inst: Instance, toolName: string)
 	}
 	propRegistry[toolName] = entry
 	connectPropTrigger(entry)
+	prewarmProp(entry)
 end
 
 local function buildPlacedPot(player: Player)
@@ -2560,10 +2958,13 @@ local function buildPlacedPot(player: Player)
 	local container = rawClone
 	container.Name = Config.PLACED_POT_PREFIX .. userId
 
-	anchorDescendants(container)
-
 	for _, desc in container:GetDescendants() do
-		if desc:IsA("ProximityPrompt") then desc:Destroy() end
+		if desc:IsA("BasePart") then
+			desc.Anchored = true
+			desc.CanCollide = true
+		elseif desc:IsA("ProximityPrompt") then
+			desc:Destroy()
+		end
 	end
 
 	ensurePrimaryPart(container)
@@ -2582,14 +2983,7 @@ local function buildPlacedPot(player: Player)
 		debounced(userId, function()
 			local st = getState(userId)
 			if st.readyToCollect then
-				local placed = st.placedModel
-				st.potOnTable = false
-				st.placedModel = nil
-				st.placedPrompt = nil
-				st.ingredients = { TabBinder = false, EnergyExtract = false }
-				st.readyToCollect = false
-				if placed then fadeOutAndDestroy(placed) end
-				recheckPillsPress()
+				resetCraftState(trigPlayer)
 				giveTool(trigPlayer, Config.TOOL_INGREDIENTS)
 				return
 			end
@@ -2631,7 +3025,9 @@ local function buildPlacedPot(player: Player)
 		local targetY = potSlot.Position.Y + potSlot.Size.Y * 0.5 + ppToBBBottom
 		local ppToBBCX = anchorPart.Position.X - bbCF.Position.X
 		local ppToBBCZ = anchorPart.Position.Z - bbCF.Position.Z
-		container:PivotTo(CFrame.new(potSlot.Position.X + ppToBBCX, targetY, potSlot.Position.Z + ppToBBCZ))
+		local rotation = anchorPart.CFrame - anchorPart.CFrame.Position
+		local targetCFrame = CFrame.new(potSlot.Position.X + ppToBBCX, targetY, potSlot.Position.Z + ppToBBCZ) * rotation
+		container:PivotTo(targetCFrame)
 	end
 
 	fadeIn(container)
@@ -2770,7 +3166,7 @@ registerProp(worldMixingPot, Config.TOOL_MIXING_POT)
 registerProp(worldTabBinder, Config.TOOL_TAB_BINDER)
 registerProp(worldEnergyExtract, Config.TOOL_ENERGY_EXTRACT)`,
 
-        'GameConfig.luau': `--!strict
+        'GameConfig.lua': `--!strict
 
 export type ConfigType = {
 	DEBOUNCE_DURATION: number,
@@ -2830,167 +3226,43 @@ local Config: ConfigType = {
 
 return Config`,
 
-        'MixingPotWeldScript.luau': `--!strict
-
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
-type ConfigType = {
-	WAIT_TIMEOUT: number,
-	TOOLS_FOLDER_NAME: string,
-}
-
-local cfgInst = ReplicatedStorage:WaitForChild("GameConfig")
-assert(cfgInst and cfgInst:IsA("ModuleScript"), "GameConfig must be ModuleScript")
-local Config = require(cfgInst) :: ConfigType
+        'MixingPotWeldScript.lua': `--!strict
 
 local tool = script.Parent
 assert(tool and tool:IsA("Tool"), "Parent must be Tool")
 
-local handle = tool:WaitForChild("Handle", Config.WAIT_TIMEOUT)
+local handle = tool:WaitForChild("Handle", 5)
 assert(handle and handle:IsA("BasePart"), tool.Name .. "/Handle must be BasePart")
 
-local tmplHandle: BasePart? = nil
-local tmplParts: {[string]: BasePart} = {}
-
-local folderInst = ReplicatedStorage:WaitForChild(Config.TOOLS_FOLDER_NAME, Config.WAIT_TIMEOUT)
-if folderInst and folderInst:IsA("Folder") then
-	local ti = folderInst:FindFirstChild(tool.Name)
-	if ti and ti:IsA("Tool") then
-		local th = ti:FindFirstChild("Handle")
-		if th and th:IsA("BasePart") then
-			tmplHandle = th
-			for _, child in ti:GetChildren() do
-				if child:IsA("BasePart") and child.Name ~= "Handle" then
-					tmplParts[child.Name] = child
-				end
-			end
-		end
+for _, part in tool:GetDescendants() do
+	if part:IsA("BasePart") and part ~= handle then
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = handle
+		weld.Part1 = part
+		weld.Parent = handle
+		part.Anchored = false
 	end
 end
+`,
 
-if not tmplHandle then
-	warn("WeldScript[" .. tool.Name .. "]: template missing, welds skipped")
-end
-
-local weldsCreated = false
-
-local function createWelds()
-	if weldsCreated or not tmplHandle then return end
-
-	for _, livePart in tool:GetChildren() do
-		if livePart:IsA("BasePart") and livePart.Name ~= "Handle" then
-			local matched = tmplParts[livePart.Name]
-			if matched then
-				local weld = Instance.new("Weld")
-				weld.Part0 = handle
-				weld.Part1 = livePart
-				weld.C0 = tmplHandle.CFrame:Inverse() * matched.CFrame
-				weld.C1 = CFrame.new()
-				weld.Parent = handle
-			end
-			livePart.Anchored = false
-		end
-	end
-
-	handle.CanCollide = false
-	handle.Massless = true
-	weldsCreated = true
-end
-
-local parentInst = tool.Parent
-if parentInst and parentInst:FindFirstChildOfClass("Humanoid") then
-	createWelds()
-end
-
-local eqConn: RBXScriptConnection?
-eqConn = tool.Equipped:Connect(function()
-	createWelds()
-	if eqConn then
-		eqConn:Disconnect()
-		eqConn = nil
-	end
-end)`,
-
-        'TabBinderWeldScript.luau': `--!strict
-
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
-type ConfigType = {
-	WAIT_TIMEOUT: number,
-	TOOLS_FOLDER_NAME: string,
-}
-
-local cfgInst = ReplicatedStorage:WaitForChild("GameConfig")
-assert(cfgInst and cfgInst:IsA("ModuleScript"), "GameConfig must be ModuleScript")
-local Config = require(cfgInst) :: ConfigType
+        'TabBinderWeldScript.lua': `--!strict
 
 local tool = script.Parent
 assert(tool and tool:IsA("Tool"), "Parent must be Tool")
 
-local handle = tool:WaitForChild("Handle", Config.WAIT_TIMEOUT)
+local handle = tool:WaitForChild("Handle", 5)
 assert(handle and handle:IsA("BasePart"), tool.Name .. "/Handle must be BasePart")
 
-local tmplHandle: BasePart? = nil
-local tmplParts: {[string]: BasePart} = {}
-
-local folderInst = ReplicatedStorage:WaitForChild(Config.TOOLS_FOLDER_NAME, Config.WAIT_TIMEOUT)
-if folderInst and folderInst:IsA("Folder") then
-	local ti = folderInst:FindFirstChild(tool.Name)
-	if ti and ti:IsA("Tool") then
-		local th = ti:FindFirstChild("Handle")
-		if th and th:IsA("BasePart") then
-			tmplHandle = th
-			for _, child in ti:GetChildren() do
-				if child:IsA("BasePart") and child.Name ~= "Handle" then
-					tmplParts[child.Name] = child
-				end
-			end
-		end
+for _, part in tool:GetDescendants() do
+	if part:IsA("BasePart") and part ~= handle then
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = handle
+		weld.Part1 = part
+		weld.Parent = handle
+		part.Anchored = false
 	end
 end
-
-if not tmplHandle then
-	warn("WeldScript[" .. tool.Name .. "]: template missing, welds skipped")
-end
-
-local weldsCreated = false
-
-local function createWelds()
-	if weldsCreated or not tmplHandle then return end
-
-	for _, livePart in tool:GetChildren() do
-		if livePart:IsA("BasePart") and livePart.Name ~= "Handle" then
-			local matched = tmplParts[livePart.Name]
-			if matched then
-				local weld = Instance.new("Weld")
-				weld.Part0 = handle
-				weld.Part1 = livePart
-				weld.C0 = tmplHandle.CFrame:Inverse() * matched.CFrame
-				weld.C1 = CFrame.new()
-				weld.Parent = handle
-			end
-			livePart.Anchored = false
-		end
-	end
-
-	handle.CanCollide = false
-	handle.Massless = true
-	weldsCreated = true
-end
-
-local parentInst = tool.Parent
-if parentInst and parentInst:FindFirstChildOfClass("Humanoid") then
-	createWelds()
-end
-
-local eqConn: RBXScriptConnection?
-eqConn = tool.Equipped:Connect(function()
-	createWelds()
-	if eqConn then
-		eqConn:Disconnect()
-		eqConn = nil
-	end
-end)`,
+`,
 
         'readme.md': `## 📁 Project Structure
 
@@ -3018,9 +3290,155 @@ ServerScriptService/
       }
     },
     'drag-throw': {
-      name: 'Dead Rails Drag System + Throw and Weight ( multiplayer )',
+      name: 'Dead Rails — drag, weight & throw',
       files: {
-        'DragClient.luau': `--!strict
+        'DragServer.lua': `--!strict
+
+local CollectionService = game:GetService("CollectionService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local Config = require(ReplicatedStorage.GameConfig)
+
+type ThrowSample = {
+	time: number,
+	position: Vector3,
+}
+
+local camera: Camera = workspace.CurrentCamera
+local localPlayer: Player = Players.LocalPlayer
+local character: Model = (localPlayer.Character or localPlayer.CharacterAdded:Wait()) :: Model
+
+local dragAttName: string = Config.AttachmentPrefix .. tostring(localPlayer.UserId)
+local dragAttachment = workspace.Terrain:WaitForChild(dragAttName) :: Attachment
+
+local remotes = ReplicatedStorage:WaitForChild("Remotes") :: Folder
+local eDragStart = remotes:WaitForChild("DragStart") :: RemoteEvent
+local eDragEnd = remotes:WaitForChild("DragEnd") :: RemoteEvent
+local eDragDenied = remotes:WaitForChild("DragDenied") :: RemoteEvent
+
+local selectionBox: SelectionBox = Instance.new("SelectionBox")
+selectionBox.Color3 = Config.LightWeightColor
+selectionBox.LineThickness = Config.HighlightThickness
+selectionBox.SurfaceTransparency = Config.HighlightSurfaceTransparency
+selectionBox.SurfaceColor3 = Config.HighlightSurfaceColor
+selectionBox.Adornee = nil
+selectionBox.Parent = workspace
+
+local rayParams: RaycastParams = RaycastParams.new()
+rayParams.FilterType = Enum.RaycastFilterType.Exclude
+rayParams.FilterDescendantsInstances = { character :: Instance }
+
+local isDragging: boolean = false
+local hoveredPart: BasePart? = nil
+local throwSamples: { ThrowSample } = {}
+
+local function computeTargetCFrame(): CFrame
+	return camera.CFrame * CFrame.new(0, 0, -Config.HoldDistance)
+end
+
+local function getHoveredPart(): BasePart?
+	local origin: Vector3 = camera.CFrame.Position
+	local direction: Vector3 = camera.CFrame.LookVector * Config.MaxGrabDistance
+	local result: RaycastResult? = workspace:Raycast(origin, direction, rayParams)
+	if result == nil then return nil end
+	local hit: Instance = result.Instance
+	if not hit:IsA("BasePart") then return nil end
+	if not CollectionService:HasTag(hit, Config.Tag) then return nil end
+	if hit:GetAttribute(Config.OwnerAttribute) ~= nil then return nil end
+	return hit :: BasePart
+end
+
+local function setHighlight(part: BasePart?): ()
+	selectionBox.Adornee = part
+	if part ~= nil then
+		selectionBox.Color3 = Config.ColorForWeight(Config.GetWeight(part))
+	end
+end
+
+local function sampleThrow(now: number): ()
+	local sample: ThrowSample = { time = now, position = dragAttachment.WorldPosition }
+	table.insert(throwSamples, sample)
+	while #throwSamples > 0 do
+		local first: ThrowSample? = throwSamples[1]
+		if first == nil or (now - first.time) <= Config.ThrowSampleTime then break end
+		table.remove(throwSamples, 1)
+	end
+end
+
+local function consumeThrowVelocity(): Vector3?
+	if #throwSamples < 2 then
+		throwSamples = {}
+		return nil
+	end
+	local oldest: ThrowSample? = throwSamples[1]
+	local newest: ThrowSample? = throwSamples[#throwSamples]
+	throwSamples = {}
+	if oldest == nil or newest == nil then return nil end
+	local dt: number = newest.time - oldest.time
+	if dt <= 0 then return nil end
+	return (newest.position - oldest.position) / dt
+end
+
+localPlayer.CharacterAdded:Connect(function(newCharacter: Model)
+	character = newCharacter
+	rayParams.FilterDescendantsInstances = { newCharacter :: Instance }
+	if isDragging then
+		isDragging = false
+		hoveredPart = nil
+		setHighlight(nil)
+		throwSamples = {}
+		eDragEnd:FireServer(nil)
+	end
+end)
+
+eDragDenied.OnClientEvent:Connect(function()
+	if not isDragging then return end
+	isDragging = false
+	throwSamples = {}
+	rayParams.FilterDescendantsInstances = { character :: Instance }
+end)
+
+UserInputService.InputBegan:Connect(function(input: InputObject, gameProcessed: boolean)
+	if gameProcessed then return end
+	if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+	if isDragging then return end
+	local target: BasePart? = hoveredPart
+	if target == nil then return end
+	if target:GetAttribute(Config.OwnerAttribute) ~= nil then return end
+	isDragging = true
+	throwSamples = {}
+	rayParams.FilterDescendantsInstances = { character :: Instance, target :: Instance }
+	eDragStart:FireServer(target)
+end)
+
+UserInputService.InputEnded:Connect(function(input: InputObject, _gameProcessed: boolean)
+	if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+	if not isDragging then return end
+	isDragging = false
+	hoveredPart = nil
+	setHighlight(nil)
+	rayParams.FilterDescendantsInstances = { character :: Instance }
+	local velocity: Vector3? = consumeThrowVelocity()
+	eDragEnd:FireServer(velocity)
+end)
+
+RunService.RenderStepped:Connect(function(_dt: number)
+	if isDragging then
+		dragAttachment.CFrame = computeTargetCFrame()
+		sampleThrow(tick())
+		return
+	end
+	local newHover: BasePart? = getHoveredPart()
+	if newHover ~= hoveredPart then
+		hoveredPart = newHover
+		setHighlight(hoveredPart)
+	end
+end)`,
+
+        'DragClient.lua': `--!strict
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -3164,7 +3582,7 @@ RunService.RenderStepped:Connect(function(_dt: number)
 			rayParams.FilterDescendantsInstances = { character :: Instance }
 			return
 		end
-
+		
 		dragAttachment.CFrame = computeTargetCFrame()
 		sampleThrow(os.clock())
 		return
@@ -3176,224 +3594,82 @@ RunService.RenderStepped:Connect(function(_dt: number)
 	end
 end)`,
 
-        'DragServer.luau': `--!strict
+        'CrosshairController.lua': `--!strict
 
-local CollectionService = game:GetService("CollectionService")
+local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
-local GameConfig = ReplicatedStorage:WaitForChild("GameConfig") :: ModuleScript
-local Config = require(GameConfig)
-
-type DragState = {
-	owner: Player,
-	part: BasePart,
-	partAttachment: Attachment,
-	alignPosition: AlignPosition,
-	alignOrientation: AlignOrientation,
-}
-
-local remotes: Folder = ReplicatedStorage:WaitForChild("Remotes") :: Folder
-local eDragStart: RemoteEvent = remotes:WaitForChild("DragStart") :: RemoteEvent
-local eDragEnd: RemoteEvent = remotes:WaitForChild("DragEnd") :: RemoteEvent
-
-local activeDrags: { [Player]: DragState } = {}
-local playerAttachments: { [Player]: Attachment } = {}
-
-for _, partName in Config.DraggableNames do
-	local found: Instance? = workspace:FindFirstChild(partName)
-	if found ~= nil and found:IsA("BasePart") then
-		local part: BasePart = found :: BasePart
-		part.Anchored = false
-		CollectionService:AddTag(part, Config.Tag)
-		local initialWeight: number? = Config.InitialWeights[partName]
-		if initialWeight ~= nil then
-			part:SetAttribute(Config.WeightAttribute, initialWeight)
-		end
-	end
-end
-
-local function createPlayerAttachment(player: Player): Attachment
-	local att: Attachment = Instance.new("Attachment")
-	att.Name = Config.AttachmentPrefix .. tostring(player.UserId)
-	att.CFrame = CFrame.identity
-	att.Parent = workspace.Terrain
-	return att
-end
-
-local function buildDragState(owner: Player, part: BasePart, dragAtt: Attachment): DragState
-	local weight: number = Config.GetWeight(part)
-	local effResponsiveness: number = Config.BaseResponsiveness / weight
-	local effMaxVelocity: number = Config.BaseMaxVelocity / weight
-	local effMaxAngularVelocity: number = Config.BaseMaxAngularVelocity / weight
-
-	local partAtt: Attachment = Instance.new("Attachment")
-	partAtt.Name = Config.PartAttachmentName
-	partAtt.Position = Vector3.zero
-	partAtt.Parent = part
-
-	local ap: AlignPosition = Instance.new("AlignPosition")
-	ap.Mode = Enum.PositionAlignmentMode.TwoAttachment
-	ap.Attachment0 = partAtt
-	ap.Attachment1 = dragAtt
-	ap.MaxForce = Config.BaseMaxForce
-	ap.MaxVelocity = effMaxVelocity
-	ap.Responsiveness = effResponsiveness
-	ap.Enabled = true
-	ap.Parent = part
-
-	local ao: AlignOrientation = Instance.new("AlignOrientation")
-	ao.Mode = Enum.OrientationAlignmentMode.OneAttachment
-	ao.Attachment0 = partAtt
-	ao.MaxTorque = Config.BaseMaxTorque
-	ao.MaxAngularVelocity = effMaxAngularVelocity
-	ao.Responsiveness = effResponsiveness
-	ao.CFrame = part.CFrame
-	ao.Enabled = true
-	ao.Parent = part
-
-	return {
-		owner = owner,
-		part = part,
-		partAttachment = partAtt,
-		alignPosition = ap,
-		alignOrientation = ao,
-	}
-end
-
-local function teardownConstraints(state: DragState): ()
-	if state.alignOrientation then state.alignOrientation:Destroy() end
-	if state.alignPosition then state.alignPosition:Destroy() end
-	if state.partAttachment then state.partAttachment:Destroy() end
-	if state.part and state.part.Parent then
-		state.part:SetAttribute(Config.OwnerAttribute, nil)
-	end
-end
-
-local function applyThrow(part: BasePart, velocity: Vector3): ()
-	local weight: number = Config.GetWeight(part)
-	local scaled: Vector3 = velocity * Config.ThrowMultiplier / math.sqrt(weight)
-	if scaled.Magnitude > Config.MaxThrowSpeed then
-		scaled = scaled.Unit * Config.MaxThrowSpeed
-	end
-	part.AssemblyLinearVelocity = scaled
-end
-
-local function dropPlayerDrag(player: Player, throwVelocity: Vector3?): ()
-	local state: DragState? = activeDrags[player]
-	if state == nil then return end
-	activeDrags[player] = nil
-	local part: BasePart = state.part
-	teardownConstraints(state)
-	if part and part.Parent and not part.Anchored then
-		if throwVelocity ~= nil and throwVelocity.Magnitude == throwVelocity.Magnitude then
-			applyThrow(part, throwVelocity)
-		end
-		pcall(function()
-			part:SetNetworkOwnershipAuto()
-		end)
-	end
-end
-
-local function onPlayerAdded(player: Player): ()
-	playerAttachments[player] = createPlayerAttachment(player)
-	player.CharacterRemoving:Connect(function()
-		dropPlayerDrag(player, nil)
-	end)
-end
-
-local function onPlayerRemoving(player: Player): ()
-	dropPlayerDrag(player, nil)
-	local att: Attachment? = playerAttachments[player]
-	if att ~= nil then
-		att:Destroy()
-		playerAttachments[player] = nil
-	end
-end
-
-for _, player in pairs(Players:GetPlayers()) do
-	onPlayerAdded(player)
-end
-
-Players.PlayerAdded:Connect(onPlayerAdded)
-Players.PlayerRemoving:Connect(onPlayerRemoving)
-
-eDragStart.OnServerEvent:Connect(function(player: Player, rawPart: any)
-	if activeDrags[player] ~= nil then return end
-	if typeof(rawPart) ~= "Instance" then return end
-	if not rawPart:IsA("BasePart") then return end
-	if not CollectionService:HasTag(rawPart, Config.Tag) then return end
-	if rawPart:GetAttribute(Config.OwnerAttribute) ~= nil then return end
-	if rawPart.Parent == nil or rawPart.Anchored then return end
-
-	local dragAtt: Attachment? = playerAttachments[player]
-	if dragAtt == nil then return end
-
-	local part: BasePart = rawPart :: BasePart
-	part:SetAttribute(Config.OwnerAttribute, player.UserId)
-	local ok: boolean = pcall(function()
-		part:SetNetworkOwner(player)
-	end)
-	if not ok then
-		part:SetAttribute(Config.OwnerAttribute, nil)
-		return
-	end
-
-	activeDrags[player] = buildDragState(player, part, dragAtt)
-end)
-
-eDragEnd.OnServerEvent:Connect(function(player: Player, rawVelocity: any)
-	local velocity: Vector3? = nil
-	if typeof(rawVelocity) == "Vector3" then
-		velocity = rawVelocity :: Vector3
-	end
-	dropPlayerDrag(player, velocity)
-end)
-
-RunService.Heartbeat:Connect(function(_dt: number)
-	local toRemove: { Player } = {}
-	for player, state in pairs(activeDrags) do
-		if state == nil then continue end
-		if not state.part or state.part.Parent == nil or state.part.Anchored then
-			pcall(teardownConstraints, state)
-			table.insert(toRemove, player)
-			continue
-		end
-		local ok: boolean = pcall(function()
-			state.part:SetNetworkOwner(player)
-		end)
-		if not ok then
-			pcall(teardownConstraints, state)
-			table.insert(toRemove, player)
-		end
-	end
-	for _, player in toRemove do
-		activeDrags[player] = nil
-	end
-end)`,
-
-        'FirstPersonLock.luau': `--!strict
-
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
-local Config = require(ReplicatedStorage:WaitForChild("GameConfig") :: ModuleScript)
+local Config = require(ReplicatedStorage.GameConfig)
 
 local localPlayer: Player = Players.LocalPlayer
+local playerGui: PlayerGui = localPlayer.PlayerGui
 
-local function enforce(): ()
-	if localPlayer and localPlayer.CameraMode ~= Config.CameraMode then
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "CrosshairGui"
+screenGui.ResetOnSpawn = false
+screenGui.IgnoreGuiInset = true
+screenGui.Parent = playerGui
+
+local dot = Instance.new("Frame")
+dot.Name = "Dot"
+dot.AnchorPoint = Vector2.new(0.5, 0.5)
+dot.Position = UDim2.fromScale(0.5, 0.5)
+dot.Size = UDim2.fromOffset(Config.CrosshairSize, Config.CrosshairSize)
+dot.BackgroundColor3 = Config.CrosshairColor
+dot.BorderSizePixel = 0
+dot.Parent = screenGui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(1, 0)
+corner.Parent = dot
+
+local function setCrosshairVisible(visible: boolean): ()
+	screenGui.Enabled = visible
+	UserInputService.MouseIconEnabled = not visible
+end
+
+setCrosshairVisible(not GuiService.MenuIsOpen)
+
+GuiService.MenuOpened:Connect(function()
+	setCrosshairVisible(false)
+end)
+
+GuiService.MenuClosed:Connect(function()
+	setCrosshairVisible(true)
+end)
+`,
+
+        'FirstPersonLock.lua': `--!strict
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage.GameConfig)
+
+local localPlayer: Player = Players.LocalPlayer
+local camera: Camera = workspace.CurrentCamera
+
+local function enforceCameraMode(): ()
+	if localPlayer.CameraMode ~= Config.CameraMode then
 		localPlayer.CameraMode = Config.CameraMode
 	end
 end
 
-if localPlayer then
-	enforce()
-	localPlayer:GetPropertyChangedSignal("CameraMode"):Connect(enforce)
-end`,
+local function enforceFieldOfView(): ()
+	if camera.FieldOfView ~= Config.FirstPersonFieldOfView then
+		camera.FieldOfView = Config.FirstPersonFieldOfView
+	end
+end
 
-        'GameConfig.luau': `--!strict
+enforceCameraMode()
+enforceFieldOfView()
+
+localPlayer:GetPropertyChangedSignal("CameraMode"):Connect(enforceCameraMode)
+camera:GetPropertyChangedSignal("FieldOfView"):Connect(enforceFieldOfView)`,
+
+        'GameConfig.lua': `--!strict
 
 local Config = {}
 
@@ -3423,17 +3699,21 @@ Config.MaxThrowSpeed = 300
 Config.HighlightThickness = 0.07
 Config.HighlightSurfaceTransparency = 0.85
 Config.HighlightSurfaceColor = Color3.fromRGB(180, 210, 255)
-Config.LightWeightColor = Color3.fromRGB(150, 255, 150)
-Config.HeavyWeightColor = Color3.fromRGB(255, 130, 130)
+Config.LightWeightColor = Color3.fromRGB(34, 255, 0)
+Config.HeavyWeightColor = Color3.fromRGB(255, 0, 0)
 
 Config.CameraMode = Enum.CameraMode.LockFirstPerson
+Config.FirstPersonFieldOfView = 100
+
+Config.CrosshairColor = Color3.fromRGB(255, 255, 255)
+Config.CrosshairSize = 4
 
 Config.DraggableNames = { "Part1", "Part2", "Part3" } :: { string }
 Config.InitialWeights = { Part1 = 1, Part2 = 3, Part3 = 8 } :: { [string]: number }
 
 function Config.GetWeight(part: BasePart): number
-	local raw: any = part:GetAttribute(Config.WeightAttribute)
-	local value: number = if type(raw) == "number" then raw else tonumber(raw) or Config.DefaultWeight
+	local raw = part:GetAttribute(Config.WeightAttribute)
+	local value: number = tonumber(raw) or Config.DefaultWeight
 	return math.clamp(value, Config.MinWeight, Config.MaxWeight)
 end
 
@@ -3443,12 +3723,27 @@ function Config.ColorForWeight(weight: number): Color3
 	return Config.LightWeightColor:Lerp(Config.HeavyWeightColor, t)
 end
 
-export type ConfigType = typeof(Config)
+return Config`,
 
-return Config`
+        'readme.md': `## 📁 Project Structure
+
+\`\`\`text
+ReplicatedStorage/
+└── Remotes/
+    ├── DragEnd
+    ├── DragDenied
+    └── DragStart
+
+ServerScriptService/
+└── DragServer                       ← Script
+
+StarterPlayer/
+└── StarterPlayerScripts/
+    ├── DragClient                   ← LocalScript
+    ├── CrosshairController          ← LocalScript
+    └── FirstPersonLock              ← LocalScript`
       }
     },
-
     tink: {
       name: 'Tink',
       files: {
@@ -6809,190 +7104,148 @@ return Spark`
     },
 
     m1: {
-      name: 'M1 System',
+      name: 'M1 combat articulation',
       files: {
-        'AnimationController.luau': `--!strict
-local AnimationController = {}
-AnimationController.__index = AnimationController
+        'CombatHandler.lua': `--!strict
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+if not Shared or not Shared:IsA("Folder") then return end
+local GameConfigModule = Shared:WaitForChild("GameConfig")
+if not GameConfigModule or not GameConfigModule:IsA("ModuleScript") then return end
+local GameConfig = require(GameConfigModule)
+local HitboxSystemModule = script.Parent:WaitForChild("HitboxSystem")
+if not HitboxSystemModule or not HitboxSystemModule:IsA("ModuleScript") then return end
+local HitboxSystem = require(HitboxSystemModule)
+local VFXSystemModule = script.Parent:WaitForChild("VFXSystem")
+if not VFXSystemModule or not VFXSystemModule:IsA("ModuleScript") then return end
+local VFXSystem = require(VFXSystemModule)
+local combatEvent = Instance.new("RemoteEvent")
+combatEvent.Name = "CombatEvent"
+combatEvent.Parent = ReplicatedStorage
+local cooldowns: {[Player]: number} = {}
+Players.PlayerRemoving:Connect(function(player: Player): ()
+	cooldowns[player] = nil
+end)
+combatEvent.OnServerEvent:Connect(function(player: Player, action: unknown, isRunning: unknown): ()
+	if typeof(action) ~= "string" or typeof(isRunning) ~= "boolean" then return end
+	if action ~= "M1" and action ~= "M2" then return end
+	local now: number = os.clock()
+	local last: number = cooldowns[player] or 0
+	if now - last < GameConfig.Combat.COOLDOWN then return end
+	local character = player.Character
+	if not character or not character:IsA("Model") then return end
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid then return end
+	local rootPart = character:FindFirstChild("HumanoidRootPart")
+	if not rootPart or not rootPart:IsA("BasePart") then return end
+	if humanoid.Health <= 0 then return end
+	cooldowns[player] = now
+	local isM1: boolean = (action == "M1")
+	local runBonus: boolean = isRunning == true
+	task.delay(GameConfig.Combat.VFX_DELAY, function(): ()
+		if not character.Parent or not rootPart.Parent or humanoid.Health <= 0 then return end
+		VFXSystem.PlayComboVFX(rootPart, isM1)
+		HitboxSystem.CreateHitbox(character, rootPart, runBonus)
+	end)
+end)`,
 
-type TrackMap = {[string]: AnimationTrack}
-
-export type AnimationController = typeof(setmetatable({} :: {
-	_tracks: TrackMap,
-	_current: string,
-}, AnimationController))
-
-local PRIORITIES: {[string]: Enum.AnimationPriority} = {
-	idle = Enum.AnimationPriority.Idle,
-	walk = Enum.AnimationPriority.Movement,
-	run = Enum.AnimationPriority.Movement,
-	m1 = Enum.AnimationPriority.Action,
-	m2 = Enum.AnimationPriority.Action,
-}
-
-local LOOPED: {[string]: boolean} = {
-	idle = true,
-	walk = true,
-	run = true,
-	m1 = false,
-	m2 = false,
-}
-
-function AnimationController.new(animator: Animator, ids: {[string]: string}): AnimationController
-	local tracks: TrackMap = {}
-
-	for key: string, id: string in pairs(ids) do
-		local name: string = string.lower(key)
-		local anim: Animation = Instance.new("Animation")
-		anim.AnimationId = id
-		local track: AnimationTrack = animator:LoadAnimation(anim)
-		anim:Destroy()
-
-		if PRIORITIES[name] then
-			track.Priority = PRIORITIES[name]
-		end
-		if LOOPED[name] ~= nil then
-			track.Looped = LOOPED[name]
-		end
-
-		tracks[name] = track
-	end
-
-	return setmetatable({
-		_tracks = tracks,
-		_current = "",
-	}, AnimationController)
-end
-
-function AnimationController.PlayTrack(self: AnimationController, name: string, blendTime: number?): ()
-	local track: AnimationTrack? = self._tracks[name]
-	if not track then return end
-
-	if self._current ~= "" then
-		local prev: AnimationTrack? = self._tracks[self._current]
-		if prev and prev.IsPlaying then
-			prev:Stop(blendTime or 0.2)
-		end
-	end
-
-	self._current = name
-	track:Play(blendTime or 0.2)
-end
-
-function AnimationController.StopCurrent(self: AnimationController, blendTime: number?): ()
-	if self._current == "" then return end
-	local track: AnimationTrack? = self._tracks[self._current]
-	if track and track.IsPlaying then
-		track:Stop(blendTime or 0.2)
-	end
-end
-
-function AnimationController.GetTrack(self: AnimationController, name: string): AnimationTrack?
-	return self._tracks[name]
-end
-
-function AnimationController.GetCurrentName(self: AnimationController): string
-	return self._current
-end
-
-function AnimationController.Destroy(self: AnimationController): ()
-	for _, track: AnimationTrack in pairs(self._tracks) do
-		if track.IsPlaying then
-			track:Stop(0)
-		end
-		track:Destroy()
-	end
-	table.clear(self._tracks)
-	self._current = ""
-end
-
-return table.freeze(AnimationController)`,
-        'CombatController.luau': `--!strict
-local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
-local UserInputService: UserInputService = game:GetService("UserInputService")
-
-local Shared: Folder = ReplicatedStorage:WaitForChild("Shared") :: Folder
-local GameConfig = require(Shared:WaitForChild("GameConfig") :: ModuleScript)
-local Maid = require(Shared:WaitForChild("Maid") :: ModuleScript)
-local AnimationController = require(Shared:WaitForChild("AnimationController") :: ModuleScript)
-
-local character: Model = script.Parent :: Model
-local humanoid: Humanoid = character:WaitForChild("Humanoid") :: Humanoid
-local animator: Animator = humanoid:WaitForChild("Animator") :: Animator
-local combatEvent: RemoteEvent = ReplicatedStorage:WaitForChild("CombatEvent") :: RemoteEvent
-
+        'CombatController.lua': `--!strict
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+if not Shared or not Shared:IsA("Folder") then return end
+local GameConfigModule = Shared:WaitForChild("GameConfig")
+if not GameConfigModule or not GameConfigModule:IsA("ModuleScript") then return end
+local GameConfig = require(GameConfigModule)
+local MaidModule = Shared:WaitForChild("Maid")
+if not MaidModule or not MaidModule:IsA("ModuleScript") then return end
+local Maid = require(MaidModule)
+local AnimationControllerModule = Shared:WaitForChild("AnimationController")
+if not AnimationControllerModule or not AnimationControllerModule:IsA("ModuleScript") then return end
+local AnimationController = require(AnimationControllerModule)
+local character = script.Parent
+if not character or not character:IsA("Model") then return end
+local humanoid = character:WaitForChild("Humanoid")
+if not humanoid or not humanoid:IsA("Humanoid") then return end
+local animator = humanoid:WaitForChild("Animator")
+if not animator or not animator:IsA("Animator") then return end
+local combatEvent = ReplicatedStorage:WaitForChild("CombatEvent")
+if not combatEvent or not combatEvent:IsA("RemoteEvent") then return end
 humanoid:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
-
-local maid: Maid.Maid = Maid.new()
-local attackMaid: Maid.Maid = Maid.new()
-
-local animController: AnimationController.AnimationController = AnimationController.new(animator, GameConfig.Animations)
-
+local maid = Maid.new()
+local attackMaid = Maid.new()
+local animController = AnimationController.new(animator, GameConfig.Animations)
 local running: boolean = false
 local attacking: boolean = false
 local airborne: boolean = false
 local isDestroyed: boolean = false
-
 humanoid.WalkSpeed = GameConfig.Speed.WALK
+local ownTracks: {[AnimationTrack]: boolean} = {}
+for _, track: AnimationTrack in pairs(animController:GetAllTracks()) do
+	ownTracks[track] = true
+end
+maid:GiveTask(animator.AnimationPlayed:Connect(function(track: AnimationTrack): ()
+	if not ownTracks[track] then
+		track:Stop(0)
+	end
+end))
 animController:PlayTrack("idle", 0.1)
-
 local function updateState(blendTime: number?): ()
 	if attacking or airborne or isDestroyed then return end
-
 	local target: string = "idle"
 	if humanoid.MoveDirection.Magnitude > 0 then
 		target = if running then "run" else "walk"
 	end
-
 	if animController:GetCurrentName() ~= target then
 		animController:PlayTrack(target, blendTime or 0.2)
 	end
 end
-
-local function executeAttack(actionName: string): ()
-	if attacking or isDestroyed or humanoid.Health <= 0 then return end
-
+local comboToggle: boolean = false
+local lastComboTime: number = 0
+local function executeAttack(): ()
+	if attacking or isDestroyed or humanoid.Health <= 0 or airborne then return end
+	if os.clock() - lastComboTime > GameConfig.Combat.COMBO_RESET_WINDOW then
+		comboToggle = false
+	end
+	local actionName: string = if comboToggle then "M2" else "M1"
+	local trackName: string = string.lower(actionName)
+	local track = animController:GetTrack(trackName)
+	if not track then return end
 	attacking = true
 	humanoid.WalkSpeed = GameConfig.Speed.ATTACK
-
-	local trackName: string = string.lower(actionName)
 	animController:PlayTrack(trackName, 0.1)
-
 	combatEvent:FireServer(actionName, running)
-
 	attackMaid:DoCleaning()
-
-	local track: AnimationTrack? = animController:GetTrack(trackName)
-	if track then
-		attackMaid:GiveTask(track.Stopped:Once(function(): ()
-			attackMaid:DoCleaning()
-			if isDestroyed then return end
-
-			attacking = false
-			if humanoid.Health > 0 then
-				humanoid.WalkSpeed = if running then GameConfig.Speed.RUN else GameConfig.Speed.WALK
-				updateState(0.1)
-			end
-		end))
-	end
+	attackMaid:GiveTask(track.Stopped:Once(function(): ()
+		attackMaid:DoCleaning()
+		if isDestroyed then return end
+		attacking = false
+		if airborne then
+			comboToggle = false
+		else
+			comboToggle = not comboToggle
+			lastComboTime = os.clock()
+		end
+		if humanoid.Health > 0 then
+			humanoid.WalkSpeed = if running then GameConfig.Speed.RUN else GameConfig.Speed.WALK
+			updateState(0.1)
+		end
+	end))
 end
-
 maid:GiveTask(humanoid:GetPropertyChangedSignal("MoveDirection"):Connect(function(): ()
 	updateState()
 end))
-
 maid:GiveTask(humanoid.StateChanged:Connect(function(_: Enum.HumanoidStateType, newState: Enum.HumanoidStateType): ()
-	airborne = (newState == Enum.HumanoidStateType.Freefall or newState == Enum.HumanoidStateType.Jumping)
+	airborne = (newState == Enum.HumanoidStateType.Freefall or newState == Enum.HumanoidStateType.Jumping or newState == Enum.HumanoidStateType.FallingDown or newState == Enum.HumanoidStateType.Ragdoll)
 	if airborne then
 		animController:StopCurrent(0.2)
 	else
 		updateState(0.1)
 	end
 end))
-
 maid:GiveTask(UserInputService.InputBegan:Connect(function(input: InputObject, gp: boolean): ()
 	if gp or humanoid.Health <= 0 or isDestroyed then return end
-
 	if input.KeyCode == Enum.KeyCode.LeftShift then
 		running = true
 		if not attacking then
@@ -7000,15 +7253,11 @@ maid:GiveTask(UserInputService.InputBegan:Connect(function(input: InputObject, g
 			updateState()
 		end
 	elseif input.UserInputType == Enum.UserInputType.MouseButton1 then
-		executeAttack("M1")
-	elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
-		executeAttack("M2")
+		executeAttack()
 	end
 end))
-
 maid:GiveTask(UserInputService.InputEnded:Connect(function(input: InputObject): ()
 	if isDestroyed then return end
-
 	if input.KeyCode == Enum.KeyCode.LeftShift then
 		running = false
 		if not attacking then
@@ -7017,128 +7266,268 @@ maid:GiveTask(UserInputService.InputEnded:Connect(function(input: InputObject): 
 		end
 	end
 end))
-
 local function destroy(): ()
 	if isDestroyed then return end
 	isDestroyed = true
+	comboToggle = false
 	attackMaid:DoCleaning()
 	maid:DoCleaning()
 	animController:Destroy()
 end
-
 maid:GiveTask(humanoid.Died:Connect(destroy))
 maid:GiveTask(character.Destroying:Connect(destroy))`,
-        'CombatHandler.luau': `--!strict
-local Players: Players = game:GetService("Players")
-local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Shared: Folder = ReplicatedStorage:WaitForChild("Shared") :: Folder
-local GameConfig = require(Shared:WaitForChild("GameConfig") :: ModuleScript)
-local HitboxSystem = require(script.Parent:WaitForChild("HitboxSystem") :: ModuleScript)
-local VFXSystem = require(script.Parent:WaitForChild("VFXSystem") :: ModuleScript)
-
-local combatEvent: RemoteEvent = Instance.new("RemoteEvent")
-combatEvent.Name = "CombatEvent"
-combatEvent.Parent = ReplicatedStorage
-
-local cooldowns: {[Player]: number} = {}
-
-Players.PlayerRemoving:Connect(function(player: Player): ()
-	cooldowns[player] = nil
-end)
-
-combatEvent.OnServerEvent:Connect(function(player: Player, action: unknown, isRunning: unknown): ()
-	if type(action) ~= "string" or type(isRunning) ~= "boolean" then return end
-	if action ~= "M1" and action ~= "M2" then return end
-
-	local now: number = os.clock()
-	local last: number = cooldowns[player] or 0
-	if now - last < GameConfig.Combat.COOLDOWN then return end
-
-	local character: Model? = player.Character
-	if not character then return end
-
-	local humanoid: Humanoid? = character:FindFirstChildOfClass("Humanoid")
-	local rootPart: BasePart? = character:FindFirstChild("HumanoidRootPart") :: BasePart?
-
-	if not humanoid or not rootPart then return end
-	if humanoid.Health <= 0 then return end
-
-	cooldowns[player] = now
-
-	local isM1: boolean = (action == "M1")
-	local runBonus: boolean = isRunning :: boolean
-
-	local capturedChar: Model = character :: Model
-	local capturedHum: Humanoid = humanoid :: Humanoid
-	local capturedRoot: BasePart = rootPart :: BasePart
-
-	task.delay(GameConfig.Combat.VFX_DELAY, function(): ()
-		if not capturedChar.Parent then return end
-		if not capturedRoot.Parent then return end
-		if capturedHum.Health <= 0 then return end
-
-		VFXSystem.PlayComboVFX(capturedRoot, isM1)
-		HitboxSystem.CreateHitbox(capturedChar, capturedRoot, runBonus)
-	end)
-end)`,
-        'HitboxSystem.luau': `--!strict
-local ReplicatedStorage: ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Debris: Debris = game:GetService("Debris")
-
-local Shared: Folder = ReplicatedStorage:WaitForChild("Shared") :: Folder
-local GameConfig = require(Shared:WaitForChild("GameConfig") :: ModuleScript)
-local VFXSystem = require(script.Parent:WaitForChild("VFXSystem") :: ModuleScript)
-
-local hitboxTemplate: BasePart = ReplicatedStorage:WaitForChild("Hitbox") :: BasePart
-
+        'HitboxSystem.lua': `--!strict
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+if not Shared or not Shared:IsA("Folder") then return {} end
+local GameConfigModule = Shared:WaitForChild("GameConfig")
+if not GameConfigModule or not GameConfigModule:IsA("ModuleScript") then return {} end
+local GameConfig = require(GameConfigModule)
+local VFXSystemModule = script.Parent:WaitForChild("VFXSystem")
+if not VFXSystemModule or not VFXSystemModule:IsA("ModuleScript") then return {} end
+local VFXSystem = require(VFXSystemModule)
+local hitboxTemplate = ReplicatedStorage:WaitForChild("Hitbox")
+if not hitboxTemplate or not hitboxTemplate:IsA("BasePart") then return {} end
 local HitboxSystem = {}
-
 function HitboxSystem.CreateHitbox(attackerChar: Model, attackerRoot: BasePart, runBonus: boolean): ()
-	local hitbox: BasePart = hitboxTemplate:Clone() :: BasePart
+	local hitbox = hitboxTemplate:Clone()
+	if not hitbox or not hitbox:IsA("BasePart") then return end
 	hitbox.CanQuery = false
 	hitbox.CanTouch = true
-
-	local weld: Weld = Instance.new("Weld")
+	local weld = Instance.new("Weld")
 	weld.Part0 = attackerRoot
 	weld.Part1 = hitbox
 	weld.C1 = CFrame.new(0, 0, 3)
 	weld.Parent = hitbox
-
 	hitbox.Parent = attackerRoot
-	Debris:AddItem(hitbox, GameConfig.Combat.HITBOX_LIFETIME)
-
 	local hitList: {[Humanoid]: boolean} = {}
 	local conn: RBXScriptConnection
-
 	conn = hitbox.Touched:Connect(function(hit: BasePart): ()
-		local enemyChar: Model? = hit.Parent :: Model?
-		if not enemyChar or enemyChar == attackerChar then return end
-
-		local eHum: Humanoid? = enemyChar:FindFirstChildOfClass("Humanoid")
-		local eRoot: BasePart? = enemyChar:FindFirstChild("HumanoidRootPart") :: BasePart?
-
-		if not eHum or not eRoot then return end
-		if eHum.Health <= 0 then return end
-		if hitList[eHum] then return end
+		if not hit or not hit.Parent then return end
+		local enemyChar = hit.Parent
+		if not enemyChar:IsA("Model") or enemyChar == attackerChar then return end
+		local eHum = enemyChar:FindFirstChildOfClass("Humanoid")
+		if not eHum then return end
+		local eRoot = enemyChar:FindFirstChild("HumanoidRootPart")
+		if not eRoot or not eRoot:IsA("BasePart") then return end
+		if eHum.Health <= 0 or hitList[eHum] then return end
 		hitList[eHum] = true
-
 		local dmg: number = if runBonus then GameConfig.Combat.DAMAGE * GameConfig.Combat.RUN_DAMAGE_MULT else GameConfig.Combat.DAMAGE
 		local kb: number = if runBonus then GameConfig.Combat.KNOCKBACK * GameConfig.Combat.RUN_KNOCKBACK_MULT else GameConfig.Combat.KNOCKBACK
-
-		eHum:TakeDamage(dmg)
+		if eHum:GetAttribute("Immortal") then
+			eHum.Health = math.max(eHum.Health - dmg, 1)
+		else
+			eHum:TakeDamage(dmg)
+		end
 		VFXSystem.PlayHitVFX(enemyChar)
 		VFXSystem.ApplyKnockback(attackerRoot, eRoot, kb)
 	end)
-
 	task.delay(GameConfig.Combat.HITBOX_ACTIVE, function(): ()
-		if conn.Connected then
-			conn:Disconnect()
-		end
+		if conn and conn.Connected then conn:Disconnect() end
+		if hitbox then hitbox:Destroy() end
 	end)
 end
-
 return table.freeze(HitboxSystem)`,
+
+        'VFXSystem.lua': `--!strict
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+if not Shared or not Shared:IsA("Folder") then return {} end
+local GameConfigModule = Shared:WaitForChild("GameConfig")
+if not GameConfigModule or not GameConfigModule:IsA("ModuleScript") then return {} end
+local GameConfig = require(GameConfigModule)
+local combo1 = ReplicatedStorage:WaitForChild("combo1")
+if not combo1 then return {} end
+local combo2 = ReplicatedStorage:WaitForChild("combo2")
+if not combo2 then return {} end
+local VFXSystem = {}
+function VFXSystem.PlayComboVFX(rootPart: BasePart, isM1: boolean): ()
+	local template = if isM1 then combo1 else combo2
+	local vfx = template:Clone()
+	if not vfx then return end
+	vfx.Parent = rootPart
+	local emitters: {ParticleEmitter} = {}
+	for _, obj in ipairs(vfx:GetDescendants()) do
+		if obj:IsA("ParticleEmitter") then
+			table.insert(emitters, obj)
+			obj.Enabled = true
+		end
+	end
+	task.delay(GameConfig.Combat.VFX_EMIT_DURATION, function(): ()
+		for _, emitter in ipairs(emitters) do
+			emitter.Enabled = false
+		end
+	end)
+	task.delay(GameConfig.Combat.VFX_LIFETIME, function(): ()
+		if vfx then vfx:Destroy() end
+	end)
+end
+function VFXSystem.PlayHitVFX(enemyChar: Model): ()
+	local highlight = Instance.new("Highlight")
+	highlight.FillColor = Color3.fromRGB(255, 0, 0)
+	highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+	highlight.FillTransparency = 1
+	highlight.OutlineTransparency = 1
+	highlight.DepthMode = Enum.HighlightDepthMode.Occluded
+	highlight.Parent = enemyChar
+	local tweenIn = TweenService:Create(highlight, TweenInfo.new(0.05, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {FillTransparency = 0.25})
+	local tweenOut = TweenService:Create(highlight, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {FillTransparency = 1})
+	tweenIn.Completed:Once(function(): ()
+		tweenOut:Play()
+	end)
+	tweenIn:Play()
+	task.delay(GameConfig.Combat.HIGHLIGHT_DURATION, function(): ()
+		if highlight then highlight:Destroy() end
+	end)
+end
+function VFXSystem.ApplyKnockback(attackerRoot: BasePart, enemyRoot: BasePart, force: number): ()
+	local clampedForce: number = math.clamp(force, 0, GameConfig.Combat.MAX_KNOCKBACK_FORCE)
+	local att = Instance.new("Attachment")
+	att.Parent = enemyRoot
+	local lv = Instance.new("LinearVelocity")
+	lv.Attachment0 = att
+	lv.VectorVelocity = attackerRoot.CFrame.LookVector * clampedForce + Vector3.new(0, 10, 0)
+	lv.MaxForce = math.huge
+	lv.RelativeTo = Enum.ActuatorRelativeTo.World
+	lv.Parent = enemyRoot
+	task.delay(GameConfig.Combat.KNOCKBACK_DURATION, function(): ()
+		if lv then lv:Destroy() end
+		if att then att:Destroy() end
+	end)
+end
+return table.freeze(VFXSystem)`,
+
+        'AnimationController.lua': `--!strict
+local AnimationController = {}
+AnimationController.__index = AnimationController
+type TrackMap = {[string]: AnimationTrack}
+export type AnimationController = typeof(setmetatable({} :: { _tracks: TrackMap, _current: string }, AnimationController))
+local PRIORITIES: {[string]: Enum.AnimationPriority} = {idle = Enum.AnimationPriority.Idle, walk = Enum.AnimationPriority.Movement, run = Enum.AnimationPriority.Movement, m1 = Enum.AnimationPriority.Action, m2 = Enum.AnimationPriority.Action}
+local LOOPED: {[string]: boolean} = {idle = true, walk = true, run = true, m1 = false, m2 = false}
+function AnimationController.new(animator: Animator, ids: {[string]: string}): AnimationController
+	local tracks: TrackMap = {}
+	for key: string, id: string in pairs(ids) do
+		local name: string = string.lower(key)
+		local anim: Animation = Instance.new("Animation")
+		anim.AnimationId = id
+		local track: AnimationTrack = animator:LoadAnimation(anim)
+		anim:Destroy()
+		if PRIORITIES[name] then track.Priority = PRIORITIES[name] end
+		if LOOPED[name] ~= nil then track.Looped = LOOPED[name] end
+		tracks[name] = track
+	end
+	return setmetatable({ _tracks = tracks, _current = "" }, AnimationController)
+end
+function AnimationController.PlayTrack(self: AnimationController, name: string, blendTime: number?): ()
+	local track: AnimationTrack? = self._tracks[name]
+	if not track then return end
+	if self._current ~= "" and self._current ~= name then
+		local prev: AnimationTrack? = self._tracks[self._current]
+		if prev and prev.IsPlaying then
+			prev:Stop(blendTime or 0.2)
+		end
+	end
+	self._current = name
+	track:Play(blendTime or 0.2)
+end
+function AnimationController.StopCurrent(self: AnimationController, blendTime: number?): ()
+	if self._current == "" then return end
+	local track: AnimationTrack? = self._tracks[self._current]
+	if track and track.IsPlaying then
+		track:Stop(blendTime or 0.2)
+	end
+	self._current = ""
+end
+function AnimationController.GetTrack(self: AnimationController, name: string): AnimationTrack?
+	return self._tracks[name]
+end
+function AnimationController.GetCurrentName(self: AnimationController): string
+	return self._current
+end
+function AnimationController.GetAllTracks(self: AnimationController): TrackMap
+	return self._tracks
+end
+function AnimationController.Destroy(self: AnimationController): ()
+	for _, track: AnimationTrack in pairs(self._tracks) do
+		if track.IsPlaying then track:Stop(0) end
+		track:Destroy()
+	end
+	table.clear(self._tracks)
+	self._current = ""
+end
+return table.freeze(AnimationController)`,
+
+        'Maid.lua': `--!strict
+local Maid = {}
+Maid.__index = Maid
+export type Task = RBXScriptConnection | Instance | () -> () | thread
+export type Maid = typeof(setmetatable({} :: { _tasks: {Task} }, Maid))
+function Maid.new(): Maid
+	return setmetatable({ _tasks = {} }, Maid)
+end
+function Maid.GiveTask(self: Maid, taskItem: Task): Task
+	table.insert(self._tasks, taskItem)
+	return taskItem
+end
+function Maid.DoCleaning(self: Maid): ()
+	local tasks: {Task} = self._tasks
+	self._tasks = {}
+	for _, item: Task in ipairs(tasks) do
+		local tt: string = typeof(item)
+		if tt == "RBXScriptConnection" then
+			(item :: RBXScriptConnection):Disconnect()
+		elseif tt == "Instance" then
+			(item :: Instance):Destroy()
+		elseif tt == "function" then
+			(item :: () -> ())()
+		elseif tt == "thread" then
+			if coroutine.status(item :: thread) ~= "dead" then
+				task.cancel(item :: thread)
+			end
+		end
+	end
+end
+return table.freeze(Maid)`,
+
+        'GameConfig.lua': `--!strict
+export type CombatConfig = {DAMAGE: number, KNOCKBACK: number, MAX_KNOCKBACK_FORCE: number, COOLDOWN: number, VFX_DELAY: number, VFX_EMIT_DURATION: number, VFX_LIFETIME: number, HITBOX_ACTIVE: number, KNOCKBACK_DURATION: number, HIGHLIGHT_DURATION: number, RUN_DAMAGE_MULT: number, RUN_KNOCKBACK_MULT: number, COMBO_RESET_WINDOW: number}
+export type SpeedConfig = {WALK: number, RUN: number, ATTACK: number}
+export type AnimationIds = {IDLE: string, WALK: string, RUN: string, M1: string, M2: string}
+local GameConfig = {}
+GameConfig.Combat = table.freeze({DAMAGE = 25, KNOCKBACK = 40, MAX_KNOCKBACK_FORCE = 120, COOLDOWN = 0.4, VFX_DELAY = 0.25, VFX_EMIT_DURATION = 0.3, VFX_LIFETIME = 1, HITBOX_ACTIVE = 0.35, KNOCKBACK_DURATION = 0.15, HIGHLIGHT_DURATION = 0.3, RUN_DAMAGE_MULT = 1.2, RUN_KNOCKBACK_MULT = 1.35, COMBO_RESET_WINDOW = 1}) :: CombatConfig
+GameConfig.Speed = table.freeze({WALK = 12, RUN = 20, ATTACK = 0}) :: SpeedConfig
+GameConfig.Animations = table.freeze({IDLE = "rbxassetid://100543849291511", WALK = "rbxassetid://108096244047063", RUN = "rbxassetid://91574816420777", M1 = "rbxassetid://98255810475707", M2 = "rbxassetid://119644330061039"}) :: AnimationIds
+return table.freeze(GameConfig)`,
+
+        'Animate.lua': `--!strict
+`,
+
+        'readme.md': `# 📁 Project Structure
+\`\`\`
+ReplicatedStorage/
+├── AnimationGraphEditor/
+├── Shared/
+│   ├── AnimationController       ← ModuleScript
+│   ├── GameConfig                ← ModuleScript
+│   └── Maid                      ← ModuleScript
+├── combo1                        ← RemoteEvent
+├── combo2                        ← RemoteEvent
+└── Hitbox                        ← Part
+
+ServerScriptService/
+├── CombatHandler                 ← Script
+├── HitboxSystem                  ← ModuleScript
+└── VFXSystem                     ← ModuleScript
+
+StarterPlayer/
+├── StarterCharacter/
+├── StarterCharacterScripts/
+│   ├── Animate                   ← LocalScript
+│   └── CombatController          ← LocalScript
+└── StarterPlayerScripts/
+\`\`\``
       }
     }
   };
