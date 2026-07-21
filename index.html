@@ -27,7 +27,6 @@
         <ul>
           <li><a href="#about" class="nav__link">About</a></li>
           <li><a href="#projects" class="nav__link">Projects</a></li>
-          <li><a href="#demos" class="nav__link">Demos</a></li>
           <li><a href="#studios" class="nav__link">Studios</a></li>
           <li><a href="#scope" class="nav__link">Scope</a></li>
           <li><a href="#payment" class="nav__link">Payment</a></li>
@@ -48,7 +47,6 @@
     <nav class="drawer__nav">
       <a href="#about" class="drawer__link">About</a>
       <a href="#projects" class="drawer__link">Projects</a>
-      <a href="#demos" class="drawer__link">Demos</a>
       <a href="#studios" class="drawer__link">Studios</a>
       <a href="#scope" class="drawer__link">Scope</a>
       <a href="#payment" class="drawer__link">Payment</a>
@@ -103,58 +101,13 @@
         <div class="sys-grid">
 
           <div class="sys reveal-el">
-            <div class="sys__body">
-              <div class="sys__ico"><i class="fa-solid fa-rotate"></i></div>
-              <div class="sys__name">Round system</div>
-              <div class="sys__desc">A server-authoritative round-based PvP system in --!strict Luau. RoundManager drives a four-state machine (Lobby → Intermission → InGame → Cleanup), without memory leaks and backdoors.</div>
-              <div class="sys__actions">
-                <button class="sys__link preview-btn" data-project="round"><i class="fa-solid fa-code"></i> Preview</button>
-                <a href="https://gist.github.com/sacrificedDecro/7eb59ec4697bad413cd20cc461dd9d01" target="_blank" rel="noopener noreferrer" class="sys__link sys__link--gist"><i class="fa-brands fa-github"></i> Gist</a>
-              </div>
+            <div class="sys__media">
+              <iframe src="https://streamable.com/o/smb5jd" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe>
             </div>
-          </div>
-
-          <div class="sys reveal-el">
-            <div class="sys__body">
-              <div class="sys__ico"><i class="fa-solid fa-map"></i></div>
-              <div class="sys__name">Basic plot system</div>
-              <div class="sys__desc">Server-side Luau tycoon plot system in --!strict Luau. Touch-to-claim pads show a live billboard with the owner's name, guarded by per-player debounce, with automatic release on disconnect and runtime plot registration via folder watchers.</div>
-              <div class="sys__actions">
-                <button class="sys__link preview-btn" data-project="plot"><i class="fa-solid fa-code"></i> Preview</button>
-                <a href="https://gist.github.com/sacrificedDecro/3f80a350e6a4511e2817621df8eac588" target="_blank" rel="noopener noreferrer" class="sys__link sys__link--gist"><i class="fa-brands fa-github"></i> Gist</a>
-              </div>
-            </div>
-          </div>
-
-          <div class="sys reveal-el">
-            <div class="sys__body">
-              <div class="sys__ico"><i class="fa-solid fa-bell"></i></div>
-              <div class="sys__name">Notification system</div>
-              <div class="sys__desc">Queue controller with tween-based animations, destroyed-instance protection, per-coroutine cancellation flags, safe yield checkpoints. Handles Gamepass and shop purchase events.</div>
-              <div class="sys__actions">
-                <button class="sys__link preview-btn" data-project="notify"><i class="fa-solid fa-code"></i> Preview</button>
-                <a href="https://gist.github.com/sacrificedDecro/ac9bc9d842d4a33aef86f86a40dcf044" target="_blank" rel="noopener noreferrer" class="sys__link sys__link--gist"><i class="fa-brands fa-github"></i> Gist</a>
-              </div>
-            </div>
-          </div>
-
-          <div class="sys reveal-el">
-            <div class="sys__body">
-              <div class="sys__ico"><i class="fa-solid fa-fire-burner"></i></div>
-              <div class="sys__name">Cooking system</div>
-              <div class="sys__desc">Server-side crafting chain in --!strict Luau. A multi-step recipe flow — place the pot, add ingredients through context-aware prompts, collect the result — backed by pre-warmed prop respawns, weak-referenced tween cleanup, and multiplayer-safe shared-station logic.</div>
-              <div class="sys__actions">
-                <button class="sys__link preview-btn" data-project="cooking"><i class="fa-solid fa-code"></i> Preview</button>
-                <a href="https://gist.github.com/sacrificedDecro/42ada689bc15c418644a2b7e1ce0173a" target="_blank" rel="noopener noreferrer" class="sys__link sys__link--gist"><i class="fa-brands fa-github"></i> Gist</a>
-              </div>
-            </div>
-          </div>
-
-          <div class="sys reveal-el">
             <div class="sys__body">
               <div class="sys__ico"><i class="fa-solid fa-hand"></i></div>
-              <div class="sys__name">Dead Rails — drag, weight &amp; throw</div>
-              <div class="sys__desc">Multiplayer first-person drag, weight, and throw system in --!strict Luau. Objects highlight green-to-red by weight, throws are computed from a rolling velocity sample with a speed cap, and drags release safely on death, destruction, or contested ownership.</div>
+              <div class="sys__name">Dead rails - drag, weight &amp; throw</div>
+              <div class="sys__desc">Dragging runs on real physics: the server hands the grabbed part's network ownership to your client and holds it with AlignPosition/AlignOrientation, so heavier props genuinely resist being dragged, not just tinted red. Let go mid-swing and a short velocity sample turns it into a real throw, capped so nothing rockets off the map.</div>
               <div class="sys__actions">
                 <button class="sys__link preview-btn" data-project="drag-throw"><i class="fa-solid fa-code"></i> Preview</button>
                 <a href="https://gist.github.com/sacrificedDecro/20b67d9f3e166fccc1449c2b63b5a0cd" target="_blank" rel="noopener noreferrer" class="sys__link sys__link--gist"><i class="fa-brands fa-github"></i> Gist</a>
@@ -163,10 +116,13 @@
           </div>
 
           <div class="sys reveal-el">
+            <div class="sys__media">
+              <iframe src="https://streamable.com/o/zhkxn6" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe>
+            </div>
             <div class="sys__body">
               <div class="sys__ico"><i class="fa-solid fa-fist-raised"></i></div>
-              <div class="sys__name">M1 combat articulation</div>
-              <div class="sys__desc">Fully typed M1 combat articulation in --!strict Luau. An alternating M1/M2 combo chain with a reset window, sprint-attack damage and knockback bonuses, distinct VFX per hit, and an Immortal-attribute safeguard for essential NPCs.</div>
+              <div class="sys__name">Simple combat system</div>
+              <div class="sys__desc">M1/M2 combos, sprint attacks that hit harder and knock further, and a real block that shrugs off damage — unless you land it from behind, which breaks straight through. Hits land with randomized-pitch sound, blood, and a red flash. Two training dummies spar on their own in the scene, so the whole system is watchable solo.</div>
               <div class="sys__actions">
                 <button class="sys__link preview-btn" data-project="m1"><i class="fa-solid fa-code"></i> Preview</button>
                 <a href="https://gist.github.com/sacrificedDecro/e9d4bbaf3840596210cce41dcdb298d8" target="_blank" rel="noopener noreferrer" class="sys__link sys__link--gist"><i class="fa-brands fa-github"></i> Gist</a>
@@ -174,11 +130,11 @@
             </div>
           </div>
 
-          <div class="sys sys--wide reveal-el">
+          <div class="sys reveal-el">
             <div class="sys__body">
               <div class="sys__ico"><i class="fa-solid fa-cubes"></i></div>
               <div class="sys__name">Tink — game framework</div>
-              <div class="sys__desc">Strictly-typed Roblox game framework — a modern replacement for the archived Knit. Built with --!strict throughout. Supports Services, Controllers, RemoteSignals, and RemoteProperties.</div>
+              <div class="sys__desc">A from-scratch Knit-style service/controller framework, no dependency on the archived original. Every remote gets automatic per-player rate limiting before your handler even runs. Startup is fault-isolated too — if one service throws on init, only that one gets skipped, logged with a full traceback, while everything else boots normally.</div>
               <div class="sys__actions">
                 <button class="sys__link preview-btn" data-project="tink"><i class="fa-solid fa-code"></i> Preview</button>
                 <a href="https://gist.github.com/sacrificedDecro/7195e6ca69e56347a1506a33294cb57a" target="_blank" rel="noopener noreferrer" class="sys__link sys__link--gist"><i class="fa-brands fa-github"></i> Gist</a>
@@ -187,91 +143,16 @@
           </div>
 
           <div class="sys reveal-el">
+            <div class="sys__media">
+              <iframe src="https://streamable.com/o/o61qz1" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe>
+            </div>
             <div class="sys__body">
               <div class="sys__ico"><i class="fa-solid fa-box-open"></i></div>
-              <div class="sys__name">Custom inventory slot + custom interact system</div>
-              <div class="sys__desc">Server-authoritative inventory system in --!strict Luau. A custom CollectionService-based interact system replaces ProximityPrompt, with exploit-resistant pickup validation, DataStore saves guarded by BindToClose, and physical drop-and-repickup in the world.</div>
+              <div class="sys__name">Inventory slot UI + custom interact prompt</div>
+              <div class="sys__desc">The interact prompt is fully custom, no ProximityPrompt — just a CollectionService tag and an outline Highlight on whatever's nearest. What matters more is the save system: each server claims a session lock before loading your inventory, and a heartbeat keeps renewing it. Join a second server mid-session and it gets turned away instead of duplicating your items.</div>
               <div class="sys__actions">
                 <button class="sys__link preview-btn" data-project="inventory"><i class="fa-solid fa-code"></i> Preview</button>
                 <a href="https://gist.github.com/sacrificedDecro/6efa8427d5a0e625de0174540d6203a0" target="_blank" rel="noopener noreferrer" class="sys__link sys__link--gist"><i class="fa-brands fa-github"></i> Gist</a>
-              </div>
-            </div>
-          </div>
-
-        </div>
-      </div>
-    </section>
-
-    <section id="demos" class="sect sect--alt">
-      <div class="w">
-        <div class="tag reveal-el">Demos</div>
-        <h2 class="sect-h reveal-el">In action</h2>
-        <div class="demos-grid">
-
-          <div class="demo-card reveal-el">
-            <div class="demo-card__device">
-              <div class="demo-card__video">
-                <iframe src="https://streamable.com/o/jsyudz" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe>
-              </div>
-            </div>
-            <div class="demo-card__body">
-              <div class="demo-card__title">Shop + playtime rewards system</div>
-              <div class="demo-card__desc">Queue controller with tween-based animations, destroyed-instance protection, per-coroutine cancellation flags, safe yield checkpoints.</div>
-              <div class="demo-card__tags">
-                <span class="pill">System</span>
-                <span class="pill">UI</span>
-                <span class="pill">Animation</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="demo-card reveal-el">
-            <div class="demo-card__device">
-              <div class="demo-card__video">
-                <iframe src="https://streamable.com/o/b4b3f0" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe>
-              </div>
-            </div>
-            <div class="demo-card__body">
-              <div class="demo-card__title">Dead Rails — drag, weight &amp; throw</div>
-              <div class="demo-card__desc">Multiplayer first-person drag, weight, and throw system. Parts carry a Weight attribute — heavier parts reduce AlignPosition responsiveness.</div>
-              <div class="demo-card__tags">
-                <span class="pill">Multiplayer</span>
-                <span class="pill">Physics</span>
-                <span class="pill">First-Person</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="demo-card reveal-el">
-            <div class="demo-card__device">
-              <div class="demo-card__video">
-                <iframe src="https://streamable.com/o/3xmd55" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe>
-              </div>
-            </div>
-            <div class="demo-card__body">
-              <div class="demo-card__title">M1 system</div>
-              <div class="demo-card__desc">Fully typed M1 combat articulation with animation graph integration, hitbox system, and VFX pipeline.</div>
-              <div class="demo-card__tags">
-                <span class="pill">Combat</span>
-                <span class="pill">VFX</span>
-                <span class="pill">Animation</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="demo-card reveal-el">
-            <div class="demo-card__device">
-              <div class="demo-card__video">
-                <iframe src="https://streamable.com/o/kq97wc" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe>
-              </div>
-            </div>
-            <div class="demo-card__body">
-              <div class="demo-card__title">Custom inventory slot + custom interact system</div>
-              <div class="demo-card__desc">Fully typed secure inventory drop and slot system.</div>
-              <div class="demo-card__tags">
-                <span class="pill">Inventory</span>
-                <span class="pill">UI</span>
-                <span class="pill">System</span>
               </div>
             </div>
           </div>
