@@ -102,12 +102,12 @@
 
           <div class="sys reveal-el">
             <div class="sys__media">
-              <iframe src="https://streamable.com/o/smb5jd" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe>
+              <iframe src="https://streamable.com/o/eeufbs" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe>
             </div>
             <div class="sys__body">
               <div class="sys__ico"><i class="fa-solid fa-hand"></i></div>
               <div class="sys__name">Dead rails - drag, weight &amp; throw</div>
-              <div class="sys__desc">Dragging runs on real physics: the server hands the grabbed part's network ownership to your client and holds it with AlignPosition/AlignOrientation, so heavier props genuinely resist being dragged, not just tinted red. Let go mid-swing and a short velocity sample turns it into a real throw, capped so nothing rockets off the map.</div>
+              <div class="sys__desc">Dragging runs on real physics: the server hands the grabbed part's network ownership to your client and holds it with AlignPosition/AlignOrientation, so heavier props genuinely resist being dragged, not just tinted red. Let go mid-swing and a short velocity sample turns it into a real throw, capped so nothing rockets off the map. Footsteps got their own pass too — a looping sound crossfades in and out as you start and stop running, driven by the server so it stays in sync for everyone watching.</div>
               <div class="sys__actions">
                 <button class="sys__link preview-btn" data-project="drag-throw"><i class="fa-solid fa-code"></i> Preview</button>
                 <a href="https://gist.github.com/sacrificedDecro/20b67d9f3e166fccc1449c2b63b5a0cd" target="_blank" rel="noopener noreferrer" class="sys__link sys__link--gist"><i class="fa-brands fa-github"></i> Gist</a>
@@ -117,7 +117,7 @@
 
           <div class="sys reveal-el">
             <div class="sys__media">
-              <iframe src="https://streamable.com/o/zhkxn6" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe>
+              <iframe src="https://streamable.com/o/am2ffg" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe>
             </div>
             <div class="sys__body">
               <div class="sys__ico"><i class="fa-solid fa-fist-raised"></i></div>
@@ -144,12 +144,12 @@
 
           <div class="sys reveal-el">
             <div class="sys__media">
-              <iframe src="https://streamable.com/o/o61qz1" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe>
+              <iframe src="https://streamable.com/o/vm43sy" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe>
             </div>
             <div class="sys__body">
               <div class="sys__ico"><i class="fa-solid fa-box-open"></i></div>
-              <div class="sys__name">Inventory slot UI + custom interact prompt</div>
-              <div class="sys__desc">The interact prompt is fully custom, no ProximityPrompt — just a CollectionService tag and an outline Highlight on whatever's nearest. What matters more is the save system: each server claims a session lock before loading your inventory, and a heartbeat keeps renewing it. Join a second server mid-session and it gets turned away instead of duplicating your items.</div>
+              <div class="sys__name">Inventory slot UI &amp; custom interact prompt</div>
+              <div class="sys__desc">The interact prompt is fully custom, no ProximityPrompt — just a CollectionService tag and an outline Highlight on whatever's nearest, with a pickup sound that only fires once the server confirms the item is actually yours. The save system is the real work: each server claims a session lock before loading your inventory, and a heartbeat keeps renewing it, so joining a second server mid-session gets you turned away instead of a duplicated item. Footsteps sync to the walk animation's actual keyframes instead of a fixed timer, so they land exactly when the foot does.</div>
               <div class="sys__actions">
                 <button class="sys__link preview-btn" data-project="inventory"><i class="fa-solid fa-code"></i> Preview</button>
                 <a href="https://gist.github.com/sacrificedDecro/6efa8427d5a0e625de0174540d6203a0" target="_blank" rel="noopener noreferrer" class="sys__link sys__link--gist"><i class="fa-brands fa-github"></i> Gist</a>
