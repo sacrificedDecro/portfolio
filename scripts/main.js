@@ -34,8 +34,10 @@ local eDragDenied = remotes:WaitForChild("DragDenied") :: RemoteEvent
 local activeDrags: { [Player]: DragState } = {}
 local playerAttachments: { [Player]: Attachment } = {}
 
+local draggablesFolder = workspace:WaitForChild(Config.DraggablesFolderName)
+
 for _, partName in Config.DraggableNames do
-	local found = workspace:FindFirstChild(partName)
+	local found = draggablesFolder:FindFirstChild(partName)
 	if found ~= nil and found:IsA("BasePart") then
 		local part = found :: BasePart
 		part.Anchored = false
@@ -249,13 +251,14 @@ local eDragStart = remotes:WaitForChild("DragStart") :: RemoteEvent
 local eDragEnd = remotes:WaitForChild("DragEnd") :: RemoteEvent
 local eDragDenied = remotes:WaitForChild("DragDenied") :: RemoteEvent
 
-local selectionBox: SelectionBox = Instance.new("SelectionBox")
-selectionBox.Color3 = Config.LightWeightColor
-selectionBox.LineThickness = Config.HighlightThickness
-selectionBox.SurfaceTransparency = Config.HighlightSurfaceTransparency
-selectionBox.SurfaceColor3 = Config.HighlightSurfaceColor
-selectionBox.Adornee = nil
-selectionBox.Parent = workspace
+local highlight: Highlight = Instance.new("Highlight")
+highlight.OutlineColor = Config.HighlightColor
+highlight.OutlineTransparency = Config.HighlightOutlineTransparency
+highlight.FillTransparency = Config.HighlightFillTransparency
+highlight.DepthMode = Enum.HighlightDepthMode.Occluded
+highlight.Adornee = nil
+highlight.Enabled = false
+highlight.Parent = workspace
 
 local rayParams: RaycastParams = RaycastParams.new()
 rayParams.FilterType = Enum.RaycastFilterType.Exclude
@@ -282,10 +285,8 @@ local function getHoveredPart(): BasePart?
 end
 
 local function setHighlight(part: BasePart?): ()
-	selectionBox.Adornee = part
-	if part ~= nil then
-		selectionBox.Color3 = Config.ColorForWeight(Config.GetWeight(part))
-	end
+	highlight.Adornee = part
+	highlight.Enabled = part ~= nil
 end
 
 local function sampleThrow(now: number): ()
@@ -383,6 +384,144 @@ RunService.RenderStepped:Connect(function(_dt: number)
 		setHighlight(hoveredPart)
 	end
 end)`,
+
+        'FootstepService.lua': `--!strict
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
+local TweenService = game:GetService("TweenService")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("GameConfig"))
+
+local audio = ServerStorage:WaitForChild("Audio")
+local footstepTemplate = audio:WaitForChild(Config.FootstepSoundName) :: Sound
+
+local remotes = ReplicatedStorage:WaitForChild("Remotes") :: Folder
+local eFootstepState = remotes:WaitForChild("FootstepState") :: RemoteEvent
+
+type FootstepState = {
+	sound: Sound,
+	fullVolume: number,
+	isRunning: boolean,
+	tween: Tween?,
+}
+
+local states: { [Player]: FootstepState } = {}
+
+local function onCharacterAdded(player: Player, character: Model): ()
+	local rootPart = character:WaitForChild("HumanoidRootPart") :: BasePart
+	local existing = rootPart:FindFirstChild(Config.FootstepSoundName)
+	if existing ~= nil then existing:Destroy() end
+
+	local sound: Sound = footstepTemplate:Clone()
+	sound.Looped = true
+	sound.Playing = false
+	local fullVolume: number = sound.Volume
+	sound.Volume = 0
+	sound.Parent = rootPart
+
+	states[player] = {
+		sound = sound,
+		fullVolume = fullVolume,
+		isRunning = false,
+		tween = nil,
+	}
+end
+
+local function setRunning(player: Player, running: boolean): ()
+	local state = states[player]
+	if state == nil then return end
+	if state.isRunning == running then return end
+	state.isRunning = running
+
+	if state.tween ~= nil then
+		state.tween:Cancel()
+		state.tween = nil
+	end
+
+	if running then
+		if not state.sound.Playing then
+			state.sound:Play()
+		end
+		local tween: Tween = TweenService:Create(state.sound, TweenInfo.new(Config.FootstepFadeTime, Enum.EasingStyle.Linear), { Volume = state.fullVolume })
+		state.tween = tween
+		tween:Play()
+	else
+		local tween: Tween = TweenService:Create(state.sound, TweenInfo.new(Config.FootstepFadeTime, Enum.EasingStyle.Linear), { Volume = 0 })
+		state.tween = tween
+		local connection: RBXScriptConnection? = nil
+		connection = tween.Completed:Connect(function(playbackState: Enum.PlaybackState)
+			if connection ~= nil then
+				connection:Disconnect()
+			end
+			if playbackState == Enum.PlaybackState.Completed then
+				state.sound:Stop()
+			end
+		end)
+		tween:Play()
+	end
+end
+
+local function onPlayerAdded(player: Player): ()
+	player.CharacterAdded:Connect(function(character: Model)
+		onCharacterAdded(player, character)
+	end)
+	local character: Model? = player.Character
+	if character ~= nil then
+		onCharacterAdded(player, character)
+	end
+end
+
+local function onPlayerRemoving(player: Player): ()
+	states[player] = nil
+end
+
+for _, player in Players:GetPlayers() do
+	onPlayerAdded(player)
+end
+
+Players.PlayerAdded:Connect(onPlayerAdded)
+Players.PlayerRemoving:Connect(onPlayerRemoving)
+
+eFootstepState.OnServerEvent:Connect(function(player: Player, rawRunning: any)
+	if typeof(rawRunning) ~= "boolean" then return end
+	setRunning(player, rawRunning)
+end)`,
+
+        'FootstepController.lua': `--!strict
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared:WaitForChild("GameConfig"))
+
+local remotes = ReplicatedStorage:WaitForChild("Remotes") :: Folder
+local eFootstepState = remotes:WaitForChild("FootstepState") :: RemoteEvent
+
+local localPlayer: Player = Players.LocalPlayer
+
+local isRunning: boolean = false
+
+local function setupCharacter(character: Model): ()
+	local humanoid = character:WaitForChild("Humanoid") :: Humanoid
+	isRunning = false
+
+	humanoid.Running:Connect(function(speed: number)
+		local running: boolean = speed > Config.FootstepMinSpeed
+		if running == isRunning then return end
+		isRunning = running
+		eFootstepState:FireServer(running)
+	end)
+end
+
+local character: Model = (localPlayer.Character or localPlayer.CharacterAdded:Wait()) :: Model
+setupCharacter(character)
+
+localPlayer.CharacterAdded:Connect(setupCharacter)
+`,
 
         'CameraController.lua': `--!strict
 
@@ -487,11 +626,13 @@ Config.ThrowMultiplier = 2.5
 Config.ThrowSampleTime = 0.15
 Config.MaxThrowSpeed = 300
 
-Config.HighlightThickness = 0.07
-Config.HighlightSurfaceTransparency = 0.85
-Config.HighlightSurfaceColor = Color3.fromRGB(180, 210, 255)
-Config.LightWeightColor = Color3.fromRGB(34, 255, 0)
-Config.HeavyWeightColor = Color3.fromRGB(255, 0, 0)
+Config.HighlightColor = Color3.fromRGB(255, 255, 255)
+Config.HighlightFillTransparency = 1
+Config.HighlightOutlineTransparency = 0
+
+Config.FootstepSoundName = "RunningFootsteps"
+Config.FootstepMinSpeed = 0.5
+Config.FootstepFadeTime = 0.2
 
 Config.CameraMode = Enum.CameraMode.LockFirstPerson
 Config.FirstPersonFieldOfView = 100
@@ -499,8 +640,9 @@ Config.FirstPersonFieldOfView = 100
 Config.CrosshairColor = Color3.fromRGB(255, 255, 255)
 Config.CrosshairSize = 4
 
-Config.DraggableNames = { "Part1", "Part2", "Part3" } :: { string }
-Config.InitialWeights = { Part1 = 1, Part2 = 3, Part3 = 8 } :: { [string]: number }
+Config.DraggablesFolderName = "Draggables"
+Config.DraggableNames = { "Duck1", "Duck2", "Duck3" } :: { string }
+Config.InitialWeights = { Duck1 = 1, Duck2 = 3, Duck3 = 8 } :: { [string]: number }
 
 function Config.GetWeight(part: BasePart): number
 	local raw = part:GetAttribute(Config.WeightAttribute)
@@ -508,33 +650,40 @@ function Config.GetWeight(part: BasePart): number
 	return math.clamp(value, Config.MinWeight, Config.MaxWeight)
 end
 
-function Config.ColorForWeight(weight: number): Color3
-	local range: number = Config.MaxWeight - Config.MinWeight
-	local t: number = if range > 0 then math.clamp((weight - Config.MinWeight) / range, 0, 1) else 0
-	return Config.LightWeightColor:Lerp(Config.HeavyWeightColor, t)
-end
-
 return Config`,
 
-        'readme.md': `## 📁 Project Structure
-
-\`\`\`text
+        'readme.md': `# 📁 Project Structure
+\`\`\`
 ReplicatedStorage/
-├── Shared
-    └── GameConfig                   ← ModuleScript
+├── Shared/
+│   └── GameConfig            ← ModuleScript
 └── Remotes/
-    ├── DragEnd
-    ├── DragDenied
-    └── DragStart
+    ├── DragStart              ← RemoteEvent
+    ├── DragEnd                ← RemoteEvent
+    ├── DragDenied             ← RemoteEvent
+    └── FootstepState          ← RemoteEvent
 
 ServerScriptService/
-└── DragService                       ← Script
+├── DragService                ← Script
+└── FootstepService             ← Script
+
+ServerStorage/
+└── Audio/                     
+    └── RunningFootsteps        ← Sound
 
 StarterPlayer/
 └── StarterPlayerScripts/
-    ├── DragController                ← LocalScript
-    ├── CrosshairController           ← LocalScript
-    └── CameraController              ← LocalScript`
+    ├── DragController          ← LocalScript
+    ├── CrosshairController     ← LocalScript
+    ├── CameraController        ← LocalScript
+    └── FootstepController      ← LocalScript
+
+Workspace/
+└── Draggables/                 
+    ├── Duck1                   ← MeshPart
+    ├── Duck2                   ← Part
+    └── Duck3                   ← MeshPart
+\`\`\``
       }
     },
 
@@ -4657,7 +4806,7 @@ MIT`
     },
 
     inventory: {
-      name: 'Inventory slot UI + custom interact prompt',
+      name: 'Inventory slot UI & custom interact prompt',
       files: {
         'InventoryServer.lua': `--!strict
 local Players = game:GetService("Players")
@@ -4710,6 +4859,10 @@ equippedSync.Parent = remoteFolder
 local pickupEvent: RemoteEvent = Instance.new("RemoteEvent")
 pickupEvent.Name = "PickupEvent"
 pickupEvent.Parent = remoteFolder
+
+local pickupFeedback: RemoteEvent = Instance.new("RemoteEvent")
+pickupFeedback.Name = "PickupFeedback"
+pickupFeedback.Parent = remoteFolder
 
 type Inventory = { [number]: string? }
 
@@ -5011,6 +5164,7 @@ local function attemptPickup(player: Player, itemPartArg: any)
 	inv[slot] = itemName
 	itemPart:Destroy()
 	sendSync(player)
+	pickupFeedback:FireClient(player)
 end
 
 local function spawnWorldItem(itemName: string, position: Vector3)
@@ -5147,10 +5301,10 @@ local function onPlayerAdded(player: Player)
 	playerEquipped[player] = nil
 	startHeartbeat(player)
 
-	player.CharacterAdded:Connect(function(character: Model)
+	local function setupCharacter(character: Model)
 		playerEquipped[player] = nil
 
-		local humanoid: Humanoid = character:WaitForChild("Humanoid", 10) :: Humanoid
+		local humanoid: Humanoid? = character:WaitForChild("Humanoid", 10) :: Humanoid?
 		if not humanoid then return end
 
 		task.defer(function()
@@ -5166,12 +5320,12 @@ local function onPlayerAdded(player: Player)
 				equippedSync:FireClient(player, nil)
 			end
 		end)
-	end)
+	end
+
+	player.CharacterAdded:Connect(setupCharacter)
 
 	if player.Character then
-		task.defer(function()
-			sendSync(player)
-		end)
+		setupCharacter(player.Character)
 	end
 end
 
@@ -5233,6 +5387,12 @@ local dropEvent: RemoteEvent = remoteFolder:WaitForChild("DropEvent") :: RemoteE
 local syncEvent: RemoteEvent = remoteFolder:WaitForChild("SyncInventory") :: RemoteEvent
 local equippedSync: RemoteEvent = remoteFolder:WaitForChild("EquippedSync") :: RemoteEvent
 
+local sfxFolder: Folder = ReplicatedStorage:WaitForChild("SFX") :: Folder
+local inventorySfxFolder: Folder = sfxFolder:WaitForChild("Inventory") :: Folder
+local equipSoundTemplate: Sound = inventorySfxFolder:WaitForChild("ItemEquip") :: Sound
+local equipSound: Sound = equipSoundTemplate:Clone()
+equipSound.Parent = playerGui
+
 local inventoryGui: ScreenGui = playerGui:WaitForChild("Inventory") :: ScreenGui
 local container: Frame = inventoryGui:WaitForChild("InventoryContainer") :: Frame
 
@@ -5285,6 +5445,10 @@ end)
 
 equippedSync.OnClientEvent:Connect(function(slotIndex: any)
 	equippedSlot = if type(slotIndex) == "number" then slotIndex else nil
+	if equippedSlot ~= nil then
+		equipSound.TimePosition = 0
+		equipSound:Play()
+	end
 	updateUI()
 end)
 
@@ -5349,6 +5513,13 @@ local playerGui: PlayerGui = player:WaitForChild("PlayerGui") :: PlayerGui
 
 local remoteFolder: Folder = ReplicatedStorage:WaitForChild("InventoryRemotes") :: Folder
 local pickupEvent: RemoteEvent = remoteFolder:WaitForChild("PickupEvent") :: RemoteEvent
+local pickupFeedback: RemoteEvent = remoteFolder:WaitForChild("PickupFeedback") :: RemoteEvent
+
+local sfxFolder: Folder = ReplicatedStorage:WaitForChild("SFX") :: Folder
+local inventorySfxFolder: Folder = sfxFolder:WaitForChild("Inventory") :: Folder
+local pickupSoundTemplate: Sound = inventorySfxFolder:WaitForChild("ItemPickup") :: Sound
+local pickupSound: Sound = pickupSoundTemplate:Clone()
+pickupSound.Parent = playerGui
 
 local promptGui: ScreenGui = playerGui:WaitForChild("InteractionPrompt") :: ScreenGui
 local promptFrame: Frame = promptGui:WaitForChild("PromptFrame") :: Frame
@@ -5462,7 +5633,186 @@ UserInputService.InputBegan:Connect(function(input: InputObject, gameProcessed: 
 	if input.KeyCode ~= Enum.KeyCode.E then return end
 	if not currentTarget then return end
 	pickupEvent:FireServer(currentTarget)
+end)
+
+pickupFeedback.OnClientEvent:Connect(function()
+	pickupSound.TimePosition = 0
+	pickupSound:Play()
 end)`,
+
+        'FootstepClient.lua': `--!strict
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local WALK_ANIMATION_ASSET_ID = "130156238002743"
+local FOOTSTEP_TIMES = { 0.14, 0.76, 1.10, 1.67, 2.14, 2.76 }
+local DEFAULT_FOOTSTEP_SOUND_NAMES = { Running = true, Climbing = true }
+
+local sfxFolder: Folder = ReplicatedStorage:WaitForChild("SFX") :: Folder
+local footstepsFolder: Folder = sfxFolder:WaitForChild("Footsteps") :: Folder
+local footstepSoundTemplate: Sound = footstepsFolder:WaitForChild("Footstep_Carpet") :: Sound
+
+local activeConnections: { [Model]: { RBXScriptConnection } } = {}
+
+local function extractAssetId(animationId: string): string?
+	return animationId:match("%d+")
+end
+
+local function addConnection(character: Model, connection: RBXScriptConnection)
+	local connections = activeConnections[character]
+	if not connections then
+		connections = {}
+		activeConnections[character] = connections
+	end
+	table.insert(connections, connection)
+end
+
+local function removeConnection(character: Model, connection: RBXScriptConnection)
+	local connections = activeConnections[character]
+	if not connections then return end
+	for i = #connections, 1, -1 do
+		if connections[i] == connection then
+			table.remove(connections, i)
+			break
+		end
+	end
+end
+
+local function stopWatchingCharacter(character: Model)
+	local connections = activeConnections[character]
+	if not connections then return end
+	activeConnections[character] = nil
+	for _, connection in ipairs(connections) do
+		connection:Disconnect()
+	end
+end
+
+local function watchWalkTrack(character: Model, track: AnimationTrack, sound: Sound)
+	local lastPosition = track.TimePosition
+	local heartbeatConnection: RBXScriptConnection
+	heartbeatConnection = RunService.Heartbeat:Connect(function()
+		if not track.IsPlaying then
+			heartbeatConnection:Disconnect()
+			removeConnection(character, heartbeatConnection)
+			return
+		end
+
+		local position = track.TimePosition
+		for _, stepTime in ipairs(FOOTSTEP_TIMES) do
+			local crossed: boolean
+			if position >= lastPosition then
+				crossed = stepTime > lastPosition and stepTime <= position
+			else
+				crossed = stepTime > lastPosition or stepTime <= position
+			end
+			if crossed then
+				sound.TimePosition = 0
+				sound:Play()
+			end
+		end
+		lastPosition = position
+	end)
+
+	addConnection(character, heartbeatConnection)
+end
+
+local function suppressDefaultSound(sound: Sound)
+	sound:Stop()
+	sound:Destroy()
+end
+
+local function watchDefaultSounds(character: Model, rootPart: BasePart)
+	for _, child in ipairs(rootPart:GetChildren()) do
+		if child:IsA("Sound") and DEFAULT_FOOTSTEP_SOUND_NAMES[child.Name] then
+			suppressDefaultSound(child)
+		end
+	end
+
+	local connection = rootPart.ChildAdded:Connect(function(child: Instance)
+		if child:IsA("Sound") and DEFAULT_FOOTSTEP_SOUND_NAMES[child.Name] then
+			suppressDefaultSound(child)
+		end
+	end)
+
+	addConnection(character, connection)
+end
+
+local function setupCharacter(character: Model)
+	local humanoid = character:WaitForChild("Humanoid", 10) :: Humanoid?
+	if not humanoid then return end
+	if humanoid.RigType ~= Enum.HumanoidRigType.R6 then return end
+
+	local rootPart = character:WaitForChild("HumanoidRootPart", 10) :: BasePart?
+	if not rootPart then return end
+
+	watchDefaultSounds(character, rootPart)
+
+	local animator = humanoid:FindFirstChildOfClass("Animator") or humanoid:WaitForChild("Animator", 10)
+	if not animator or not animator:IsA("Animator") then return end
+
+	local sound = footstepSoundTemplate:Clone()
+	sound.Parent = rootPart
+
+	local animationPlayedConnection = animator.AnimationPlayed:Connect(function(track: AnimationTrack)
+		local animation = track.Animation
+		if not animation then return end
+		if extractAssetId(animation.AnimationId) ~= WALK_ANIMATION_ASSET_ID then return end
+		watchWalkTrack(character, track, sound)
+	end)
+
+	addConnection(character, animationPlayedConnection)
+end
+
+local function onPlayerAdded(player: Player)
+	player.CharacterAdded:Connect(setupCharacter)
+	player.CharacterRemoving:Connect(stopWatchingCharacter)
+	if player.Character then
+		setupCharacter(player.Character)
+	end
+end
+
+local function onPlayerRemoving(player: Player)
+	local character = player.Character
+	if character then
+		stopWatchingCharacter(character)
+	end
+end
+
+Players.PlayerAdded:Connect(onPlayerAdded)
+Players.PlayerRemoving:Connect(onPlayerRemoving)
+for _, player: Player in ipairs(Players:GetPlayers()) do
+	onPlayerAdded(player)
+end`,
+
+        'SetWalkAnimation.lua': `local Players = game:GetService("Players")
+
+local WALK_ANIMATION_ID = "rbxassetid://130156238002743"
+
+local function onCharacterAdded(character)
+	local humanoid = character:WaitForChild("Humanoid")
+	if humanoid.RigType ~= Enum.HumanoidRigType.R6 then
+		return
+	end
+
+	local animate = character:WaitForChild("Animate")
+	local walkAnim = animate:WaitForChild("walk"):WaitForChild("WalkAnim")
+	walkAnim.AnimationId = WALK_ANIMATION_ID
+end
+
+local function onPlayerAdded(player)
+	player.CharacterAdded:Connect(onCharacterAdded)
+	if player.Character then
+		onCharacterAdded(player.Character)
+	end
+end
+
+Players.PlayerAdded:Connect(onPlayerAdded)
+
+for _, player in ipairs(Players:GetPlayers()) do
+	onPlayerAdded(player)
+end
+`,
 
         'GameConfig.lua': `--!strict
 
@@ -5549,17 +5899,37 @@ table.freeze(GameConfig)
 return GameConfig`,
 
         'readme.md': `# 📁 Project Structure
-
 \`\`\`
 ReplicatedStorage/
-└─ GameConfig               ← ModuleScript
+└ GameConfig                    ← ModuleScript
+└ InventoryRemotes/
+   └ EquipEvent                 ← RemoteEvent
+   └ DropEvent                  ← RemoteEvent
+   └ SyncInventory              ← RemoteEvent
+   └ EquippedSync               ← RemoteEvent
+   └ PickupEvent                ← RemoteEvent
+   └ PickupFeedback             ← RemoteEvent
+└ SFX/
+   └ Footsteps/
+      └ Footstep_Carpet         ← Sound
+   └ Inventory/
+      └ ItemPickup              ← Sound
+      └ ItemEquip               ← Sound
 
 ServerScriptService/
-└─ InventoryServer          ← Script
+└ InventoryServer                ← Script
+└ SetWalkAnimation               ← Script
 
 StarterPlayerScripts/
-└─ InventoryClient          ← LocalScript
-└─ InteractionClient        ← LocalScript
+└ InventoryClient                ← LocalScript
+└ InteractionClient               ← LocalScript
+└ FootstepClient                 ← LocalScript
+
+Workspace/
+└ Items/
+   └ InventoryItem_01           ← Part
+   └ InventoryItem_02           ← Part
+   └ InventoryItem_03           ← Part
 \`\`\``
       }
     }
