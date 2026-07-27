@@ -1427,6 +1427,513 @@ Workspace/
       }
     },
 
+    ragdoll: {
+      name: 'R6 & R15 Ragdoll system',
+      files: {
+        'RagdollServer.lua': `--!strict
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local RagdollFolder = ReplicatedStorage:WaitForChild("Ragdoll")
+local GameConfig = require(RagdollFolder:WaitForChild("GameConfig"))
+local Maid = require(RagdollFolder:WaitForChild("Maid"))
+local RagdollController = require(script.Parent.RagdollController)
+
+local toggleRequestRemote = RagdollFolder:WaitForChild(GameConfig.RagdollRemoteName) :: RemoteEvent
+
+local lastToggleTime: { [Player]: number } = {}
+local playerMaids: { [Player]: Maid.Maid } = {}
+
+local function onCharacterAdded(player: Player, character: Model): ()
+	local humanoid = character:WaitForChild("Humanoid", 10)
+	if not humanoid or not humanoid:IsA("Humanoid") then
+		return
+	end
+
+	humanoid.BreakJointsOnDeath = false
+	humanoid:SetAttribute(GameConfig.RagdollAttribute, false)
+
+	local maid = playerMaids[player]
+	if not maid then
+		return
+	end
+	maid:DoCleaning()
+
+	maid:GiveTask(humanoid.Died:Once(function()
+		RagdollController.Engage(character, humanoid, true)
+	end))
+end
+
+local function onCharacterRemoving(character: Model): ()
+	RagdollController.Cleanup(character)
+end
+
+local function onPlayerAdded(player: Player): ()
+	lastToggleTime[player] = 0
+	playerMaids[player] = Maid.new()
+
+	player.CharacterAdded:Connect(function(character)
+		onCharacterAdded(player, character)
+	end)
+
+	player.CharacterRemoving:Connect(onCharacterRemoving)
+
+	local character = player.Character
+	if character then
+		onCharacterAdded(player, character)
+	end
+end
+
+local function onPlayerRemoving(player: Player): ()
+	lastToggleTime[player] = nil
+
+	local maid = playerMaids[player]
+	if maid then
+		maid:Destroy()
+		playerMaids[player] = nil
+	end
+end
+
+toggleRequestRemote.OnServerEvent:Connect(function(player: Player)
+	local now = os.clock()
+	local last = lastToggleTime[player] or 0
+	if now - last < GameConfig.ToggleCooldownSeconds then
+		return
+	end
+	lastToggleTime[player] = now
+
+	local character = player.Character
+	if not character then
+		return
+	end
+
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid or humanoid.Health <= 0 then
+		return
+	end
+
+	if RagdollController.IsActive(character) then
+		RagdollController.Release(character, humanoid)
+	else
+		RagdollController.Engage(character, humanoid, false)
+	end
+end)
+
+Players.PlayerAdded:Connect(onPlayerAdded)
+Players.PlayerRemoving:Connect(onPlayerRemoving)
+
+for _, existingPlayer in ipairs(Players:GetPlayers()) do
+	onPlayerAdded(existingPlayer)
+end`,
+
+        'RagdollController.lua': `--!strict
+
+local PhysicsService = game:GetService("PhysicsService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local RagdollFolder = ReplicatedStorage:WaitForChild("Ragdoll")
+local GameConfig = require(RagdollFolder:WaitForChild("GameConfig"))
+local Maid = require(RagdollFolder:WaitForChild("Maid"))
+
+local HUMANOID_STATE_TYPES: { Enum.HumanoidStateType } = {}
+for _, stateType in ipairs(Enum.HumanoidStateType:GetEnumItems()) do
+	if stateType ~= Enum.HumanoidStateType.None then
+		table.insert(HUMANOID_STATE_TYPES, stateType)
+	end
+end
+
+type PartRecord = {
+	part: BasePart,
+	canCollide: boolean,
+	collisionGroup: string,
+}
+
+type RagdollState = {
+	jointsMaid: Maid.Maid,
+	parts: { PartRecord },
+	permanent: boolean,
+	previousAutoRotate: boolean,
+	previousWalkSpeed: number,
+	previousJumpPower: number,
+	previousStateEnabled: { [Enum.HumanoidStateType]: boolean },
+}
+
+local activeStates: { [Model]: RagdollState } = {}
+
+local RagdollController = {}
+
+local function ensureCollisionGroup(): ()
+	if not PhysicsService:IsCollisionGroupRegistered(GameConfig.CollisionGroupName) then
+		PhysicsService:RegisterCollisionGroup(GameConfig.CollisionGroupName)
+	end
+	PhysicsService:CollisionGroupSetCollidable(GameConfig.CollisionGroupName, GameConfig.CollisionGroupName, false)
+end
+
+ensureCollisionGroup()
+
+local function engageJoint(descendant: Instance, jointsMaid: Maid.Maid): ()
+	if descendant:IsA("AnimationConstraint") then
+		local previousLinearStrength = descendant.LinearStrength
+		local previousAngularStrength = descendant.AngularStrength
+		descendant.LinearStrength = 0
+		descendant.AngularStrength = 0
+		descendant.IsKinematic = false
+		jointsMaid:GiveTask(function()
+			descendant.LinearStrength = previousLinearStrength
+			descendant.AngularStrength = previousAngularStrength
+			descendant.IsKinematic = true
+		end)
+	elseif descendant:IsA("Motor6D") and descendant.Enabled then
+		local part0 = descendant.Part0
+		local part1 = descendant.Part1
+		if not part0 or not part1 then
+			return
+		end
+
+		local attachment0 = Instance.new("Attachment")
+		attachment0.Name = "Ragdoll_" .. descendant.Name .. "_A0"
+		attachment0.CFrame = descendant.C0
+		attachment0.Parent = part0
+
+		local attachment1 = Instance.new("Attachment")
+		attachment1.Name = "Ragdoll_" .. descendant.Name .. "_A1"
+		attachment1.CFrame = descendant.C1
+		attachment1.Parent = part1
+
+		local socket = Instance.new("BallSocketConstraint")
+		socket.Name = "Ragdoll_" .. descendant.Name .. "_Socket"
+		socket.Attachment0 = attachment0
+		socket.Attachment1 = attachment1
+		socket.LimitsEnabled = false
+		socket.Parent = part0
+
+		descendant.Enabled = false
+
+		jointsMaid:GiveTask(attachment0)
+		jointsMaid:GiveTask(attachment1)
+		jointsMaid:GiveTask(socket)
+		jointsMaid:GiveTask(function()
+			descendant.Enabled = true
+		end)
+	end
+end
+
+function RagdollController.Engage(character: Model, humanoid: Humanoid, permanent: boolean): boolean
+	local existing = activeStates[character]
+	if existing then
+		if permanent then
+			existing.permanent = true
+		end
+		return true
+	end
+
+	if not humanoid.RootPart then
+		return false
+	end
+
+	local state: RagdollState = {
+		jointsMaid = Maid.new(),
+		parts = {},
+		permanent = permanent,
+		previousAutoRotate = humanoid.AutoRotate,
+		previousWalkSpeed = humanoid.WalkSpeed,
+		previousJumpPower = humanoid.JumpPower,
+		previousStateEnabled = {},
+	}
+
+	for _, descendant in ipairs(character:GetDescendants()) do
+		if descendant:IsA("BasePart") then
+			local part: BasePart = descendant
+			table.insert(state.parts, {
+				part = part,
+				canCollide = part.CanCollide,
+				collisionGroup = part.CollisionGroup,
+			})
+			if part.Name ~= GameConfig.RootPartName then
+				part.CanCollide = true
+			end
+			part.CollisionGroup = GameConfig.CollisionGroupName
+			pcall(function()
+				part:SetNetworkOwner(nil)
+			end)
+		else
+			engageJoint(descendant, state.jointsMaid)
+		end
+	end
+
+	for _, stateType in ipairs(HUMANOID_STATE_TYPES) do
+		state.previousStateEnabled[stateType] = humanoid:GetStateEnabled(stateType)
+		if stateType ~= Enum.HumanoidStateType.Physics and stateType ~= Enum.HumanoidStateType.Dead then
+			humanoid:SetStateEnabled(stateType, false)
+		end
+	end
+
+	humanoid.AutoRotate = false
+	humanoid.WalkSpeed = 0
+	humanoid.JumpPower = 0
+	if humanoid:GetState() ~= Enum.HumanoidStateType.Dead then
+		humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+	end
+	humanoid:SetAttribute(GameConfig.RagdollAttribute, true)
+
+	activeStates[character] = state
+
+	return true
+end
+
+function RagdollController.Release(character: Model, humanoid: Humanoid): boolean
+	local state = activeStates[character]
+	if not state or state.permanent then
+		return false
+	end
+
+	state.jointsMaid:Destroy()
+
+	for stateType, wasEnabled in pairs(state.previousStateEnabled) do
+		humanoid:SetStateEnabled(stateType, wasEnabled)
+	end
+
+	humanoid.AutoRotate = state.previousAutoRotate
+	humanoid.WalkSpeed = state.previousWalkSpeed
+	humanoid.JumpPower = state.previousJumpPower
+	humanoid:SetAttribute(GameConfig.RagdollAttribute, false)
+	humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+
+	for _, record in ipairs(state.parts) do
+		record.part.CanCollide = record.canCollide
+		record.part.CollisionGroup = record.collisionGroup
+		pcall(function()
+			record.part:SetNetworkOwnershipAuto()
+		end)
+	end
+
+	activeStates[character] = nil
+
+	return true
+end
+
+function RagdollController.IsActive(character: Model): boolean
+	return activeStates[character] ~= nil
+end
+
+function RagdollController.IsPermanent(character: Model): boolean
+	local state = activeStates[character]
+	return state ~= nil and state.permanent
+end
+
+function RagdollController.Cleanup(character: Model): ()
+	local state = activeStates[character]
+	if state then
+		state.jointsMaid:Destroy()
+	end
+	activeStates[character] = nil
+end
+
+return RagdollController`,
+
+        'RagdollInput.lua': `--!strict
+
+local ContextActionService = game:GetService("ContextActionService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local RagdollFolder = ReplicatedStorage:WaitForChild("Ragdoll")
+local GameConfig = require(RagdollFolder:WaitForChild("GameConfig"))
+local Maid = require(RagdollFolder:WaitForChild("Maid"))
+
+local ALL_HUMANOID_STATES: { Enum.HumanoidStateType } = {}
+for _, stateType in ipairs(Enum.HumanoidStateType:GetEnumItems()) do
+	if stateType ~= Enum.HumanoidStateType.None then
+		table.insert(ALL_HUMANOID_STATES, stateType)
+	end
+end
+
+local player = Players.LocalPlayer :: Player
+
+local toggleRequestRemote = RagdollFolder:WaitForChild(GameConfig.RagdollRemoteName) :: RemoteEvent
+
+local characterMaid = Maid.new()
+
+local function applyLocalRagdollVisuals(humanoid: Humanoid, ragdolled: boolean): ()
+	if ragdolled then
+		for _, stateType in ipairs(ALL_HUMANOID_STATES) do
+			if stateType ~= Enum.HumanoidStateType.Physics and stateType ~= Enum.HumanoidStateType.Dead then
+				humanoid:SetStateEnabled(stateType, false)
+			end
+		end
+		humanoid.AutoRotate = false
+		local currentState = humanoid:GetState()
+		if currentState ~= Enum.HumanoidStateType.Physics and currentState ~= Enum.HumanoidStateType.Dead then
+			humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+		end
+	else
+		for _, stateType in ipairs(ALL_HUMANOID_STATES) do
+			humanoid:SetStateEnabled(stateType, true)
+		end
+		humanoid.AutoRotate = true
+		if humanoid:GetState() == Enum.HumanoidStateType.Physics then
+			humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+		end
+	end
+end
+
+local function applyCameraSubject(character: Model, humanoid: Humanoid, ragdolled: boolean): ()
+	local currentCamera = workspace.CurrentCamera
+	if not currentCamera then
+		return
+	end
+	if ragdolled then
+		local cameraPart = character:FindFirstChild(GameConfig.CameraSubjectPartName)
+		if cameraPart and cameraPart:IsA("BasePart") then
+			currentCamera.CameraSubject = cameraPart
+		end
+	else
+		currentCamera.CameraSubject = humanoid
+	end
+end
+
+local function onCharacterAdded(character: Model): ()
+	characterMaid:DoCleaning()
+
+	local humanoid = character:WaitForChild("Humanoid", 10)
+	if not humanoid or not humanoid:IsA("Humanoid") then
+		return
+	end
+
+	local ragdolled = humanoid:GetAttribute(GameConfig.RagdollAttribute) == true
+	applyLocalRagdollVisuals(humanoid, ragdolled)
+	applyCameraSubject(character, humanoid, ragdolled)
+
+	characterMaid:GiveTask(humanoid:GetAttributeChangedSignal(GameConfig.RagdollAttribute):Connect(function()
+		local isRagdolled = humanoid:GetAttribute(GameConfig.RagdollAttribute) == true
+		applyLocalRagdollVisuals(humanoid, isRagdolled)
+		applyCameraSubject(character, humanoid, isRagdolled)
+	end))
+end
+
+local function handleToggleAction(
+	_actionName: string,
+	inputState: Enum.UserInputState,
+	_inputObject: InputObject
+): Enum.ContextActionResult
+	if inputState == Enum.UserInputState.Begin then
+		toggleRequestRemote:FireServer()
+	end
+	return Enum.ContextActionResult.Sink
+end
+
+ContextActionService:BindAction(GameConfig.ToggleActionName, handleToggleAction, true, GameConfig.ToggleKeyCode)
+ContextActionService:SetTitle(GameConfig.ToggleActionName, "Ragdoll")
+
+player.CharacterAdded:Connect(onCharacterAdded)
+
+local currentCharacter = player.Character
+if currentCharacter then
+	onCharacterAdded(currentCharacter)
+end`,
+
+        'Maid.lua': `--!strict
+
+export type Task = RBXScriptConnection | Instance | thread | (() -> ()) | { Destroy: (unknown) -> () }
+
+local Maid = {}
+Maid.__index = Maid
+
+export type Maid = typeof(setmetatable(
+	{} :: {
+		_items: { Task },
+		_destroyed: boolean,
+	},
+	Maid
+))
+
+function Maid.new(): Maid
+	return setmetatable({
+		_items = {},
+		_destroyed = false,
+	}, Maid)
+end
+
+local function cleanupItem(item: Task): ()
+	local itemType = typeof(item)
+	if itemType == "RBXScriptConnection" then
+		(item :: RBXScriptConnection):Disconnect()
+	elseif itemType == "Instance" then
+		(item :: Instance):Destroy()
+	elseif itemType == "thread" then
+		task.cancel(item :: thread)
+	elseif itemType == "function" then
+		(item :: () -> ())()
+	elseif itemType == "table" then
+		local destroyable = item :: { Destroy: ((unknown) -> ())? }
+		if destroyable.Destroy then
+			destroyable:Destroy()
+		end
+	end
+end
+
+function Maid.GiveTask(self: Maid, item: Task): Task
+	if self._destroyed then
+		cleanupItem(item)
+		return item
+	end
+	table.insert(self._items, item)
+	return item
+end
+
+function Maid.DoCleaning(self: Maid): ()
+	local items = self._items
+	self._items = {}
+	for index = #items, 1, -1 do
+		cleanupItem(items[index])
+	end
+end
+
+function Maid.Destroy(self: Maid): ()
+	self._destroyed = true
+	self:DoCleaning()
+end
+
+return Maid`,
+
+        'GameConfig.lua': `--!strict
+
+local GameConfig = {
+	CollisionGroupName = "RagdollCharacterParts",
+	RagdollAttribute = "Ragdolled",
+	RagdollRemoteName = "RagdollToggleRequest",
+	ToggleActionName = "ToggleRagdoll",
+	ToggleKeyCode = Enum.KeyCode.R,
+	ToggleCooldownSeconds = 0.5,
+	CameraSubjectPartName = "Head",
+	RootPartName = "HumanoidRootPart",
+}
+
+table.freeze(GameConfig)
+
+return GameConfig`,
+
+        'readme.md': `# 📁 Project Structure
+\`\`\`
+ReplicatedStorage/
+└ Ragdoll/
+  ├ GameConfig            ← ModuleScript
+  ├ Maid                  ← ModuleScript
+  └ RagdollToggleRequest  ← RemoteEvent
+
+ServerScriptService/
+└ Ragdoll/
+  ├ RagdollController     ← ModuleScript
+  └ RagdollServer         ← Script
+
+StarterPlayer/
+└ StarterPlayerScripts/
+  └ RagdollInput          ← LocalScript
+\`\`\``
+      }
+    },
+
     tink: {
       name: 'Tink',
       files: {
@@ -4864,6 +5371,10 @@ local pickupFeedback: RemoteEvent = Instance.new("RemoteEvent")
 pickupFeedback.Name = "PickupFeedback"
 pickupFeedback.Parent = remoteFolder
 
+local dropFeedback: RemoteEvent = Instance.new("RemoteEvent")
+dropFeedback.Name = "DropFeedback"
+dropFeedback.Parent = remoteFolder
+
 type Inventory = { [number]: string? }
 
 local playerCache: { [Player]: Inventory? } = {}
@@ -5270,6 +5781,7 @@ dropEvent.OnServerEvent:Connect(function(player: Player)
 	spawnWorldItem(itemName, dropPos)
 
 	sendSync(player)
+	dropFeedback:FireClient(player)
 end)
 
 local function onPlayerAdded(player: Player)
@@ -5314,9 +5826,10 @@ local function onPlayerAdded(player: Player)
 		end)
 
 		humanoid.Died:Connect(function()
+			local hadEquipped: boolean = playerEquipped[player] ~= nil
 			destroyEquippedTool(player)
 			playerEquipped[player] = nil
-			if player:IsDescendantOf(Players) then
+			if hadEquipped and player:IsDescendantOf(Players) then
 				equippedSync:FireClient(player, nil)
 			end
 		end)
@@ -5386,12 +5899,17 @@ local equipEvent: RemoteEvent = remoteFolder:WaitForChild("EquipEvent") :: Remot
 local dropEvent: RemoteEvent = remoteFolder:WaitForChild("DropEvent") :: RemoteEvent
 local syncEvent: RemoteEvent = remoteFolder:WaitForChild("SyncInventory") :: RemoteEvent
 local equippedSync: RemoteEvent = remoteFolder:WaitForChild("EquippedSync") :: RemoteEvent
+local dropFeedback: RemoteEvent = remoteFolder:WaitForChild("DropFeedback") :: RemoteEvent
 
 local sfxFolder: Folder = ReplicatedStorage:WaitForChild("SFX") :: Folder
 local inventorySfxFolder: Folder = sfxFolder:WaitForChild("Inventory") :: Folder
 local equipSoundTemplate: Sound = inventorySfxFolder:WaitForChild("ItemEquip") :: Sound
 local equipSound: Sound = equipSoundTemplate:Clone()
 equipSound.Parent = playerGui
+
+local dropSoundTemplate: Sound = inventorySfxFolder:WaitForChild("ItemDrop") :: Sound
+local dropSound: Sound = dropSoundTemplate:Clone()
+dropSound.Parent = playerGui
 
 local inventoryGui: ScreenGui = playerGui:WaitForChild("Inventory") :: ScreenGui
 local container: Frame = inventoryGui:WaitForChild("InventoryContainer") :: Frame
@@ -5445,11 +5963,14 @@ end)
 
 equippedSync.OnClientEvent:Connect(function(slotIndex: any)
 	equippedSlot = if type(slotIndex) == "number" then slotIndex else nil
-	if equippedSlot ~= nil then
-		equipSound.TimePosition = 0
-		equipSound:Play()
-	end
+	equipSound.TimePosition = 0
+	equipSound:Play()
 	updateUI()
+end)
+
+dropFeedback.OnClientEvent:Connect(function()
+	dropSound.TimePosition = 0
+	dropSound:Play()
 end)
 
 local function onSlotClicked(slotIndex: number)
