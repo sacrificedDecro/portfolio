@@ -102,7 +102,7 @@
 
           <div class="sys reveal-el">
             <div class="sys__media">
-              <iframe src="https://streamable.com/o/eeufbs" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe>
+              <iframe src="https://streamable.com/o/biu8tm" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe>
             </div>
             <div class="sys__body">
               <div class="sys__ico"><i class="fa-solid fa-hand"></i></div>
@@ -131,6 +131,36 @@
           </div>
 
           <div class="sys reveal-el">
+            <div class="sys__media">
+              <iframe src="https://streamable.com/o/axzau0" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe>
+            </div>
+            <div class="sys__body">
+              <div class="sys__ico"><i class="fa-solid fa-person-falling"></i></div>
+              <div class="sys__name">R6 &amp; R15 ragdoll system</div>
+              <div class="sys__desc">Works on R6 and R15 without special-casing either rig — it walks every joint in the character and handles whatever it finds, swapping Motor6Ds for BallSocketConstraints and easing off AnimationConstraints, then drops every part into its own collision group so limbs don't fling apart from self-collision. Dying triggers a permanent ragdoll automatically (BreakJointsOnDeath is off, so nothing explodes on its own) — press R any other time for a togglable one, with the camera swapping to follow the head while you're down.</div>
+              <div class="sys__actions">
+                <button class="sys__link preview-btn" data-project="ragdoll"><i class="fa-solid fa-code"></i> Preview</button>
+                <a href="https://gist.github.com/sacrificedDecro/73dcd544f72a06d6f445a9450c3fb91e" target="_blank" rel="noopener noreferrer" class="sys__link sys__link--gist"><i class="fa-brands fa-github"></i> Gist</a>
+              </div>
+            </div>
+          </div>
+
+          <div class="sys reveal-el">
+            <div class="sys__media">
+              <iframe src="https://streamable.com/o/pwv6n3" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe>
+            </div>
+            <div class="sys__body">
+              <div class="sys__ico"><i class="fa-solid fa-box-open"></i></div>
+              <div class="sys__name">Inventory slot UI &amp; custom interact prompt</div>
+              <div class="sys__desc">The interact prompt is fully custom, no ProximityPrompt — just a CollectionService tag and an outline Highlight on whatever's nearest. Pickup, equip, and drop each get their own sound cue, and all three only fire after the server confirms the action actually went through. The save system is the real work: each server claims a session lock before loading your inventory, and a heartbeat keeps renewing it, so joining a second server mid-session gets you turned away instead of a duplicated item. Footsteps sync to the walk animation's actual keyframes instead of a fixed timer, so they land exactly when the foot does.</div>
+              <div class="sys__actions">
+                <button class="sys__link preview-btn" data-project="inventory"><i class="fa-solid fa-code"></i> Preview</button>
+                <a href="https://gist.github.com/sacrificedDecro/6efa8427d5a0e625de0174540d6203a0" target="_blank" rel="noopener noreferrer" class="sys__link sys__link--gist"><i class="fa-brands fa-github"></i> Gist</a>
+              </div>
+            </div>
+          </div>
+
+          <div class="sys sys--wide reveal-el">
             <div class="sys__body">
               <div class="sys__ico"><i class="fa-solid fa-cubes"></i></div>
               <div class="sys__name">Tink — game framework</div>
@@ -138,21 +168,6 @@
               <div class="sys__actions">
                 <button class="sys__link preview-btn" data-project="tink"><i class="fa-solid fa-code"></i> Preview</button>
                 <a href="https://gist.github.com/sacrificedDecro/7195e6ca69e56347a1506a33294cb57a" target="_blank" rel="noopener noreferrer" class="sys__link sys__link--gist"><i class="fa-brands fa-github"></i> Gist</a>
-              </div>
-            </div>
-          </div>
-
-          <div class="sys reveal-el">
-            <div class="sys__media">
-              <iframe src="https://streamable.com/o/vm43sy" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe>
-            </div>
-            <div class="sys__body">
-              <div class="sys__ico"><i class="fa-solid fa-box-open"></i></div>
-              <div class="sys__name">Inventory slot UI &amp; custom interact prompt</div>
-              <div class="sys__desc">The interact prompt is fully custom, no ProximityPrompt — just a CollectionService tag and an outline Highlight on whatever's nearest, with a pickup sound that only fires once the server confirms the item is actually yours. The save system is the real work: each server claims a session lock before loading your inventory, and a heartbeat keeps renewing it, so joining a second server mid-session gets you turned away instead of a duplicated item. Footsteps sync to the walk animation's actual keyframes instead of a fixed timer, so they land exactly when the foot does.</div>
-              <div class="sys__actions">
-                <button class="sys__link preview-btn" data-project="inventory"><i class="fa-solid fa-code"></i> Preview</button>
-                <a href="https://gist.github.com/sacrificedDecro/6efa8427d5a0e625de0174540d6203a0" target="_blank" rel="noopener noreferrer" class="sys__link sys__link--gist"><i class="fa-brands fa-github"></i> Gist</a>
               </div>
             </div>
           </div>
