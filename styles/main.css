@@ -623,6 +623,10 @@ nav a.active { color: var(--tx); background: color-mix(in srgb, var(--tx) 9%, tr
   flex-direction: column;
 }
 
+.sys--wide {
+  grid-column: 1 / -1;
+}
+
 .sys::before {
   content: "";
   position: absolute;
@@ -637,8 +641,9 @@ nav a.active { color: var(--tx); background: color-mix(in srgb, var(--tx) 9%, tr
 
 .sys:nth-child(1)::before { background: linear-gradient(90deg, var(--coral), transparent) }
 .sys:nth-child(2)::before { background: linear-gradient(90deg, var(--rose), transparent) }
-.sys:nth-child(3)::before { background: linear-gradient(90deg, var(--lavender), transparent) }
+.sys:nth-child(3)::before { background: linear-gradient(90deg, var(--sky), transparent) }
 .sys:nth-child(4)::before { background: linear-gradient(90deg, var(--sage), transparent) }
+.sys:nth-child(5)::before { background: linear-gradient(90deg, var(--lavender), transparent) }
 
 .sys:hover::before { opacity: 1 }
 
@@ -687,8 +692,9 @@ nav a.active { color: var(--tx); background: color-mix(in srgb, var(--tx) 9%, tr
 
 .sys:nth-child(1) .sys__ico { background: var(--coral-soft); color: var(--coral) }
 .sys:nth-child(2) .sys__ico { background: var(--rose-soft); color: var(--rose) }
-.sys:nth-child(3) .sys__ico { background: var(--lavender-soft); color: var(--lavender) }
+.sys:nth-child(3) .sys__ico { background: var(--sky-soft); color: var(--sky) }
 .sys:nth-child(4) .sys__ico { background: var(--sage-soft); color: var(--sage) }
+.sys:nth-child(5) .sys__ico { background: var(--lavender-soft); color: var(--lavender) }
 
 .sys__name {
   font-size: 1.15rem;
