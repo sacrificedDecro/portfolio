@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script>(function(){try{if(localStorage.getItem('theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}})();</script>
   <title>Decro — Roblox Developer</title>
-  <meta name="description" content="Decro — Roblox Developer & Luau Scripter. Available for commissions and team roles.">
+  <meta name="description" content="Decro — Roblox gameplay and backend scripter. Available for commissions and team roles.">
   <meta name="theme-color" content="#ef7f5a">
   <meta property="og:title" content="Decro — Roblox Developer">
-  <meta property="og:description" content="Roblox developer focused on individual systems. Clean Luau, strict typing, modular architecture. Open for commissions.">
+  <meta property="og:description" content="Roblox gameplay and backend scripter building combat systems, inventories, persistent data systems, and modular gameplay features.">
   <meta property="og:type" content="website">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -61,8 +61,8 @@
         <div class="hero__inner">
           <div class="hero__badge reveal-el"><b></b> Open for commissions</div>
           <h1 class="hero__h1 reveal-el">I'm <span class="gr">Decro</span></h1>
-          <div class="hero__label reveal-el">Roblox Developer · Luau Scripting</div>
-          <p class="hero__sub reveal-el">I focus on individual systems, not full games. Shops, NPCs, save systems, UIs, anything that size and self-contained.</p>
+          <div class="hero__label reveal-el">Roblox Gameplay &amp; Backend Scripter</div>
+          <p class="hero__sub reveal-el">I build server-authoritative combat systems, inventories, persistent data systems, and modular gameplay features.</p>
           <div class="hero__btns reveal-el">
             <a href="#projects" class="btn btn--main"><i class="fa-solid fa-code"></i> <span>See my work</span></a>
             <a href="#contact" class="btn btn--sec"><i class="fa-regular fa-envelope"></i> Hire me</a>
@@ -77,10 +77,10 @@
         <h2 class="sect-h reveal-el">Who I am</h2>
         <div class="about-lay">
           <div class="about-p reveal-el">
-            <p>I'm <strong>Decro</strong>, a Roblox scripter building clean, reliable systems.</p>
-            <p><strong>3+ years of experience</strong> delivered.</p>
-            <p>I focus on <strong>individual systems</strong>, not full games. Shops, NPCs, save systems, UIs, anything that size and self-contained.</p>
-            <p>I write <strong>organized, modular code</strong>. Everything is split into proper modules, structured with configs, and named clearly so anything is easy to find and change later.</p>
+            <p>I'm <strong>Decro</strong>, a Roblox scripter building reliable gameplay and backend systems.</p>
+            <p><strong>3+ years of experience.</strong></p>
+            <p>I work on <strong>clearly defined systems and milestone-based projects.</strong></p>
+            <p>I write <strong>organized, modular code.</strong> Systems are split into clear modules, structured with configs, and named so they are easy to find and change.</p>
           </div>
           <div class="sk-grid reveal-el">
             <div class="sk"><i class="fa-solid fa-code"></i> Luau / Lua</div>
@@ -107,7 +107,7 @@
             <div class="sys__body">
               <div class="sys__ico"><i class="fa-solid fa-hand"></i></div>
               <div class="sys__name">Dead rails - drag, weight &amp; throw</div>
-              <div class="sys__desc">Dragging runs on real physics: the server hands the grabbed part's network ownership to your client and holds it with AlignPosition/AlignOrientation, so heavier props genuinely resist being dragged, not just tinted red. Let go mid-swing and a short velocity sample turns it into a real throw, capped so nothing rockets off the map. Footsteps got their own pass too — a looping sound crossfades in and out as you start and stop running, driven by the server so it stays in sync for everyone watching.</div>
+              <div class="sys__desc">A multiplayer drag-and-throw system for physics objects tagged as draggables. The server checks the object, distance, ownership, and anchored state before assigning network ownership and applying AlignPosition and AlignOrientation. Object weight changes responsiveness and throw speed, which is capped by configuration, while running footsteps fade in and out through server-controlled state.</div>
               <div class="sys__actions">
                 <button class="sys__link preview-btn" data-project="drag-throw"><i class="fa-solid fa-code"></i> Preview</button>
                 <a href="https://gist.github.com/sacrificedDecro/20b67d9f3e166fccc1449c2b63b5a0cd" target="_blank" rel="noopener noreferrer" class="sys__link sys__link--gist"><i class="fa-brands fa-github"></i> Gist</a>
@@ -122,7 +122,7 @@
             <div class="sys__body">
               <div class="sys__ico"><i class="fa-solid fa-fist-raised"></i></div>
               <div class="sys__name">Simple combat system</div>
-              <div class="sys__desc">M1/M2 combos, sprint attacks that hit harder and knock further, and a real block that shrugs off damage — unless you land it from behind, which breaks straight through. Hits land with randomized-pitch sound, blood, and a red flash. Two training dummies spar on their own in the scene, so the whole system is watchable solo.</div>
+              <div class="sys__desc">A server-authoritative melee system with M1/M2 combos, sprint bonuses, blocking, back attacks, knockback, blood, and randomized impact sounds. The server applies cooldowns, checks the player state, creates short-lived hitboxes, and applies damage from server-side contacts. Training dummies are included for testing attack and block interactions.</div>
               <div class="sys__actions">
                 <button class="sys__link preview-btn" data-project="m1"><i class="fa-solid fa-code"></i> Preview</button>
                 <a href="https://gist.github.com/sacrificedDecro/e9d4bbaf3840596210cce41dcdb298d8" target="_blank" rel="noopener noreferrer" class="sys__link sys__link--gist"><i class="fa-brands fa-github"></i> Gist</a>
@@ -137,10 +137,11 @@
             <div class="sys__body">
               <div class="sys__ico"><i class="fa-solid fa-person-falling"></i></div>
               <div class="sys__name">R6 &amp; R15 ragdoll system</div>
-              <div class="sys__desc">Works on R6 and R15 without special-casing either rig — it walks every joint in the character and handles whatever it finds, swapping Motor6Ds for BallSocketConstraints and easing off AnimationConstraints, then drops every part into its own collision group so limbs don't fling apart from self-collision. Dying triggers a permanent ragdoll automatically (BreakJointsOnDeath is off, so nothing explodes on its own) — press R any other time for a togglable one, with the camera swapping to follow the head while you're down.</div>
+              <div class="sys__desc">A ragdoll system for R6 and R15 characters that replaces enabled Motor6D joints with BallSocketConstraints and handles AnimationConstraints. The server controls the ragdoll state and physics ownership, limits rapid toggle requests, and keeps death ragdolls permanent while manual ragdolls can be released. The client adds a ContextActionService toggle and moves the camera to the head while ragdolled.</div>
               <div class="sys__actions">
                 <button class="sys__link preview-btn" data-project="ragdoll"><i class="fa-solid fa-code"></i> Preview</button>
                 <a href="https://gist.github.com/sacrificedDecro/73dcd544f72a06d6f445a9450c3fb91e" target="_blank" rel="noopener noreferrer" class="sys__link sys__link--gist"><i class="fa-brands fa-github"></i> Gist</a>
+                <a href="https://www.roblox.com/games/14434670478/Ragdoll" target="_blank" rel="noopener noreferrer" class="sys__link sys__link--roblox"><i class="fa-solid fa-gamepad"></i> View on Roblox <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></a>
               </div>
             </div>
           </div>
@@ -152,7 +153,7 @@
             <div class="sys__body">
               <div class="sys__ico"><i class="fa-solid fa-box-open"></i></div>
               <div class="sys__name">Inventory slot UI &amp; custom interact prompt</div>
-              <div class="sys__desc">The interact prompt is fully custom, no ProximityPrompt — just a CollectionService tag and an outline Highlight on whatever's nearest. Pickup, equip, and drop each get their own sound cue, and all three only fire after the server confirms the action actually went through. The save system is the real work: each server claims a session lock before loading your inventory, and a heartbeat keeps renewing it, so joining a second server mid-session gets you turned away instead of a duplicated item. Footsteps sync to the walk animation's actual keyframes instead of a fixed timer, so they land exactly when the foot does.</div>
+              <div class="sys__desc">A server-validated inventory and interaction system with three configurable slots, tagged world items, custom Highlight prompts, equip and drop tools, and server-confirmed feedback sounds. Items are checked for ownership, distance, free slots, and valid master definitions before pickup; inventory data is claimed and periodically renewed through a DataStore session lock. The client UI supports slot activation and keyboard shortcuts, while footsteps are timed from the R6 walk animation.</div>
               <div class="sys__actions">
                 <button class="sys__link preview-btn" data-project="inventory"><i class="fa-solid fa-code"></i> Preview</button>
                 <a href="https://gist.github.com/sacrificedDecro/6efa8427d5a0e625de0174540d6203a0" target="_blank" rel="noopener noreferrer" class="sys__link sys__link--gist"><i class="fa-brands fa-github"></i> Gist</a>
@@ -164,7 +165,7 @@
             <div class="sys__body">
               <div class="sys__ico"><i class="fa-solid fa-cubes"></i></div>
               <div class="sys__name">Tink — game framework</div>
-              <div class="sys__desc">A from-scratch Knit-style service/controller framework, no dependency on the archived original. Every remote gets automatic per-player rate limiting before your handler even runs. Startup is fault-isolated too — if one service throws on init, only that one gets skipped, logged with a full traceback, while everything else boots normally.</div>
+              <div class="sys__desc">A strict-typed Knit-style framework for Roblox services and controllers, built around Spark modules rather than the archived Knit codebase. It provides remote signals, remote properties, unreliable signals, per-player rate limiting, module discovery, and staged startup with per-service failure isolation and timeouts. The framework uses the evaera Promise library for asynchronous lifecycle hooks.</div>
               <div class="sys__actions">
                 <button class="sys__link preview-btn" data-project="tink"><i class="fa-solid fa-code"></i> Preview</button>
                 <a href="https://gist.github.com/sacrificedDecro/7195e6ca69e56347a1506a33294cb57a" target="_blank" rel="noopener noreferrer" class="sys__link sys__link--gist"><i class="fa-brands fa-github"></i> Gist</a>
@@ -179,7 +180,7 @@
     <section id="studios" class="sect">
       <div class="w">
         <div class="tag reveal-el">Studios</div>
-        <h2 class="sect-h reveal-el">Which I worked for</h2>
+        <h2 class="sect-h reveal-el">Studios I've worked with</h2>
         <div class="studio-grid">
 
           <div class="studio-card reveal-el">
@@ -210,11 +211,11 @@
             </div>
             <div class="studio-card__stats">
               <div class="studio-stat">
-                <span class="studio-stat__num">320,000+</span>
+                <span class="studio-stat__num">365,000+</span>
                 <span class="studio-stat__label">Members</span>
               </div>
               <div class="studio-stat">
-                <span class="studio-stat__num">45M+</span>
+                <span class="studio-stat__num">50M+</span>
                 <span class="studio-stat__label">Visits</span>
               </div>
             </div>
@@ -233,15 +234,15 @@
         <div class="scope-intro reveal-el">
           <div class="tag">Scope</div>
           <h2 class="sect-h">What I take on</h2>
-          <p>I work feature by feature, sometimes a small bundle of features that need each other (shop + inventory + save, combat + UI). Whole games and oversized asks are out of scope.</p>
+          <p>I work on clearly defined systems and milestone-based projects. Related features can be grouped into one deliverable, such as a shop with inventory and saving or combat with UI.</p>
         </div>
         <div class="scope-row">
           <div class="scope-card reveal-el">
             <div class="scope-h">
               <i class="fa-solid fa-check scope-ico scope-ico--yes"></i>
               <div>
-                <span>What I take on</span>
-                <small>Single systems, simple or fairly complex</small>
+                <span>What I build</span>
+                <small>Clear systems and deliverables</small>
               </div>
             </div>
             <div class="scope-list">
@@ -259,16 +260,16 @@
             <div class="scope-h">
               <i class="fa-solid fa-xmark scope-ico scope-ico--no"></i>
               <div>
-                <span>What I don't</span>
-                <small>Bigger than a single system</small>
+                <span>How I structure larger work</span>
+                <small>Milestones with a clear finish line</small>
               </div>
             </div>
             <div class="scope-list">
-              <div class="scope-li"><i class="fa-solid fa-xmark scope-check--no"></i> <span>Whole games, start to finish</span></div>
-              <div class="scope-li"><i class="fa-solid fa-xmark scope-check--no"></i> <span>Huge features that lean on tons of custom animation or art</span></div>
-              <div class="scope-li"><i class="fa-solid fa-xmark scope-check--no"></i> <span>Open-ended builds with no clear finish line</span></div>
-              <div class="scope-li"><i class="fa-solid fa-xmark scope-check--no"></i> <span>Asks that look like one system but unpack into five</span></div>
-              <div class="scope-li"><i class="fa-solid fa-xmark scope-check--no"></i> <span>Polished vehicles or driving systems</span></div>
+            <div class="scope-li"><i class="fa-solid fa-xmark scope-check--no"></i> <span>Larger projects are split into clear milestones</span></div>
+            <div class="scope-li"><i class="fa-solid fa-xmark scope-check--no"></i> <span>Animation and art requirements are scoped as separate deliverables</span></div>
+            <div class="scope-li"><i class="fa-solid fa-xmark scope-check--no"></i> <span>Open-ended builds are defined around a clear finish line</span></div>
+            <div class="scope-li"><i class="fa-solid fa-xmark scope-check--no"></i> <span>Multi-system work is separated into milestone-based features</span></div>
+            <div class="scope-li"><i class="fa-solid fa-xmark scope-check--no"></i> <span>Vehicle and driving systems are scoped as dedicated deliverables</span></div>
             </div>
           </div>
         </div>
@@ -279,23 +280,23 @@
       <div class="w">
         <div class="tag reveal-el">Payment</div>
         <h2 class="sect-h reveal-el">How I work</h2>
-        <p class="pay-intro reveal-el">Pay per task by default. Each commission gets broken into small pieces and you pay for each one as it's delivered. If you'd rather do a simple 50/50 (upfront and on delivery), that works too. No rev-share, no "pay when the game ships." Gift cards and crypto aren't accepted; ask if you have something else in mind.</p>
+        <p class="pay-intro reveal-el">Pay per task by default. Each commission is broken into clear deliverables, and you pay for each one as it's delivered. If you'd rather use a simple 50/50 split, with half upfront and half on delivery, that works too. No revenue share and no "pay when the game ships." Gift cards and crypto aren't accepted; ask if you have something else in mind.</p>
 
         <div class="info-grid">
           <div class="info-card reveal-el">
             <i class="fa-solid fa-shield-halved info-ico info-ico--sky"></i>
             <strong>Ownership</strong>
-            <p>As soon as a task is paid for, that code is fully yours. You can modify it, ship it anywhere, and I don't keep a copy.</p>
+            <p>As soon as a task is paid for, that code is yours. You can modify it, ship it anywhere, and I don't keep a copy.</p>
           </div>
           <div class="info-card reveal-el">
             <i class="fa-solid fa-rotate-left info-ico info-ico--rose"></i>
             <strong>Refunds</strong>
-            <p>You can walk away anytime. Per-task means you only pay for what's been delivered; with 50/50, the upfront half is refundable until I've started.</p>
+            <p>You can stop at any time. With per-task work, you only pay for what has been delivered. With 50/50, the upfront half is refundable until I start.</p>
           </div>
           <div class="info-card reveal-el">
             <i class="fa-solid fa-clock info-ico info-ico--amber"></i>
             <strong>Availability</strong>
-            <p>Available daily from 18:00 to 1:00 (UTC+3). I reply within hours on Discord, slower on email.</p>
+            <p>I'm available daily from 18:00 to 1:00 (UTC+3). I reply within hours on Discord and more slowly by email.</p>
           </div>
         </div>
 
@@ -303,14 +304,14 @@
           <div class="pay-card reveal-el">
             <div class="pay-ico pay-ico--dark"><i class="fa-solid fa-cube"></i></div>
             <div class="pay-name">Robux</div>
-            <div class="pay-handle">miky</div>
-            <div class="pay-desc">You cover the 30% Roblox tax, and the total must match the listed USD value at the current DevEx rate. Pay via gamepass or group funds.</div>
+            <div class="pay-handle">zdecro</div>
+            <div class="pay-desc">You cover the 30% Roblox tax, and the total must match the listed USD value at the current DevEx rate. Pay via a gamepass or group funds.</div>
           </div>
           <div class="pay-card reveal-el">
             <div class="pay-ico pay-ico--sage"><i class="fa-regular fa-credit-card"></i></div>
-            <div class="pay-name">Card-to-Card</div>
+            <div class="pay-name">Card-to-card</div>
             <div class="pay-handle">direct transfer</div>
-            <div class="pay-desc">Direct card transfer to standard bank cards. Simple, quick, and efficient with no extra hassle.</div>
+            <div class="pay-desc">Direct transfer to a standard bank card. Simple and quick, with no extra steps.</div>
           </div>
         </div>
       </div>
@@ -319,7 +320,7 @@
     <section id="contact" class="cta">
       <div class="w">
         <h2 class="cta-h reveal-el">Let's build something</h2>
-        <p class="cta-p reveal-el">Available for commissions, full-time team roles, and collaboration. I build clean, scalable systems and deliver on time.</p>
+        <p class="cta-p reveal-el">Available for commissions, full-time team roles, and collaboration. I build clean, scalable systems and deliver them on time.</p>
         <div class="cta-btns reveal-el">
           <a href="https://github.com/sacrificedDecro" target="_blank" rel="noopener noreferrer" class="btn btn--sec"><i class="fa-brands fa-github"></i> GitHub</a>
           <button id="discordBtn" class="btn btn--main"><i class="fa-brands fa-discord"></i> <span>x90xcs</span></button>
