@@ -751,6 +751,19 @@ nav a.active { color: var(--tx); background: color-mix(in srgb, var(--tx) 9%, tr
   border-color: var(--gb-h);
 }
 
+.sys__link--roblox {
+  color: var(--sky);
+  background: var(--sky-soft);
+}
+
+.sys__link--roblox i:last-child { font-size: 0.62rem }
+
+.sys__link--roblox:hover {
+  color: var(--sky);
+  background: color-mix(in srgb, var(--sky) 22%, transparent);
+  border-color: color-mix(in srgb, var(--sky) 32%, transparent);
+}
+
 
 .studio-grid {
   display: grid;
