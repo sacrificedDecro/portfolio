@@ -6793,7 +6793,7 @@ Workspace/
 
     let tOut;
     btn.addEventListener('click', () => {
-      navigator.clipboard.writeText('x90xcs').then(() => {
+      navigator.clipboard.writeText('axalled').then(() => {
         toast.classList.add('show');
         if (tOut) clearTimeout(tOut);
         tOut = setTimeout(() => {
