@@ -6510,6 +6510,7 @@ Workspace/
     const grids = $$('.sys-grid, .sk-grid, .pay-grid, .info-grid, .scope-row');
     grids.forEach(grid => {
       $$('.reveal-el', grid).forEach((el, i) => {
+        if (el.classList.contains('sys--tink')) return;
         el.style.transitionDelay = (i * 0.06) + 's';
       });
     });
@@ -6541,6 +6542,8 @@ Workspace/
     const tabsEl   = $('#codeModalTabs');
 
     if (!overlay || !panel || !titleEl || !closeBtn || !sidebar) return;
+
+    let opener = null;
 
     const KW = new Set([
       'and','break','do','else','elseif','end','false','for','function',
@@ -6665,7 +6668,7 @@ Workspace/
       renderFile(proj.files[names[idx]]);
     }
 
-    function openModal(key) {
+    function openModal(key, trigger) {
       const proj = projectFiles[key];
       if (!proj) return;
 
@@ -6707,19 +6710,24 @@ Workspace/
       });
 
       renderFile(proj.files[names[0]]);
+      opener = trigger;
+      overlay.removeAttribute('inert');
       overlay.classList.add('open');
-      overlay.setAttribute('aria-hidden', 'false');
       document.body.style.overflow = 'hidden';
+      closeBtn.focus();
     }
 
     function closeModal() {
+      if (!overlay.classList.contains('open')) return;
       overlay.classList.remove('open');
-      overlay.setAttribute('aria-hidden', 'true');
+      overlay.setAttribute('inert', '');
       document.body.style.overflow = '';
+      if (opener instanceof HTMLElement) opener.focus();
+      opener = null;
     }
 
     $$('.preview-btn').forEach(btn => {
-      btn.addEventListener('click', () => openModal(btn.dataset.project));
+      btn.addEventListener('click', () => openModal(btn.dataset.project, btn));
     });
 
     closeBtn.addEventListener('click', closeModal);
@@ -6729,7 +6737,27 @@ Workspace/
     });
 
     document.addEventListener('keydown', e => {
-      if (e.key === 'Escape' && overlay.classList.contains('open')) closeModal();
+      if (!overlay.classList.contains('open')) return;
+      if (e.key === 'Escape') {
+        closeModal();
+        return;
+      }
+      if (e.key === 'Tab') {
+        const focusable = $$('[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])', overlay);
+        if (!focusable.length) {
+          e.preventDefault();
+          return;
+        }
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     });
   }
 
@@ -6753,12 +6781,10 @@ Workspace/
   function initThemeToggle() {
     const btn = $('#themeToggle');
     if (!btn) return;
-    const icon = $('i', btn);
     const root = document.documentElement;
     const STORAGE_KEY = 'theme';
 
     function applyState(theme) {
-      if (icon) icon.className = theme === 'dark' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
       btn.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
       btn.setAttribute('aria-label', theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme');
     }
@@ -6774,7 +6800,7 @@ Workspace/
       }
       try {
         localStorage.setItem(STORAGE_KEY, next);
-      } catch (e) {}
+      } catch {}
       applyState(next);
     });
   }
@@ -6793,7 +6819,7 @@ Workspace/
 
     let tOut;
     btn.addEventListener('click', () => {
-      navigator.clipboard.writeText('axalled').then(() => {
+      navigator.clipboard.writeText('morithell').then(() => {
         toast.classList.add('show');
         if (tOut) clearTimeout(tOut);
         tOut = setTimeout(() => {
