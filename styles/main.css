@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
-
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 
 :root {
@@ -128,6 +126,11 @@ a { color: inherit; text-decoration: none }
 ul { list-style: none }
 button { font-family: 'Outfit', sans-serif; border: 0; background: none; cursor: pointer; color: inherit }
 
+:where(a, button):focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--coral) 68%, white);
+  outline-offset: 3px;
+}
+
 header {
   position: fixed;
   top: 0;
@@ -216,13 +219,12 @@ nav a.active { color: var(--tx); background: color-mix(in srgb, var(--tx) 9%, tr
 }
 
 .theme-toggle {
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   flex-shrink: 0;
   padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
   background: var(--card);
   border: 1px solid var(--gb);
   border-radius: 50%;
@@ -230,8 +232,9 @@ nav a.active { color: var(--tx); background: color-mix(in srgb, var(--tx) 9%, tr
   font-size: 0.92rem;
   line-height: 1;
   cursor: pointer;
+  touch-action: manipulation;
   box-shadow: var(--shadow-sm);
-  transition: all 0.3s var(--ease);
+  transition: color 0.3s var(--ease), border-color 0.3s var(--ease), box-shadow 0.3s var(--ease), transform 0.3s var(--ease);
 }
 
 .theme-toggle:hover {
@@ -241,18 +244,26 @@ nav a.active { color: var(--tx); background: color-mix(in srgb, var(--tx) 9%, tr
   box-shadow: var(--shadow);
 }
 
-.theme-toggle i {
+.theme-toggle__icon {
+  width: 18px;
+  height: 18px;
   display: block;
-  transition: transform 0.4s var(--ease);
+  grid-area: 1 / 1;
+  fill: none;
+  flex: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.85;
+  transition: transform 0.25s var(--ease);
 }
 
-.theme-toggle i.fa-moon {
-  position: relative;
-  left: -1px;
-  top: 1px;
-}
+.theme-toggle__icon--moon { fill: currentColor; stroke: none }
+.theme-toggle__icon--sun { display: none }
+html[data-theme="dark"] .theme-toggle__icon--moon { display: none }
+html[data-theme="dark"] .theme-toggle__icon--sun { display: block }
 
-.theme-toggle:active i {
+.theme-toggle:active .theme-toggle__icon {
   transform: rotate(-25deg) scale(0.9);
 }
 
@@ -607,8 +618,8 @@ nav a.active { color: var(--tx); background: color-mix(in srgb, var(--tx) 9%, tr
 
 .sys-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr));
-  gap: 18px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
 }
 
 .sys {
@@ -625,6 +636,11 @@ nav a.active { color: var(--tx); background: color-mix(in srgb, var(--tx) 9%, tr
 
 .sys--wide {
   grid-column: 1 / -1;
+}
+
+.sys--tink {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.84fr);
 }
 
 .sys::before {
@@ -657,16 +673,19 @@ nav a.active { color: var(--tx); background: color-mix(in srgb, var(--tx) 9%, tr
   position: relative;
   width: 100%;
   aspect-ratio: 16/9;
-  background: #000;
+  background: var(--bg-tint);
   overflow: hidden;
+  border-bottom: 1px solid var(--gb);
 }
 
-.sys__media iframe {
+.sys__video {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   border: 0;
+  background: #000;
+  object-fit: cover;
 }
 
 .sys__body {
@@ -674,6 +693,7 @@ nav a.active { color: var(--tx); background: color-mix(in srgb, var(--tx) 9%, tr
   display: flex;
   flex-direction: column;
   flex: 1;
+  min-width: 0;
 }
 
 .sys__ico {
@@ -714,6 +734,7 @@ nav a.active { color: var(--tx); background: color-mix(in srgb, var(--tx) 9%, tr
 .sys__actions {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
   margin-top: auto;
 }
@@ -725,7 +746,8 @@ nav a.active { color: var(--tx); background: color-mix(in srgb, var(--tx) 9%, tr
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 14px;
+  min-height: 44px;
+  padding: 9px 14px;
   border-radius: 9px;
   border: 1px solid var(--gb);
   background: color-mix(in srgb, var(--coral) 6%, transparent);
@@ -751,18 +773,104 @@ nav a.active { color: var(--tx); background: color-mix(in srgb, var(--tx) 9%, tr
   border-color: var(--gb-h);
 }
 
+.sys__link--gist i:last-child,
+.sys__link--roblox i:last-child {
+  font-size: 0.62rem;
+}
+
 .sys__link--roblox {
   color: var(--sky);
   background: var(--sky-soft);
 }
-
-.sys__link--roblox i:last-child { font-size: 0.62rem }
 
 .sys__link--roblox:hover {
   color: var(--sky);
   background: color-mix(in srgb, var(--sky) 22%, transparent);
   border-color: color-mix(in srgb, var(--sky) 32%, transparent);
 }
+
+.sys__tink-visual {
+  position: relative;
+  min-height: 100%;
+  overflow: hidden;
+  border-left: 1px solid var(--gb);
+  background:
+    radial-gradient(circle at 24% 18%, color-mix(in srgb, var(--lavender) 18%, transparent), transparent 34%),
+    radial-gradient(circle at 80% 76%, color-mix(in srgb, var(--coral) 10%, transparent), transparent 38%),
+    var(--bg-tint);
+}
+
+.sys__tink-visual::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, var(--dot) 1px, transparent 1.5px);
+  background-size: 18px 18px;
+  opacity: 0.75;
+}
+
+.tink-visual__mark,
+.tink-visual__node,
+.tink-visual__chip,
+.tink-visual__rail {
+  position: absolute;
+  z-index: 1;
+}
+
+.tink-visual__mark {
+  top: 50%;
+  left: 50%;
+  width: 76px;
+  height: 76px;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--lavender) 34%, transparent);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--card) 78%, transparent);
+  color: var(--lavender);
+  font-size: 2.1rem;
+  font-weight: 900;
+  transform: translate(-50%, -50%) rotate(-8deg);
+  box-shadow: 0 16px 34px color-mix(in srgb, var(--lavender) 16%, transparent);
+}
+
+.tink-visual__rail {
+  top: 50%;
+  left: 18%;
+  right: 18%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--lavender) 54%, transparent), transparent);
+}
+
+.tink-visual__node,
+.tink-visual__chip {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--gb);
+  background: color-mix(in srgb, var(--card) 82%, transparent);
+  box-shadow: var(--shadow-sm);
+  color: var(--tx2);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+
+.tink-visual__node {
+  padding: 9px 11px;
+  border-radius: 10px;
+}
+
+.tink-visual__node--services { top: 23%; left: 15% }
+.tink-visual__node--controllers { right: 12%; bottom: 22% }
+
+.tink-visual__chip {
+  padding: 6px 8px;
+  border-radius: 8px;
+  color: var(--tx3);
+}
+
+.tink-visual__chip--signals { top: 62%; left: 11% }
+.tink-visual__chip--promise { top: 25%; right: 12% }
 
 
 .studio-grid {
@@ -1078,9 +1186,8 @@ nav a.active { color: var(--tx); background: color-mix(in srgb, var(--tx) 9%, tr
   transition: opacity 0.3s;
 }
 
-.pay-card:nth-child(1)::before { background: linear-gradient(90deg, var(--sage), transparent) }
-.pay-card:nth-child(2)::before { background: linear-gradient(90deg, var(--lavender), transparent) }
-.pay-card:nth-child(3)::before { background: linear-gradient(90deg, var(--tx3), transparent) }
+.pay-card:nth-child(1)::before { background: linear-gradient(90deg, var(--tx), transparent) }
+.pay-card:nth-child(2)::before { background: linear-gradient(90deg, var(--sage), transparent) }
 
 .pay-card:hover {
   transform: translateY(-4px);
@@ -1141,13 +1248,32 @@ nav a.active { color: var(--tx); background: color-mix(in srgb, var(--tx) 9%, tr
   gap: 12px;
   box-shadow: var(--shadow-sm);
   transition: all 0.3s var(--ease);
+  position: relative;
+  overflow: hidden;
 }
+
+.info-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.info-card:nth-child(1)::before { background: linear-gradient(90deg, var(--sky), transparent) }
+.info-card:nth-child(2)::before { background: linear-gradient(90deg, var(--rose), transparent) }
+.info-card:nth-child(3)::before { background: linear-gradient(90deg, var(--amber), transparent) }
 
 .info-card:hover {
   transform: translateY(-3px);
   box-shadow: var(--shadow);
   border-color: var(--gb-h);
 }
+
+.info-card:hover::before { opacity: 1 }
 
 .info-ico {
   width: 34px;
@@ -1508,6 +1634,8 @@ footer a:hover { color: var(--tx) }
 }
 
 @media (max-width: 900px) {
+  .sys-grid { grid-template-columns: 1fr }
+  .sys--tink { grid-template-columns: minmax(0, 1fr) minmax(280px, 0.72fr) }
   .about-lay { grid-template-columns: 1fr }
   .scope-row { grid-template-columns: 1fr }
   .pay-grid { grid-template-columns: 1fr }
@@ -1533,6 +1661,16 @@ footer a:hover { color: var(--tx) }
   #studios.sect { padding: 30px 0 24px }
   .cta { padding: 60px 0 }
   .scope-card { padding: 24px }
+  .sys--wide { grid-template-columns: 1fr }
+  .sys--tink { grid-template-columns: 1fr }
+  .sys__tink-visual {
+    min-height: 220px;
+    border-top: 1px solid var(--gb);
+    border-left: none;
+    order: -1;
+  }
+  .sys__actions { align-items: stretch }
+  .sys__link { justify-content: center }
   .code-modal {
     width: 100vw;
     height: 100dvh;
