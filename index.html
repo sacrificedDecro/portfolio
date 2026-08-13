@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <script>(function(){try{if(localStorage.getItem('theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch(e){}})();</script>
+  <script>(function(){try{if(localStorage.getItem('theme')==='dark'){document.documentElement.setAttribute('data-theme','dark')}}catch{}})();</script>
   <title>Decro — Roblox Developer</title>
   <meta name="description" content="Decro — Roblox gameplay and backend scripter. Available for commissions and team roles.">
   <meta name="theme-color" content="#ef7f5a">
@@ -23,7 +23,7 @@
   <header id="nav">
     <a href="#hero" class="logo"><i>D</i> Decro</a>
     <div class="header__right">
-      <nav>
+      <nav aria-label="Primary navigation">
         <ul>
           <li><a href="#about" class="nav__link">About</a></li>
           <li><a href="#projects" class="nav__link">Projects</a></li>
@@ -33,8 +33,11 @@
           <li><a href="#contact" class="nav__link">Contact</a></li>
         </ul>
       </nav>
-      <button class="theme-toggle" id="themeToggle" aria-label="Switch to dark theme" aria-pressed="false"><i class="fa-solid fa-moon"></i></button>
-      <button class="menu-btn" id="menuBtn" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
+      <button type="button" class="theme-toggle" id="themeToggle" aria-label="Switch to dark theme" aria-pressed="false">
+        <svg class="theme-toggle__icon theme-toggle__icon--moon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20.3 15.6A8.7 8.7 0 0 1 8.4 3.7 8.7 8.7 0 1 0 20.3 15.6Z"></path></svg>
+        <svg class="theme-toggle__icon theme-toggle__icon--sun" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3.5"></circle><path d="M12 2.5v2M12 19.5v2M21.5 12h-2M4.5 12h-2M18.72 5.28 17.3 6.7M6.7 17.3l-1.42 1.42M18.72 18.72 17.3 17.3M6.7 6.7 5.28 5.28"></path></svg>
+      </button>
+      <button type="button" class="menu-btn" id="menuBtn" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
     </div>
   </header>
 
@@ -42,9 +45,9 @@
   <aside class="drawer" id="drawer">
     <div class="drawer__head">
       <span class="drawer__title">Menu</span>
-      <button class="drawer__close" id="drawerClose" aria-label="Close menu"><i class="fa-solid fa-xmark"></i></button>
+      <button type="button" class="drawer__close" id="drawerClose" aria-label="Close menu"><i class="fa-solid fa-xmark"></i></button>
     </div>
-    <nav class="drawer__nav">
+    <nav class="drawer__nav" aria-label="Mobile navigation">
       <a href="#about" class="drawer__link">About</a>
       <a href="#projects" class="drawer__link">Projects</a>
       <a href="#studios" class="drawer__link">Studios</a>
@@ -62,7 +65,7 @@
           <div class="hero__badge reveal-el"><b></b> Open for commissions</div>
           <h1 class="hero__h1 reveal-el">I'm <span class="gr">Decro</span></h1>
           <div class="hero__label reveal-el">Roblox Gameplay &amp; Backend Scripter</div>
-          <p class="hero__sub reveal-el">I build server-authoritative combat systems, inventories, persistent data systems, and modular gameplay features.</p>
+          <p class="hero__sub reveal-el">I build server authoritative combat systems, inventories, persistent data systems, and modular gameplay features.</p>
           <div class="hero__btns reveal-el">
             <a href="#projects" class="btn btn--main"><i class="fa-solid fa-code"></i> <span>See my work</span></a>
             <a href="#contact" class="btn btn--sec"><i class="fa-regular fa-envelope"></i> Hire me</a>
@@ -102,45 +105,54 @@
 
           <div class="sys reveal-el">
             <div class="sys__media">
-              <iframe src="https://streamable.com/o/biu8tm" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe>
+              <video class="sys__video" preload="metadata" playsinline controls loading="lazy" poster="https://cdn-cf-east.streamable.com/image/biu8tm.jpg" aria-label="Dead rails - drag, weight and throw demo">
+                <source src="https://api-f.streamable.com/api/v1/videos/biu8tm/mp4" type="video/mp4">
+                <a href="https://streamable.com/biu8tm" target="_blank" rel="noopener noreferrer">Watch the demo on Streamable.</a>
+              </video>
             </div>
             <div class="sys__body">
               <div class="sys__ico"><i class="fa-solid fa-hand"></i></div>
               <div class="sys__name">Dead rails - drag, weight &amp; throw</div>
-              <div class="sys__desc">A multiplayer drag-and-throw system for physics objects tagged as draggables. The server checks the object, distance, ownership, and anchored state before assigning network ownership and applying AlignPosition and AlignOrientation. Object weight changes responsiveness and throw speed, which is capped by configuration, while running footsteps fade in and out through server-controlled state.</div>
+              <div class="sys__desc">Players can pick up, carry, and throw physics objects, with weight changing how each one feels. The server checks that the player is close enough and allowed to interact before moving an item. Weight, throw force, and interaction range can be adjusted for each object.</div>
               <div class="sys__actions">
-                <button class="sys__link preview-btn" data-project="drag-throw"><i class="fa-solid fa-code"></i> Preview</button>
-                <a href="https://gist.github.com/sacrificedDecro/20b67d9f3e166fccc1449c2b63b5a0cd" target="_blank" rel="noopener noreferrer" class="sys__link sys__link--gist"><i class="fa-brands fa-github"></i> Gist</a>
+                <button type="button" class="sys__link preview-btn" data-project="drag-throw"><i class="fa-solid fa-code"></i> Preview</button>
+                <a href="https://gist.github.com/sacrificedDecro/20b67d9f3e166fccc1449c2b63b5a0cd" target="_blank" rel="noopener noreferrer" class="sys__link sys__link--gist"><i class="fa-brands fa-github"></i> Gist <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></a>
               </div>
             </div>
           </div>
 
           <div class="sys reveal-el">
             <div class="sys__media">
-              <iframe src="https://streamable.com/o/am2ffg" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe>
+              <video class="sys__video" preload="metadata" playsinline controls loading="lazy" poster="https://cdn-cf-east.streamable.com/image/am2ffg.jpg" aria-label="Simple combat system demo">
+                <source src="https://api-f.streamable.com/api/v1/videos/am2ffg/mp4" type="video/mp4">
+                <a href="https://streamable.com/am2ffg" target="_blank" rel="noopener noreferrer">Watch the demo on Streamable.</a>
+              </video>
             </div>
             <div class="sys__body">
               <div class="sys__ico"><i class="fa-solid fa-fist-raised"></i></div>
               <div class="sys__name">Simple combat system</div>
-              <div class="sys__desc">A server-authoritative melee system with M1/M2 combos, sprint bonuses, blocking, back attacks, knockback, blood, and randomized impact sounds. The server applies cooldowns, checks the player state, creates short-lived hitboxes, and applies damage from server-side contacts. Training dummies are included for testing attack and block interactions.</div>
+              <div class="sys__desc">Close-range combat with M1 and M2 combos, blocking, sprint attacks, back attacks, knockback, hit sounds, and blood effects. Damage, targets, and cooldowns are handled on the server instead of being chosen by the client. Training dummies make it easy to test attacks and blocks while building the game.</div>
               <div class="sys__actions">
-                <button class="sys__link preview-btn" data-project="m1"><i class="fa-solid fa-code"></i> Preview</button>
-                <a href="https://gist.github.com/sacrificedDecro/e9d4bbaf3840596210cce41dcdb298d8" target="_blank" rel="noopener noreferrer" class="sys__link sys__link--gist"><i class="fa-brands fa-github"></i> Gist</a>
+                <button type="button" class="sys__link preview-btn" data-project="m1"><i class="fa-solid fa-code"></i> Preview</button>
+                <a href="https://gist.github.com/sacrificedDecro/e9d4bbaf3840596210cce41dcdb298d8" target="_blank" rel="noopener noreferrer" class="sys__link sys__link--gist"><i class="fa-brands fa-github"></i> Gist <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></a>
               </div>
             </div>
           </div>
 
           <div class="sys reveal-el">
             <div class="sys__media">
-              <iframe src="https://streamable.com/o/axzau0" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe>
+              <video class="sys__video" preload="metadata" playsinline controls loading="lazy" poster="https://cdn-cf-east.streamable.com/image/axzau0.jpg" aria-label="R6 and R15 ragdoll system demo">
+                <source src="https://api-f.streamable.com/api/v1/videos/axzau0/mp4" type="video/mp4">
+                <a href="https://streamable.com/axzau0" target="_blank" rel="noopener noreferrer">Watch the demo on Streamable.</a>
+              </video>
             </div>
             <div class="sys__body">
               <div class="sys__ico"><i class="fa-solid fa-person-falling"></i></div>
               <div class="sys__name">R6 &amp; R15 ragdoll system</div>
-              <div class="sys__desc">A ragdoll system for R6 and R15 characters that replaces enabled Motor6D joints with BallSocketConstraints and handles AnimationConstraints. The server controls the ragdoll state and physics ownership, limits rapid toggle requests, and keeps death ragdolls permanent while manual ragdolls can be released. The client adds a ContextActionService toggle and moves the camera to the head while ragdolled.</div>
+              <div class="sys__desc">Ragdoll for both R6 and R15 characters. Players can toggle it on and off, the camera follows while the character is down, and death ragdolls stay in the world. The server controls the state and limits rapid requests so the system stays predictable in multiplayer.</div>
               <div class="sys__actions">
-                <button class="sys__link preview-btn" data-project="ragdoll"><i class="fa-solid fa-code"></i> Preview</button>
-                <a href="https://gist.github.com/sacrificedDecro/73dcd544f72a06d6f445a9450c3fb91e" target="_blank" rel="noopener noreferrer" class="sys__link sys__link--gist"><i class="fa-brands fa-github"></i> Gist</a>
+                <button type="button" class="sys__link preview-btn" data-project="ragdoll"><i class="fa-solid fa-code"></i> Preview</button>
+                <a href="https://gist.github.com/sacrificedDecro/73dcd544f72a06d6f445a9450c3fb91e" target="_blank" rel="noopener noreferrer" class="sys__link sys__link--gist"><i class="fa-brands fa-github"></i> Gist <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></a>
                 <a href="https://www.roblox.com/games/14434670478/Ragdoll" target="_blank" rel="noopener noreferrer" class="sys__link sys__link--roblox"><i class="fa-solid fa-gamepad"></i> View on Roblox <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></a>
               </div>
             </div>
@@ -148,28 +160,39 @@
 
           <div class="sys reveal-el">
             <div class="sys__media">
-              <iframe src="https://streamable.com/o/pwv6n3" frameborder="0" allowfullscreen allow="autoplay" loading="lazy"></iframe>
+              <video class="sys__video" preload="metadata" playsinline controls loading="lazy" poster="https://cdn-cf-east.streamable.com/image/pwv6n3.jpg" aria-label="Inventory slot UI and custom interact prompt demo">
+                <source src="https://api-f.streamable.com/api/v1/videos/pwv6n3/mp4" type="video/mp4">
+                <a href="https://streamable.com/pwv6n3" target="_blank" rel="noopener noreferrer">Watch the demo on Streamable.</a>
+              </video>
             </div>
             <div class="sys__body">
               <div class="sys__ico"><i class="fa-solid fa-box-open"></i></div>
               <div class="sys__name">Inventory slot UI &amp; custom interact prompt</div>
-              <div class="sys__desc">A server-validated inventory and interaction system with three configurable slots, tagged world items, custom Highlight prompts, equip and drop tools, and server-confirmed feedback sounds. Items are checked for ownership, distance, free slots, and valid master definitions before pickup; inventory data is claimed and periodically renewed through a DataStore session lock. The client UI supports slot activation and keyboard shortcuts, while footsteps are timed from the R6 walk animation.</div>
+              <div class="sys__desc">Players can pick up tagged world items, place them in three slots, equip them, and drop them back into the world. Before an item moves, the server checks the item, distance, free slot, and ownership, helping prevent duplicate pickups. The slot UI and custom prompts can be adapted to your own item definitions.</div>
               <div class="sys__actions">
-                <button class="sys__link preview-btn" data-project="inventory"><i class="fa-solid fa-code"></i> Preview</button>
-                <a href="https://gist.github.com/sacrificedDecro/6efa8427d5a0e625de0174540d6203a0" target="_blank" rel="noopener noreferrer" class="sys__link sys__link--gist"><i class="fa-brands fa-github"></i> Gist</a>
+                <button type="button" class="sys__link preview-btn" data-project="inventory"><i class="fa-solid fa-code"></i> Preview</button>
+                <a href="https://gist.github.com/sacrificedDecro/6efa8427d5a0e625de0174540d6203a0" target="_blank" rel="noopener noreferrer" class="sys__link sys__link--gist"><i class="fa-brands fa-github"></i> Gist <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></a>
               </div>
             </div>
           </div>
 
-          <div class="sys sys--wide reveal-el">
+          <div class="sys sys--wide sys--tink reveal-el">
             <div class="sys__body">
               <div class="sys__ico"><i class="fa-solid fa-cubes"></i></div>
               <div class="sys__name">Tink — game framework</div>
-              <div class="sys__desc">A strict-typed Knit-style framework for Roblox services and controllers, built around Spark modules rather than the archived Knit codebase. It provides remote signals, remote properties, unreliable signals, per-player rate limiting, module discovery, and staged startup with per-service failure isolation and timeouts. The framework uses the evaera Promise library for asynchronous lifecycle hooks.</div>
+              <div class="sys__desc">Strictly typed Knit-style framework for Roblox services and controllers, built around Spark modules rather than the archived Knit codebase. It provides remote signals, remote properties, unreliable signals, per player rate limiting, module discovery, and staged startup with timeouts. Evaera Promise handles asynchronous startup hooks.</div>
               <div class="sys__actions">
-                <button class="sys__link preview-btn" data-project="tink"><i class="fa-solid fa-code"></i> Preview</button>
-                <a href="https://gist.github.com/sacrificedDecro/7195e6ca69e56347a1506a33294cb57a" target="_blank" rel="noopener noreferrer" class="sys__link sys__link--gist"><i class="fa-brands fa-github"></i> Gist</a>
+                <button type="button" class="sys__link preview-btn" data-project="tink"><i class="fa-solid fa-code"></i> Preview</button>
+                <a href="https://gist.github.com/sacrificedDecro/7195e6ca69e56347a1506a33294cb57a" target="_blank" rel="noopener noreferrer" class="sys__link sys__link--gist"><i class="fa-brands fa-github"></i> Gist <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></a>
               </div>
+            </div>
+            <div class="sys__tink-visual" aria-hidden="true">
+              <div class="tink-visual__mark">T</div>
+              <div class="tink-visual__rail"></div>
+              <div class="tink-visual__node tink-visual__node--services">Services</div>
+              <div class="tink-visual__node tink-visual__node--controllers">Controllers</div>
+              <div class="tink-visual__chip tink-visual__chip--signals">Remote signals</div>
+              <div class="tink-visual__chip tink-visual__chip--promise">Promise</div>
             </div>
           </div>
 
@@ -280,7 +303,7 @@
       <div class="w">
         <div class="tag reveal-el">Payment</div>
         <h2 class="sect-h reveal-el">How I work</h2>
-        <p class="pay-intro reveal-el">Pay per task by default. Each commission is broken into clear deliverables, and you pay for each one as it's delivered. If you'd rather use a simple 50/50 split, with half upfront and half on delivery, that works too. No revenue share and no "pay when the game ships." Gift cards and crypto aren't accepted; ask if you have something else in mind.</p>
+        <p class="pay-intro reveal-el">Most commissions are paid per task. We agree on clear steps, and you pay after each one is delivered. A 50/50 split also works: half before I start and half on delivery. I accept Robux, Mastercard transfers, gift cards, and crypto. I do not take revenue share or payment after a game ships.</p>
 
         <div class="info-grid">
           <div class="info-card reveal-el">
@@ -296,7 +319,7 @@
           <div class="info-card reveal-el">
             <i class="fa-solid fa-clock info-ico info-ico--amber"></i>
             <strong>Availability</strong>
-            <p>I'm available daily from 18:00 to 1:00 (UTC+3). I reply within hours on Discord and more slowly by email.</p>
+            <p>I'm available 6-12 hours a day (UTC+3). I reply within hours on Discord.</p>
           </div>
         </div>
 
@@ -311,7 +334,7 @@
             <div class="pay-ico pay-ico--sage"><i class="fa-regular fa-credit-card"></i></div>
             <div class="pay-name">Card-to-card</div>
             <div class="pay-handle">direct transfer</div>
-            <div class="pay-desc">Direct transfer to a standard bank card. Simple and quick, with no extra steps.</div>
+            <div class="pay-desc">Direct transfers to Mastercard are accepted.</div>
           </div>
         </div>
       </div>
@@ -323,7 +346,7 @@
         <p class="cta-p reveal-el">Available for commissions, full-time team roles, and collaboration. I build clean, scalable systems and deliver them on time.</p>
         <div class="cta-btns reveal-el">
           <a href="https://github.com/sacrificedDecro" target="_blank" rel="noopener noreferrer" class="btn btn--sec"><i class="fa-brands fa-github"></i> GitHub</a>
-          <button id="discordBtn" class="btn btn--main"><i class="fa-brands fa-discord"></i> <span>axalled</span></button>
+          <button type="button" id="discordBtn" class="btn btn--main"><i class="fa-brands fa-discord"></i> <span>morithell</span></button>
           <a href="https://www.roblox.com/users/2669200504/profile" target="_blank" rel="noopener noreferrer" class="btn btn--sec"><i class="fa-solid fa-cube"></i> Roblox</a>
         </div>
       </div>
@@ -337,12 +360,12 @@
     </div>
   </footer>
 
-  <div class="code-modal-overlay" id="codeModalOverlay" aria-hidden="true">
-    <div class="code-modal" role="dialog" aria-modal="true">
+  <div class="code-modal-overlay" id="codeModalOverlay" inert>
+    <div class="code-modal" role="dialog" aria-modal="true" aria-labelledby="codeModalTitle">
       <div class="code-modal__topbar">
         <div class="code-modal__tabs" id="codeModalTabs"></div>
         <span class="code-modal__title" id="codeModalTitle"></span>
-        <button class="modal-close-btn" id="codeModalClose" aria-label="Close preview"><i class="fa-solid fa-xmark"></i></button>
+        <button type="button" class="modal-close-btn" id="codeModalClose" aria-label="Close preview"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <div class="code-modal__body">
         <div class="code-modal__sidebar" id="codeModalSidebar">
